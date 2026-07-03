@@ -396,7 +396,7 @@ RandomTravel/
 ```jsonc
 {
   "event": "draw | redraw | like | navigate | visited",
-  "mode": "pure | filtered",
+  "mode": "pure | filtered",   // draw·redraw 에만 유효. like·navigate·visited 는 뽑기 시점 모드를 알 수 없어 null (M4 구현 확정)
   "areaCode": 39,
   "contentTypeId": 39,
   "contentId": "뽑힌 여행지 ID",
