@@ -5,6 +5,7 @@ import type { RandomResponse, ErrorResponse } from "@/types/tour";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
+import { SlotMachine } from "@/components/SlotMachine";
 import { buildRandomQuery } from "@/lib/query";
 
 type Status =
@@ -18,6 +19,8 @@ export default function Home() {
   const [areas, setAreas] = useState<Set<number>>(new Set());
   const [types, setTypes] = useState<Set<number>>(new Set());
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
+  const [seq, setSeq] = useState(0);
 
   const toggleArea = (code: number) =>
     setAreas((prev) => {
@@ -40,6 +43,7 @@ export default function Home() {
 
   async function draw() {
     setStatus({ kind: "loading" });
+    setSeq((s) => s + 1);
 
     // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
     const qs = buildRandomQuery(mode, areas, types);
@@ -96,7 +100,10 @@ export default function Home() {
         {loading ? "여행지를 뽑는 중…" : "🎲 뽑기"}
       </button>
 
-      {status.kind === "ok" && <ResultCard data={status.data} onRedraw={draw} />}
+      {status.kind === "loading" && <SlotMachine />}
+      {status.kind === "ok" && (
+        <ResultCard key={seq} data={status.data} onRedraw={draw} />
+      )}
       {status.kind === "error" && <ErrorPanel error={status.error} />}
       {status.kind === "idle" && (
         <p className="text-center text-sm text-zinc-400">
