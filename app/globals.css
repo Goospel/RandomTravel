@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── M3 뽑기 애니메이션 ─────────────────────────────
+   슬롯 릴은 리스트를 2번 이어 붙인 컬럼을 -50%까지 밀어 무한 반복(이음새 없음).
+   카드 등장은 살짝 떠오르며 페이드인. */
+@keyframes slot-spin {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-slot-spin {
+  animation: slot-spin 0.6s linear infinite;
+  will-change: transform;
+}
+
+.animate-card-reveal {
+  animation: card-reveal 0.4s ease-out both;
+}
+
+/* 접근성: 모션 최소화 설정이면 회전·등장 애니메이션을 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slot-spin,
+  .animate-card-reveal {
+    animation: none;
+  }
+}
