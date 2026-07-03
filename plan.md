@@ -425,6 +425,7 @@ RandomTravel/
 - **순수 랜덤 타입 범위** — ✅ **M1: `RANDOM_DEFAULT_TYPES`=[12·14·15·25·28]**(숙박32·쇼핑38·음식39 제외) 잠정 채택. 사용 로그 보고 조정.
 - **뽑기 애니메이션 수준** — ✅ **M3: 슬롯머신 채택**. 지역·테마 **2릴**을 CSS만으로 무한 회전(`components/SlotMachine.tsx` + `globals.css` `slot-spin`), 결과는 `card-reveal` 로 페이드+상승 등장. ⚠️ **추가 API 호출 0**(§5.6): 릴에 도는 이름은 로컬 상수(`AREA_CODES`·`CONTENT_TYPES`)일 뿐 실제 뽑기는 서버 1건. `prefers-reduced-motion` 시 애니메이션 off.
 - **결과 카드 지도 링크** — ✅ **M3: 카카오맵 좌표 딥링크 채택**(§7.2). `lib/mapLink.ts`(순수·TDD): 좌표 있으면 `link/map`·`link/to`(길찾기), 없으면 이름으로 `link/search` 폴백. M1~M2 임시 구글맵 링크에서 전환. 카카오 장소ID 매칭은 백로그 유지.
+- **배포 함수 리전** — ✅ **M5: 서울(`icn1`) 고정** (`vercel.json` `regions:["icn1"]`). 기본 `iad1`(US)에선 뽑기 1건당 한국 TourAPI를 3회 **순차**(개수→항목→개요, 의존 체인이라 병렬 불가) 왕복해 1.4~4.2s 소요 → 함수 실행 리전을 서울로 옮겨 단축. ⚠️ Hobby는 **단일 리전만**(배열에 2개↑면 빌드 전 배포 실패). ⚠️ Next.js `preferredRegion='icn1'`은 **함정**(Node 런타임 무시, Vercel Edge는 `auto|global|home`만) — 반드시 `vercel.json`으로. 검증: 응답 `x-vercel-id` compute 세그먼트가 `icn1`.
 - **TourAPI 버전** — ✅ **KorService2 확정**(§5). 오퍼레이션 접미사 `2`, `detailCommon2`는 `contentId`만.
 - **빈 결과 대응** — ✅ **M1: `EMPTY_POOL`(404)** + 인덱스/조합 재추첨 구현. UI 완화 제안(조건 끄기 등)은 M2 조건 UI와 함께.
 - **`searchFestival` 날짜 파라미터 의미 검증**: "오늘 진행 중" 조회가 파라미터 한 번에 되는지, 시작일·종료일 조합이 필요한지 실제 응답으로 확인
