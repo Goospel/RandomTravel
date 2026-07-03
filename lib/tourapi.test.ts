@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizePlace } from "@/lib/tourapi";
+import { normalizePlace, weightedIndex } from "@/lib/tourapi";
 import type { TourApiItem } from "@/types/tour";
 
 const base: TourApiItem = {
@@ -55,5 +55,25 @@ describe("normalizePlace — 응답 정규화", () => {
       null,
     );
     expect(p.image).toBe("http://img/thumb.jpg");
+  });
+});
+
+describe("weightedIndex — 🌊 바다 totalCount 가중 선택(§6.3)", () => {
+  it("rand 로 경계 구간을 정확히 고른다(누적합 반열림)", () => {
+    // 가중치 [10,30,60] → 누적경계 0.1, 0.4, 1.0
+    expect(weightedIndex([10, 30, 60], 0.0)).toBe(0);
+    expect(weightedIndex([10, 30, 60], 0.05)).toBe(0);
+    expect(weightedIndex([10, 30, 60], 0.2)).toBe(1);
+    expect(weightedIndex([10, 30, 60], 0.5)).toBe(2);
+    expect(weightedIndex([10, 30, 60], 0.999)).toBe(2);
+  });
+  it("합이 0이면 0(모든 조합 빈 경우 방어)", () => {
+    expect(weightedIndex([0, 0], 0.5)).toBe(0);
+  });
+  it("큰 가중치가 더 자주 뽑힌다(치우침 확인)", () => {
+    // rand=0.5 는 [1,99] 에서 반드시 index 1(99쪽)
+    expect(weightedIndex([1, 99], 0.5)).toBe(1);
+    // rand=0.005 는 index 0(1쪽) — 좁은 구간만 0
+    expect(weightedIndex([1, 99], 0.005)).toBe(0);
   });
 });

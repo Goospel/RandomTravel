@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseAreaCodes,
   parseContentTypeIds,
+  parseBool,
   buildRandomQuery,
 } from "@/lib/query";
 
@@ -66,5 +67,70 @@ describe("buildRandomQuery — '조건 0개 = 완전 랜덤' 불변식(§2)", ()
     );
     expect(parseAreaCodes(p.get("areas"))).toEqual([32, 39]);
     expect(parseContentTypeIds(p.get("types"))).toEqual([39]);
+  });
+});
+
+describe("parseBool — 추가 조건 플래그(🌊 바다·🦀 제철)", () => {
+  it("1·true·yes·on 은 true(대소문자·공백 무시)", () => {
+    for (const v of ["1", "true", "TRUE", " yes ", "on"]) {
+      expect(parseBool(v)).toBe(true);
+    }
+  });
+  it("0·false·빈값·null 은 false", () => {
+    for (const v of ["0", "false", "", "aaa"]) expect(parseBool(v)).toBe(false);
+    expect(parseBool(null)).toBe(false);
+  });
+});
+
+describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
+  it("seaside/seasonal 을 켜면 seaside=1·seasonal=1 파라미터", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        seaside: true,
+        seasonal: true,
+      }),
+    );
+    expect(p.get("seaside")).toBe("1");
+    expect(p.get("seasonal")).toBe("1");
+  });
+  it("추가 조건만 켜도 완전 랜덤이 아님(파라미터 존재)", () => {
+    // 지역·테마 0개여도 바다/제철 자체가 '조건'이라 빈 문자열이 아니다
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), { seaside: true }),
+    ).toBe("seaside=1");
+  });
+  it("끈 옵션은 파라미터에 넣지 않는다", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([1]), new Set(), { seasonal: true }),
+    );
+    expect(p.has("seaside")).toBe(false);
+    expect(p.get("seasonal")).toBe("1");
+    expect(p.get("areas")).toBe("1");
+  });
+  it("바다 ON이면 선택된 테마를 URL에 싣지 않는다(서버가 관광지12로 고정·무시)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set([39, 32]), {
+        seaside: true,
+      }),
+    );
+    expect(p.has("types")).toBe(false); // 테마 생략
+    expect(p.get("areas")).toBe("32"); // 지역은 유지(바다도 지역 사용)
+    expect(p.get("seaside")).toBe("1");
+  });
+  it("바다 OFF면 테마를 정상 전송(회귀)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set([39]), {
+        seasonal: true,
+      }),
+    );
+    expect(p.get("types")).toBe("39");
+  });
+  it("순수 모드는 추가 조건이 켜져도 항상 빈 문자열", () => {
+    expect(
+      buildRandomQuery("pure", new Set(), new Set(), {
+        seaside: true,
+        seasonal: true,
+      }),
+    ).toBe("");
   });
 });

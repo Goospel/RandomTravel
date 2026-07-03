@@ -20,6 +20,8 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>("pure");
   const [areas, setAreas] = useState<Set<number>>(new Set());
   const [types, setTypes] = useState<Set<number>>(new Set());
+  const [seaside, setSeaside] = useState(false); // 🌊 바다 (§6.3)
+  const [seasonal, setSeasonal] = useState(false); // 🦀 제철 (§6.4)
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
@@ -42,6 +44,8 @@ export default function Home() {
   const clearFilters = () => {
     setAreas(new Set());
     setTypes(new Set());
+    setSeaside(false);
+    setSeasonal(false);
   };
 
   async function draw(isRedraw: boolean) {
@@ -49,7 +53,7 @@ export default function Home() {
     setSeq((s) => s + 1);
 
     // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
-    const qs = buildRandomQuery(mode, areas, types);
+    const qs = buildRandomQuery(mode, areas, types, { seaside, seasonal });
     const url = qs ? `/api/random?${qs}` : "/api/random";
 
     try {
@@ -92,8 +96,12 @@ export default function Home() {
             <FilterPanel
               selectedAreas={areas}
               selectedTypes={types}
+              seaside={seaside}
+              seasonal={seasonal}
               onToggleArea={toggleArea}
               onToggleType={toggleType}
+              onToggleSeaside={() => setSeaside((v) => !v)}
+              onToggleSeasonal={() => setSeasonal((v) => !v)}
               onClear={clearFilters}
             />
           )}

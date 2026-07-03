@@ -68,6 +68,19 @@ export function ResultCard({
               {typeName}
             </span>
           )}
+          {data.picked.seaside && (
+            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+              {data.picked.seaside.emoji} {data.picked.seaside.category}
+            </span>
+          )}
+          {data.picked.seasonal && data.picked.seasonal.items.length > 0 && (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              지금 제철{" "}
+              {data.picked.seasonal.items
+                .map((s) => `${s.emoji}${s.item}`)
+                .join(" · ")}
+            </span>
+          )}
         </div>
 
         <h2 className="text-xl font-bold leading-snug">{place.title}</h2>
