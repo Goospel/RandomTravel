@@ -170,7 +170,10 @@ function toNum(s?: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizePlace(item: TourApiItem, overview: string | null): Place {
+export function normalizePlace(
+  item: TourApiItem,
+  overview: string | null,
+): Place {
   const address = [item.addr1, item.addr2].filter(Boolean).join(" ").trim();
   const ctid = Number(item.contenttypeid); // 누락 시 NaN 방어
   return {
@@ -186,13 +189,20 @@ function normalizePlace(item: TourApiItem, overview: string | null): Place {
   };
 }
 
-function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+/** Fisher-Yates in-place 셔플 */
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 export interface DrawParams {
-  areaCode?: number;
-  contentTypeId?: number;
+  /** 선택된 지역들 — 비면 전국 */
+  areaCodes?: number[];
+  /** 선택된 관광 타입들 — 비면 RANDOM_DEFAULT_TYPES */
+  contentTypeIds?: number[];
 }
 
 export interface DrawResult {
@@ -202,27 +212,48 @@ export interface DrawResult {
 
 /**
  * 랜덤 여행지 1건.
- *  - contentTypeId 미지정: RANDOM_DEFAULT_TYPES 에서 타입을 균등 선택(각 20%) 후
- *    그 타입 내에서 전국 항목을 균등 추출 → 순수 랜덤(= 타입 균등, 항목 균등 아님).
- *    진짜 '항목 균등'은 타입별 totalCount 가중이 필요 — plan.md §13 미결정.
- *  - areaCode 미지정: 전국 대상. 지정되면 그 지역 풀로 한정(조건 랜덤, M2).
+ *  - contentTypeIds 미지정: RANDOM_DEFAULT_TYPES 에서 타입 선택 → 타입 균등(항목 균등 아님, §13).
+ *  - areaCodes 미지정: 전국 대상. 지정되면 그 지역들 중에서.
+ *  - 둘 다 비면 완전 랜덤 — "조건 0개 = 완전 랜덤" 불변식(§2)이 구조로 보장된다.
+ *
+ * (지역×타입) 조합을 전부 만들어 셔플한 뒤 **중복 없이** 순회한다.
+ * 매번 무작위 재추첨하던 방식과 달리, 유효 데이터가 극소수 조합에만 있어도
+ * 예산 안에서 그 조합을 찾아낸다(넓은 다중선택의 false-negative 방지).
  *  ※ getTotalCount 는 24h 캐시(§5.6)라, count가 늘어난 직후 새 꼬리 항목은
  *    최대 24h 노출이 지연될 수 있다(허용 트레이드오프).
  */
 export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
-  const typePool = params.contentTypeId
-    ? [params.contentTypeId]
-    : RANDOM_DEFAULT_TYPES;
+  const typePool =
+    params.contentTypeIds && params.contentTypeIds.length > 0
+      ? params.contentTypeIds
+      : RANDOM_DEFAULT_TYPES;
+  const areaPool =
+    params.areaCodes && params.areaCodes.length > 0 ? params.areaCodes : null;
 
-  const MAX_COMBO_TRIES = 8;
+  // 모든 (지역,타입) 조합 → 셔플 → 중복 없이 순회
+  const combos: Query[] = [];
+  for (const contentTypeId of typePool) {
+    if (areaPool) {
+      for (const areaCode of areaPool) combos.push({ contentTypeId, areaCode });
+    } else {
+      combos.push({ contentTypeId });
+    }
+  }
+  shuffle(combos);
+
+  const COMBO_BUDGET = 34; // 상류 getTotalCount 호출 상한 (대부분 24h 캐시)
   const MAX_INDEX_TRIES = 3;
+  const limit = Math.min(combos.length, COMBO_BUDGET);
+  if (combos.length > COMBO_BUDGET) {
+    console.warn(
+      `[drawRandom] 조합 ${combos.length}개 중 ${COMBO_BUDGET}개만 탐색(예산 상한).`,
+    );
+  }
 
-  for (let combo = 0; combo < MAX_COMBO_TRIES; combo++) {
-    const contentTypeId = pick(typePool);
-    const q: Query = { contentTypeId, areaCode: params.areaCode };
-
+  for (let i = 0; i < limit; i++) {
+    const q = combos[i];
     const totalCount = await getTotalCount(q);
-    if (totalCount <= 0) continue; // 빈 조합 → 다른 타입으로
+    if (totalCount <= 0) continue; // 빈 조합 → 다음 조합
 
     for (let t = 0; t < MAX_INDEX_TRIES; t++) {
       const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
@@ -233,8 +264,8 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
       return {
         place: normalizePlace(item, overview),
         picked: {
-          areaCode: item.areacode ? Number(item.areacode) : (params.areaCode ?? null),
-          contentTypeId,
+          areaCode: item.areacode ? Number(item.areacode) : (q.areaCode ?? null),
+          contentTypeId: q.contentTypeId,
           totalCount,
         },
       };

@@ -55,3 +55,4 @@ export const CONTENT_TYPE_NAME: Record<number, string> = Object.fromEntries(
 );
 
 export const ALL_AREA_CODES: number[] = AREA_CODES.map((a) => a.code);
+export const ALL_CONTENT_TYPE_CODES: number[] = CONTENT_TYPES.map((c) => c.code);

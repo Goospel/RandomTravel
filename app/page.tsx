@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import type { RandomResponse, ErrorResponse } from "@/types/tour";
-import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
+import { ModeToggle, type Mode } from "@/components/ModeToggle";
+import { FilterPanel } from "@/components/FilterPanel";
+import { ResultCard } from "@/components/ResultCard";
+import { buildRandomQuery } from "@/lib/query";
 
 type Status =
   | { kind: "idle" }
@@ -11,12 +14,39 @@ type Status =
   | { kind: "error"; error: ErrorResponse };
 
 export default function Home() {
+  const [mode, setMode] = useState<Mode>("pure");
+  const [areas, setAreas] = useState<Set<number>>(new Set());
+  const [types, setTypes] = useState<Set<number>>(new Set());
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  const toggleArea = (code: number) =>
+    setAreas((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  const toggleType = (code: number) =>
+    setTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  const clearFilters = () => {
+    setAreas(new Set());
+    setTypes(new Set());
+  };
 
   async function draw() {
     setStatus({ kind: "loading" });
+
+    // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
+    const qs = buildRandomQuery(mode, areas, types);
+    const url = qs ? `/api/random?${qs}` : "/api/random";
+
     try {
-      const res = await fetch("/api/random", { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         const error = (await res.json().catch(() => ({
           error: "알 수 없는 오류가 발생했어요.",
@@ -37,7 +67,7 @@ export default function Home() {
   const loading = status.kind === "loading";
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-8 px-5 py-12">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-5 py-10">
       <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">🎲 RandomTravel</h1>
         <p className="mt-2 text-sm text-zinc-500">
@@ -45,7 +75,20 @@ export default function Home() {
         </p>
       </header>
 
+      <ModeToggle mode={mode} onChange={setMode} />
+
+      {mode === "filtered" && (
+        <FilterPanel
+          selectedAreas={areas}
+          selectedTypes={types}
+          onToggleArea={toggleArea}
+          onToggleType={toggleType}
+          onClear={clearFilters}
+        />
+      )}
+
       <button
+        type="button"
         onClick={draw}
         disabled={loading}
         className="w-full rounded-2xl bg-indigo-600 px-6 py-5 text-lg font-semibold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-60"
@@ -56,91 +99,13 @@ export default function Home() {
       {status.kind === "ok" && <ResultCard data={status.data} onRedraw={draw} />}
       {status.kind === "error" && <ErrorPanel error={status.error} />}
       {status.kind === "idle" && (
-        <p className="mt-4 text-center text-sm text-zinc-400">
-          버튼을 눌러 전국 어디든 랜덤으로 한 곳을 받아보세요.
+        <p className="text-center text-sm text-zinc-400">
+          {mode === "pure"
+            ? "버튼을 눌러 전국 어디든 랜덤으로 한 곳을 받아보세요."
+            : "조건을 고르고 뽑거나, 아무것도 안 고르면 완전 랜덤이에요."}
         </p>
       )}
     </main>
-  );
-}
-
-function ResultCard({
-  data,
-  onRedraw,
-}: {
-  data: RandomResponse;
-  onRedraw: () => void;
-}) {
-  const { place } = data;
-  const areaName =
-    place.areaCode != null ? AREA_NAME[place.areaCode] : undefined;
-  const typeName = CONTENT_TYPE_NAME[place.contentTypeId];
-  const mapHref =
-    place.lat != null && place.lng != null
-      ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`
-      : null;
-
-  return (
-    <article className="w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800">
-        {place.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={place.image}
-            alt={place.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl">
-            🏞️
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-3 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          {areaName && (
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-              {areaName}
-            </span>
-          )}
-          {typeName && (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {typeName}
-            </span>
-          )}
-        </div>
-
-        <h2 className="text-xl font-bold leading-snug">{place.title}</h2>
-        {place.address && (
-          <p className="text-sm text-zinc-500">{place.address}</p>
-        )}
-        {place.overview && (
-          <p className="line-clamp-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            {place.overview}
-          </p>
-        )}
-
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={onRedraw}
-            className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
-          >
-            🎲 다시 뽑기
-          </button>
-          {mapHref && (
-            <a
-              href={mapHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              지도에서 보기
-            </a>
-          )}
-        </div>
-      </div>
-    </article>
   );
 }
 
