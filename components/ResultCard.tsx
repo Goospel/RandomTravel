@@ -8,9 +8,19 @@ import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 export function ResultCard({
   data,
   onRedraw,
+  saved,
+  visited,
+  onToggleSave,
+  onToggleVisit,
+  onNavigate,
 }: {
   data: RandomResponse;
   onRedraw: () => void;
+  saved: boolean;
+  visited: boolean;
+  onToggleSave: () => void;
+  onToggleVisit: () => void;
+  onNavigate: () => void;
 }) {
   const { place } = data;
   const [imgError, setImgError] = useState(false);
@@ -70,7 +80,36 @@ export function ResultCard({
           </p>
         )}
 
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onToggleSave}
+            aria-pressed={saved}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+              saved
+                ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            }`}
+          >
+            <span aria-hidden>{saved ? "♥" : "♡"}</span>
+            {saved ? "찜함" : "찜"}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleVisit}
+            aria-pressed={visited}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+              visited
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            }`}
+          >
+            <span aria-hidden>{visited ? "✔" : "➕"}</span>
+            {visited ? "다녀옴" : "다녀왔어요"}
+          </button>
+        </div>
+
+        <div className="mt-1 flex flex-col gap-2">
           <button
             type="button"
             onClick={onRedraw}
@@ -85,6 +124,7 @@ export function ResultCard({
                   href={mapHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={onNavigate}
                   className="flex flex-1 items-center justify-center rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   🗺️ 지도에서 보기
@@ -95,6 +135,7 @@ export function ResultCard({
                   href={routeHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={onNavigate}
                   className="flex flex-1 items-center justify-center rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   🧭 길찾기

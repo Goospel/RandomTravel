@@ -31,11 +31,8 @@ function Reel({ items, duration }: { items: string[]; duration: string }) {
 
 export function SlotMachine() {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50"
-    >
+    <div className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+      {/* aria-live 는 상위 결과 컨테이너(page.tsx)가 담당 — 중첩 live region 방지 */}
       <div className="flex gap-3">
         <Reel items={REGIONS} duration="0.5s" />
         <Reel items={THEMES} duration="0.72s" />
