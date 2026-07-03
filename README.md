@@ -29,22 +29,22 @@
 
 ## 🚀 시작하기
 
-> ⚠️ 현재 **설계 단계**입니다. 구현이 시작되면 이 섹션이 채워집니다.
-
 ```bash
-# (예정)
 npm install
-npm run dev
+
+# 환경변수 준비 — 예시 파일을 복사해 서비스키를 채웁니다
+cp .env.local.example .env.local
+#  (Windows PowerShell) Copy-Item .env.local.example .env.local
+
+npm run dev   # → http://localhost:3000
 ```
 
-환경변수 `.env.local`:
+`.env.local`에 채울 값 (자세한 안내는 [`.env.local.example`](.env.local.example)):
 
 ```
-TOUR_API_KEY=공공데이터포털에서_발급받은_서비스키
-# ☔ 날씨 필터용 (M7부터 필요)
-WEATHER_API_KEY=기상청_단기예보_서비스키
-# 🗺️ 내 여행 지도용 (M8부터 필요) — 브라우저 노출 전제 키, 도메인 등록으로 보호
-NEXT_PUBLIC_KAKAO_MAP_KEY=카카오디벨로퍼스_JavaScript_키
+TOUR_API_KEY=공공데이터포털_일반인증키(Decoding)      # 필수 (M1)
+# WEATHER_API_KEY=기상청_단기예보_서비스키             # ☔ M7부터
+# NEXT_PUBLIC_KAKAO_MAP_KEY=카카오_JavaScript_키        # 🗺️ M8부터
 ```
 
 > 서비스키는 [공공데이터포털](https://www.data.go.kr) → "한국관광공사_국문 관광정보 서비스" 활용신청(무료)으로 발급. 날씨 필터용 "기상청_단기예보 조회서비스"도 같은 계정으로 활용신청. **둘 다 서버에서만 쓰이며 브라우저에 노출되지 않는다** (자세한 이유는 설계 문서 참고).
@@ -60,8 +60,8 @@ NEXT_PUBLIC_KAKAO_MAP_KEY=카카오디벨로퍼스_JavaScript_키
 ## 📋 진행 상황
 
 - [x] 서비스 컨셉 & 설계 확정
-- [ ] 프로젝트 골격 셋업
-- [ ] TourAPI 프록시 (API Route)
+- [x] 프로젝트 골격 셋업 (M1)
+- [x] TourAPI 프록시 (API Route) (M1)
 - [ ] 두 모드 + 조건 선택 UI
 - [ ] 결과 카드 + 뽑기 애니메이션
 - [ ] 찜 / 최근 기록
