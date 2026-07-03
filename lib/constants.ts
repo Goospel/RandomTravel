@@ -56,3 +56,61 @@ export const CONTENT_TYPE_NAME: Record<number, string> = Object.fromEntries(
 
 export const ALL_AREA_CODES: number[] = AREA_CODES.map((a) => a.code);
 export const ALL_CONTENT_TYPE_CODES: number[] = CONTENT_TYPES.map((c) => c.code);
+
+// ─── 🌊 바다 필터 (M6, plan.md §6.3) ────────────────────────────────
+// 대분류 A01(자연) > 중분류 A0101(자연관광지)의 바다 소분류 4종.
+// areaBasedList2 의 cat3 파라미터로 그대로 사용 — 추가 API·키 불필요.
+
+export interface SeaCategory {
+  cat3: string;
+  name: string;
+  emoji: string;
+}
+
+export const SEA_CAT3: SeaCategory[] = [
+  { cat3: "A01011100", name: "해안절경", emoji: "🌅" },
+  { cat3: "A01011200", name: "해수욕장", emoji: "🏖️" },
+  { cat3: "A01011300", name: "섬", emoji: "🏝️" },
+  { cat3: "A01011400", name: "항구·포구", emoji: "⚓" },
+];
+
+// ─── 🦀 제철 달력 (M6, plan.md §6.4) ────────────────────────────────
+// "이번 달 제철 재료 → 산지 시·도" 완성형 공공 API가 없어 정적 테이블로 구축.
+// months = 제철 월(1-12, 걸침은 배열에 명시), areaCodes = 주산지 시·도(§5.4 코드).
+// ⚠️ 1차 편성 — 널리 알려진 특산물·산지 위주. §13 백로그 "제철 달력 검수" 대상.
+
+export interface SeasonalItem {
+  item: string;
+  emoji: string;
+  months: number[];
+  areaCodes: number[];
+}
+
+export const SEASONAL_CALENDAR: SeasonalItem[] = [
+  // 겨울 (11~2월 걸침)
+  { item: "대게", emoji: "🦀", months: [11, 12, 1, 2, 3], areaCodes: [35, 32] }, // 경북(울진·영덕)·강원
+  { item: "방어", emoji: "🐟", months: [12, 1, 2], areaCodes: [39] }, // 제주(모슬포)
+  { item: "굴", emoji: "🦪", months: [11, 12, 1, 2], areaCodes: [36, 38] }, // 경남(통영)·전남(여수)
+  { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39] }, // 제주
+  { item: "딸기", emoji: "🍓", months: [1, 2, 3, 4], areaCodes: [34, 36] }, // 충남(논산)·경남(진주)
+  { item: "사과", emoji: "🍎", months: [10, 11, 12], areaCodes: [35, 33] }, // 경북(청송)·충북(충주)
+  // 봄 (3~5월)
+  { item: "주꾸미", emoji: "🐙", months: [3, 4], areaCodes: [34, 37] }, // 충남(서천)·전북(군산)
+  { item: "멸치", emoji: "🐟", months: [4, 5, 6], areaCodes: [6, 36] }, // 부산(기장)·경남(남해)
+  { item: "매실", emoji: "🟢", months: [6], areaCodes: [38] }, // 전남(광양)
+  // 여름 (6~8월)
+  { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35] }, // 경북(성주)
+  { item: "자두", emoji: "🟣", months: [6, 7], areaCodes: [35] }, // 경북(김천)
+  { item: "마늘", emoji: "🧄", months: [6, 7], areaCodes: [36, 38] }, // 경남(남해)·전남(고흥)
+  { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32] }, // 강원(홍천·평창)
+  { item: "복숭아", emoji: "🍑", months: [7, 8], areaCodes: [35, 33] }, // 경북(청도)·충북(음성)
+  { item: "수박", emoji: "🍉", months: [7, 8], areaCodes: [34, 36] }, // 충남(부여)·경남(함안)
+  { item: "전복", emoji: "🐚", months: [6, 7, 8], areaCodes: [38] }, // 전남(완도)
+  // 가을 (9~10월)
+  { item: "전어", emoji: "🐟", months: [9, 10, 11], areaCodes: [38, 34] }, // 전남(광양)·충남(서천)
+  { item: "포도", emoji: "🍇", months: [8, 9], areaCodes: [33, 35] }, // 충북(영동)·경북(상주)
+  { item: "갈치", emoji: "🐟", months: [8, 9, 10, 11], areaCodes: [39, 38] }, // 제주·전남(목포)
+  { item: "대하", emoji: "🦐", months: [9, 10], areaCodes: [34, 2] }, // 충남(태안)·인천(연평)
+  { item: "배", emoji: "🍐", months: [9, 10], areaCodes: [38] }, // 전남(나주)
+  { item: "오징어", emoji: "🦑", months: [8, 9, 10, 11], areaCodes: [32, 35] }, // 강원(속초)·경북(울릉)
+];

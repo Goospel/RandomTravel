@@ -4,7 +4,7 @@
 
 import { type NextRequest } from "next/server";
 import { drawRandom, TourApiError } from "@/lib/tourapi";
-import { parseAreaCodes, parseContentTypeIds } from "@/lib/query";
+import { parseAreaCodes, parseContentTypeIds, parseBool } from "@/lib/query";
 import type { ErrorResponse } from "@/types/tour";
 
 export async function GET(request: NextRequest) {
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   const typesRaw = sp.get("types");
   const areaCodes = parseAreaCodes(areasRaw); // 정수·양수·화이트리스트·중복제거
   const contentTypeIds = parseContentTypeIds(typesRaw);
+  const seaside = parseBool(sp.get("seaside")); // 🌊 바다 (§6.3)
+  const seasonal = parseBool(sp.get("seasonal")); // 🦀 제철 (§6.4)
 
   // 파라미터에 '내용'이 있는데 유효 코드가 하나도 없으면(조작된 URL 등) 잘못된 요청 —
   // 상류 API 호출을 낭비하지 않고 400으로 명확히 응답한다.
@@ -31,7 +33,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await drawRandom({ areaCodes, contentTypeIds });
+    const result = await drawRandom({
+      areaCodes,
+      contentTypeIds,
+      seaside,
+      seasonal,
+    });
     return Response.json(result);
   } catch (e) {
     if (e instanceof TourApiError) {
