@@ -103,7 +103,11 @@ export function FilterPanel({
             테마
           </h3>
           <span aria-live="polite" className="text-xs text-zinc-400">
-            {selectedTypes.size > 0 ? `${selectedTypes.size}종 선택` : "전체"}
+            {seaside
+              ? "관광지 고정"
+              : selectedTypes.size > 0
+                ? `${selectedTypes.size}종 선택`
+                : "전체"}
           </span>
         </div>
         <div
@@ -116,9 +120,11 @@ export function FilterPanel({
               key={c.code}
               type="button"
               onClick={() => onToggleType(c.code)}
-              aria-pressed={selectedTypes.has(c.code)}
+              // 바다 ON이면 테마가 무시되므로 '눌림'을 보고하지 않는다(안내문과 일치).
+              // undefined면 aria-pressed 속성 자체가 빠져 '토글 아님'으로 읽힌다.
+              aria-pressed={seaside ? undefined : selectedTypes.has(c.code)}
               disabled={seaside}
-              className={`${chip(selectedTypes.has(c.code))} disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`${chip(!seaside && selectedTypes.has(c.code))} disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {c.name}
             </button>

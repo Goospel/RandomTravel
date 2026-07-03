@@ -6,9 +6,21 @@
 import { SEASONAL_CALENDAR, ALL_AREA_CODES } from "@/lib/constants";
 import type { SeasonalItem } from "@/lib/constants";
 
-/** 현재 월(1-12). 서버 런타임 기준 — 테스트는 month 를 직접 넘겨 결정적으로 검증. */
+/**
+ * 현재 월(1-12) — 항상 **한국 표준시(KST)** 기준.
+ *
+ * ⚠️ Vercel 서버리스 런타임의 프로세스 TZ 는 함수 리전(icn1=서울)과 무관하게 UTC 라,
+ * `now.getMonth()` 를 쓰면 KST 매월 1일 00:00~08:59(=전일 15:00~23:59 UTC) 9시간 동안
+ * 전월로 오분류된다 → 제철 지역 풀·"지금 제철" 배지가 틀린 달을 사실처럼 노출.
+ * Intl 로 Asia/Seoul 을 고정해 서버 TZ 와 무관하게 KST 월을 얻는다.
+ * (테스트는 now 를 주입해 UTC 전날/KST 이번달 경계를 결정적으로 검증.)
+ */
 export function currentMonth(now: Date = new Date()): number {
-  return now.getMonth() + 1;
+  const kst = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+  }).format(now);
+  return Number(kst);
 }
 
 /** 이번 달 제철 품목들 */

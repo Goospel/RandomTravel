@@ -21,9 +21,11 @@ export async function GET(request: NextRequest) {
   // (빈 값 `?areas=` 는 "필터 없음"으로 보고 완전 랜덤으로 흘려보낸다.)
   const areasGiven = !!areasRaw && areasRaw.trim() !== "";
   const typesGiven = !!typesRaw && typesRaw.trim() !== "";
+  // 🌊 바다면 서버가 types 를 무시(관광지12 고정)하므로, 무시될 types 가 무효라고
+  // 요청 전체를 400 으로 막지 않는다(areas 는 바다 경로에서도 쓰이므로 검사 유지).
   if (
     (areasGiven && areaCodes.length === 0) ||
-    (typesGiven && contentTypeIds.length === 0)
+    (!seaside && typesGiven && contentTypeIds.length === 0)
   ) {
     const body: ErrorResponse = {
       error: "요청한 지역·테마 코드가 올바르지 않아요.",

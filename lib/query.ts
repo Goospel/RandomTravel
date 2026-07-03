@@ -60,7 +60,9 @@ export function buildRandomQuery(
   const a = [...areas];
   const t = [...types];
   if (a.length > 0) params.set("areas", a.join(","));
-  if (t.length > 0) params.set("types", t.join(","));
+  // 🌊 바다면 타입이 관광지(12)로 고정돼 서버가 types 를 무시한다 → URL 에도 싣지 않아
+  // 표시·전송·서버 동작을 일치시킨다(선택 state 는 보존돼 바다를 끄면 복원).
+  if (t.length > 0 && !opts.seaside) params.set("types", t.join(","));
   if (opts.seaside) params.set("seaside", "1");
   if (opts.seasonal) params.set("seasonal", "1");
   return params.toString();

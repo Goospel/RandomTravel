@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  currentMonth,
   seasonalItemsForMonth,
   seasonalAreaCodes,
   narrowBySeasonal,
@@ -15,6 +16,20 @@ const FIX: SeasonalItem[] = [
   { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32] },
   { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39] },
 ];
+
+describe("currentMonth — 항상 KST 기준(서버 UTC 월경계 방어)", () => {
+  it("KST 자정 직후(=UTC 전날 15시 이후)에도 KST 월을 준다", () => {
+    // 2026-07-01 05:00 KST = 2026-06-30 20:00 UTC → getMonth()면 6, KST면 7
+    expect(currentMonth(new Date(Date.UTC(2026, 5, 30, 20, 0)))).toBe(7);
+  });
+  it("KST 월말 밤(=같은 날 UTC 오후)도 그 달", () => {
+    // 2026-07-31 23:00 KST = 2026-07-31 14:00 UTC
+    expect(currentMonth(new Date(Date.UTC(2026, 6, 31, 14, 0)))).toBe(7);
+  });
+  it("연말 경계: 2027-01-01 08:00 KST = 2026-12-31 23:00 UTC → 1월", () => {
+    expect(currentMonth(new Date(Date.UTC(2026, 11, 31, 23, 0)))).toBe(1);
+  });
+});
 
 describe("seasonalItemsForMonth — 이번 달 제철 품목", () => {
   it("해당 월을 months 에 포함한 품목만", () => {

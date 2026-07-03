@@ -107,6 +107,24 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
     expect(p.get("seasonal")).toBe("1");
     expect(p.get("areas")).toBe("1");
   });
+  it("바다 ON이면 선택된 테마를 URL에 싣지 않는다(서버가 관광지12로 고정·무시)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set([39, 32]), {
+        seaside: true,
+      }),
+    );
+    expect(p.has("types")).toBe(false); // 테마 생략
+    expect(p.get("areas")).toBe("32"); // 지역은 유지(바다도 지역 사용)
+    expect(p.get("seaside")).toBe("1");
+  });
+  it("바다 OFF면 테마를 정상 전송(회귀)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set([39]), {
+        seasonal: true,
+      }),
+    );
+    expect(p.get("types")).toBe("39");
+  });
   it("순수 모드는 추가 조건이 켜져도 항상 빈 문자열", () => {
     expect(
       buildRandomQuery("pure", new Set(), new Set(), {
