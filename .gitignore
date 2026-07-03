@@ -8,6 +8,9 @@ build/
 next-env.d.ts
 *.tsbuildinfo
 
+# testing
+/coverage
+
 # env — 서비스키 등 비밀값 (절대 커밋 금지)
 .env
 .env*.local
