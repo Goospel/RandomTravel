@@ -58,6 +58,8 @@ export interface PickedInfo {
   seasonal?: SeasonalBadge | null;
   /** 🎪 축제 필터로 뽑혔을 때 그 지역 진행 중 축제. 아니면 null/생략 */
   festival?: FestivalBadge | null;
+  /** 동적 필터(🎪 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
+  notice?: string | null;
 }
 
 /** /api/random 성공 응답 */

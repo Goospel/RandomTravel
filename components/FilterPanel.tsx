@@ -147,7 +147,7 @@ export function FilterPanel({
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">추가 조건</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <ExtraToggle
             on={seaside}
             onToggle={onToggleSeaside}

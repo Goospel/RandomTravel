@@ -180,20 +180,33 @@ function stripTags(html: string): string {
  * 🎪 오늘 진행 중인 축제를 지역별로 묶어 반환 (§6.2).
  * searchFestival2 는 eventStartDate 이후 '아직 안 끝난'(진행중+예정) 축제를 주므로,
  * 받은 목록을 시작 ≤ 오늘 ≤ 종료 로 걸러 '진행 중'만 남긴다. 하루 안엔 거의 안 변해 1h 캐시.
- * 실패하면 빈 Map — 상위에서 "축제 소스 장애"로 처리(조용히 무시하지 않도록 구분 가능).
+ *
+ * ⚠️ arrange="A"(제목순)이라 절단축이 '진행중 여부'와 무관 → 한 페이지로 자르면 진행중
+ *    축제가 조용히 누락될 수 있다. 그래서 totalCount 만큼 **페이지네이션으로 전량 수집**한다.
+ * 실패(네트워크·쿼터·resultCode≠0000)하면 TourApiError 를 그대로 던진다 — 호출부(drawRandom)가
+ *    이를 잡아 "축제 필터만 건너뛰고" 결과는 살린다(§6.5, 조용히 무시하지 않도록 안내).
  */
 async function getFestivalMap(today: string): Promise<Map<number, Festival[]>> {
-  // numOfRows 를 넉넉히 — 전국 '안 끝난' 축제 전체(실측 ~174)를 한 페이지에 담아 진행중 추출.
-  const body = await tourFetch(
-    "searchFestival2",
-    { eventStartDate: today, numOfRows: 500, pageNo: 1, arrange: "A" },
-    { revalidate: 3600 },
-  );
-  const total = body.totalCount ?? 0;
-  if (total > 500) {
-    console.warn(`[getFestivalMap] 축제 ${total}건 중 500건만 조회 — 일부 누락 가능.`);
+  const PAGE = 100;
+  const MAX_PAGES = 15; // 안전 상한(최대 1500건) — 실측 '안 끝난' ~174건의 넉넉한 여유
+  const raws: RawFestival[] = [];
+  let total = Infinity;
+  for (let pageNo = 1; (pageNo - 1) * PAGE < total && pageNo <= MAX_PAGES; pageNo++) {
+    const body = await tourFetch(
+      "searchFestival2",
+      { eventStartDate: today, numOfRows: PAGE, pageNo, arrange: "A" },
+      { revalidate: 3600 },
+    );
+    total = body.totalCount ?? 0;
+    const page = itemsOf(body) as unknown as RawFestival[];
+    if (page.length === 0) break; // 방어: 빈 페이지면 종료
+    raws.push(...page);
   }
-  const raws = itemsOf(body) as unknown as RawFestival[];
+  if (total > MAX_PAGES * PAGE) {
+    console.warn(
+      `[getFestivalMap] 축제 ${total}건 — 상한 ${MAX_PAGES * PAGE}건까지만 조회(일부 누락 가능).`,
+    );
+  }
   return festivalsByArea(normalizeFestivals(raws, today));
 }
 
@@ -332,20 +345,29 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   let areaPool: number[] | null =
     params.areaCodes && params.areaCodes.length > 0 ? [...params.areaCodes] : null;
 
-  // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합
+  // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합.
+  //    축제 소스가 죽으면(§6.5) 결과를 죽이지 않고 축제 필터만 건너뛰되, notice 로 알린다
+  //    — 바다·제철은 로컬 상수라 원격 축제 API 하나 때문에 전체가 실패하면 안 된다.
   let festivalMap: Map<number, Festival[]> | null = null;
+  let notice: string | null = null;
   if (params.festivalOnly) {
-    festivalMap = await getFestivalMap(params.today ?? todayKST());
-    const festAreas = [...festivalMap.keys()];
-    const base = areaPool ?? festAreas; // 전국이면 축제 있는 지역 전체가 곧 풀
-    const narrowed = base.filter((c) => festivalMap!.has(c));
-    if (narrowed.length === 0) {
-      throw new TourApiError(
-        "오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.",
-        "EMPTY_POOL",
-      );
+    try {
+      festivalMap = await getFestivalMap(params.today ?? todayKST());
+    } catch {
+      notice = "축제 정보를 잠시 불러오지 못해 축제 조건 없이 뽑았어요.";
     }
-    areaPool = narrowed;
+    if (festivalMap) {
+      const festAreas = [...festivalMap.keys()];
+      const base = areaPool ?? festAreas; // 전국이면 축제 있는 지역 전체가 곧 풀
+      const narrowed = base.filter((c) => festivalMap!.has(c));
+      if (narrowed.length === 0) {
+        throw new TourApiError(
+          "오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.",
+          "EMPTY_POOL",
+        );
+      }
+      areaPool = narrowed;
+    }
   }
 
   // 3) 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합
@@ -363,9 +385,11 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   const ctx: BadgeCtx = { month, seasonal: !!params.seasonal, festivalMap };
 
   // 4) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
-  return params.seaside
-    ? drawSeaside(areaPool, ctx)
-    : drawByType(params, areaPool, ctx);
+  const result = params.seaside
+    ? await drawSeaside(areaPool, ctx)
+    : await drawByType(params, areaPool, ctx);
+  if (notice) result.picked.notice = notice; // 🎪 소스 장애로 필터를 건너뛴 사실 노출
+  return result;
 }
 
 /** 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건 */
