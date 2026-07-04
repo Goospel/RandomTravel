@@ -20,7 +20,9 @@ export const users = pgTable("user", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
-  email: text("email").notNull(),
+  // 카카오 개인 앱 등 이메일 미제공 provider 대응 — nullable. 신원은 account
+  // (provider+providerAccountId)로 식별하므로 email 은 필수 아님.
+  email: text("email"),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
 });
