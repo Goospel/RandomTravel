@@ -5,7 +5,7 @@
 
 import { useEffect, useRef } from "react";
 import { useKakaoLoader } from "@/hooks/useKakaoLoader";
-import { visitedWithCoords, DEFAULT_LEVEL } from "@/lib/mapView";
+import { visitedWithCoords, DEFAULT_LEVEL, SINGLE_LEVEL } from "@/lib/mapView";
 import type { SavedPlace } from "@/lib/travelStore";
 import type { KakaoInfoWindow } from "@/types/kakao";
 
@@ -53,7 +53,20 @@ export function VisitedMap({
         openInfo = info;
       });
     }
-    map.setBounds(bounds);
+
+    if (pts.length >= 2) {
+      map.setBounds(bounds); // 여러 곳: 모두 담기게 자동 경계맞춤
+    } else {
+      // 단일 점 bounds(넓이 0)에 setBounds 하면 최대 배율로 과확대(건물 단위)돼
+      // DEFAULT_LEVEL 이 무시된다. 중심은 생성 시 그 점이므로 축척만 도시 규모로.
+      map.setLevel(SINGLE_LEVEL);
+    }
+
+    // 언마운트/재실행 시 열린 InfoWindow 닫고 지도 DOM 정리(인스턴스 GC 유도).
+    return () => {
+      openInfo?.close();
+      el.innerHTML = "";
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMap, visited]);
 

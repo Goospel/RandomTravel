@@ -12,9 +12,29 @@ export interface LatLng {
 export const KOREA_CENTER: LatLng = { lat: 36.5, lng: 127.8 };
 /** 전국이 대략 들어오는 기본 축척(카카오 level: 클수록 넓게) */
 export const DEFAULT_LEVEL = 13;
+/** 방문지가 1곳뿐일 때 축척 — 도시 규모로 줌인(과확대 방지) */
+export const SINGLE_LEVEL = 9;
 
-function isCoord(n: number | null): n is number {
-  return typeof n === "number" && Number.isFinite(n);
+// 남한 대략 경계 — 지도에 찍을 수 있는 유효 좌표인지 판정한다.
+// Number.isFinite 만으로는 (0,0) 널섬(TourAPI mapx="0")·범위 밖 손상값·위경도 스왑이
+// 통과해 bounds 를 붕괴(정상 마커까지 화면 밖으로)시킨다. 앱 데이터는 전부 국내
+// 관광지라 이 경계로 좁혀도 정상 좌표는 손실이 없다(마라도 33.06~, 독도 ~131.9 포함).
+const KR_LAT_MIN = 33;
+const KR_LAT_MAX = 39;
+const KR_LNG_MIN = 124;
+const KR_LNG_MAX = 132;
+
+function isPlottableCoord(lat: number | null, lng: number | null): boolean {
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= KR_LAT_MIN &&
+    lat <= KR_LAT_MAX &&
+    lng >= KR_LNG_MIN &&
+    lng <= KR_LNG_MAX
+  );
 }
 
 /** 좌표가 유효한 방문지만 — 지도에 마커로 찍을 수 있는 것. lat·lng 타입이 number 로 좁혀진다. */
@@ -23,7 +43,7 @@ export function visitedWithCoords(
 ): (SavedPlace & { lat: number; lng: number })[] {
   return places.filter(
     (p): p is SavedPlace & { lat: number; lng: number } =>
-      isCoord(p.lat) && isCoord(p.lng),
+      isPlottableCoord(p.lat, p.lng),
   );
 }
 
