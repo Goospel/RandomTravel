@@ -90,6 +90,13 @@ export function ResultCard({
               {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
             </span>
           )}
+          {data.picked.weather && (
+            <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+              ☀️ 지금 비 안 와요
+              {data.picked.weather.temp != null &&
+                ` · ${Math.round(data.picked.weather.temp)}℃`}
+            </span>
+          )}
         </div>
         {data.picked.notice && (
           <p className="text-xs text-amber-600 dark:text-amber-400">

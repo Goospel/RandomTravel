@@ -25,6 +25,7 @@ export default function Home() {
   const [seaside, setSeaside] = useState(false); // 🌊 바다 (§6.3)
   const [seasonal, setSeasonal] = useState(false); // 🦀 제철 (§6.4)
   const [festival, setFestival] = useState(false); // 🎪 축제 (§6.2)
+  const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
@@ -50,6 +51,7 @@ export default function Home() {
     setSeaside(false);
     setSeasonal(false);
     setFestival(false);
+    setNoRain(false);
   };
 
   async function draw(isRedraw: boolean) {
@@ -61,6 +63,7 @@ export default function Home() {
       seaside,
       seasonal,
       festival,
+      noRain,
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
 
@@ -116,11 +119,13 @@ export default function Home() {
               seaside={seaside}
               seasonal={seasonal}
               festival={festival}
+              noRain={noRain}
               onToggleArea={toggleArea}
               onToggleType={toggleType}
               onToggleSeaside={() => setSeaside((v) => !v)}
               onToggleSeasonal={() => setSeasonal((v) => !v)}
               onToggleFestival={() => setFestival((v) => !v)}
+              onToggleNoRain={() => setNoRain((v) => !v)}
               onClear={clearFilters}
             />
           )}

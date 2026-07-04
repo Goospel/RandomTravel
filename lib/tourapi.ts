@@ -18,6 +18,13 @@ import {
   type Festival,
   type RawFestival,
 } from "@/lib/festival";
+import { getWeatherByArea } from "@/lib/kma";
+import {
+  rainFreeAreaCodes,
+  narrowByWeather,
+  weatherBadge,
+  type WeatherObs,
+} from "@/lib/weather";
 
 const BASE = "https://apis.data.go.kr/B551011/KorService2";
 
@@ -255,27 +262,33 @@ export interface DrawParams {
   seasonal?: boolean;
   /** 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합 (§6.2) */
   festivalOnly?: boolean;
+  /** ☔ 날씨: 지역 풀을 지금 비 안 오는 지역으로 교집합 (§6.1) */
+  noRain?: boolean;
   /** 제철 기준 월(1-12). 미지정 시 현재 월 — 테스트·일관성 주입용 */
   month?: number;
   /** 축제 기준 날짜 YYYYMMDD. 미지정 시 오늘(KST) — 테스트·일관성 주입용 */
   today?: string;
+  /** 날씨 기준 시각. 미지정 시 현재 — 테스트·일관성 주입용 */
+  now?: Date;
 }
 
-/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제 맵. */
+/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제·날씨 맵. */
 interface BadgeCtx {
   month: number;
   seasonal: boolean;
   festivalMap: Map<number, Festival[]> | null;
+  weatherObs: Map<number, WeatherObs> | null;
 }
 
-/** 뽑힌 지역에 대한 배지들(제철·축제)을 한 번에 계산. */
+/** 뽑힌 지역에 대한 배지들(제철·축제·날씨)을 한 번에 계산. */
 function buildBadges(
   areaCode: number | null,
   ctx: BadgeCtx,
-): Pick<PickedInfo, "seasonal" | "festival"> {
+): Pick<PickedInfo, "seasonal" | "festival" | "weather"> {
   return {
     seasonal: ctx.seasonal ? seasonalBadge(areaCode, ctx.month) : null,
     festival: ctx.festivalMap ? festivalBadge(ctx.festivalMap, areaCode) : null,
+    weather: ctx.weatherObs ? weatherBadge(ctx.weatherObs, areaCode) : null,
   };
 }
 
@@ -345,16 +358,18 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   let areaPool: number[] | null =
     params.areaCodes && params.areaCodes.length > 0 ? [...params.areaCodes] : null;
 
+  // 동적 필터(🎪·☔) 소스 장애로 건너뛴 사실을 모아 결과에 노출(§6.5). 여러 개면 이어붙인다.
+  const notices: string[] = [];
+
   // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합.
   //    축제 소스가 죽으면(§6.5) 결과를 죽이지 않고 축제 필터만 건너뛰되, notice 로 알린다
   //    — 바다·제철은 로컬 상수라 원격 축제 API 하나 때문에 전체가 실패하면 안 된다.
   let festivalMap: Map<number, Festival[]> | null = null;
-  let notice: string | null = null;
   if (params.festivalOnly) {
     try {
       festivalMap = await getFestivalMap(params.today ?? todayKST());
     } catch {
-      notice = "축제 정보를 잠시 불러오지 못해 축제 조건 없이 뽑았어요.";
+      notices.push("축제 정보를 잠시 불러오지 못해 축제 조건 없이 뽑았어요.");
     }
     if (festivalMap) {
       const festAreas = [...festivalMap.keys()];
@@ -370,7 +385,29 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     }
   }
 
-  // 3) 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합
+  // 3) ☔ 날씨: 지역 풀을 지금 비 안 오는 지역으로 교집합 (§6.1).
+  //    기상청 소스가 전부 죽으면 축제처럼 필터만 건너뛰고 notice. 개별 지역 실패는
+  //    관측 맵에서 빠져(=판정 불가) 보수적으로 비 안 옴 집합에 안 든다.
+  let weatherObs: Map<number, WeatherObs> | null = null;
+  if (params.noRain) {
+    try {
+      weatherObs = await getWeatherByArea(areaPool, params.now);
+    } catch {
+      notices.push("날씨 정보를 잠시 불러오지 못해 날씨 조건 없이 뽑았어요.");
+    }
+    if (weatherObs) {
+      const narrowed = narrowByWeather(areaPool, rainFreeAreaCodes(weatherObs));
+      if (narrowed.length === 0) {
+        throw new TourApiError(
+          "지금 비 안 오는 지역 중 고른 곳이 없어요. 지역을 넓히거나 실내 테마를 골라보세요.",
+          "EMPTY_POOL",
+        );
+      }
+      areaPool = narrowed;
+    }
+  }
+
+  // 4) 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합
   if (params.seasonal) {
     const narrowed = narrowBySeasonal(areaPool, month);
     if (narrowed.length === 0) {
@@ -382,13 +419,18 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     areaPool = narrowed;
   }
 
-  const ctx: BadgeCtx = { month, seasonal: !!params.seasonal, festivalMap };
+  const ctx: BadgeCtx = {
+    month,
+    seasonal: !!params.seasonal,
+    festivalMap,
+    weatherObs,
+  };
 
-  // 4) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 5) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
     : await drawByType(params, areaPool, ctx);
-  if (notice) result.picked.notice = notice; // 🎪 소스 장애로 필터를 건너뛴 사실 노출
+  if (notices.length) result.picked.notice = notices.join(" "); // 🎪·☔ 건너뛴 사실 노출
   return result;
 }
 

@@ -140,4 +140,17 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
     );
     expect(p.get("festivalOnly")).toBe("1");
   });
+  it("☔ 날씨는 noRain=1 파라미터", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { noRain: true }),
+    );
+    expect(p.get("noRain")).toBe("1");
+  });
+  it("☔ 는 지역과 조합 가능(지역+noRain 둘 다 실림)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set(), { noRain: true }),
+    );
+    expect(p.get("areas")).toBe("32");
+    expect(p.get("noRain")).toBe("1");
+  });
 });
