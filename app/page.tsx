@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { RandomResponse, ErrorResponse } from "@/types/tour";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
@@ -92,6 +93,12 @@ export default function Home() {
         <p className="mt-2 text-sm text-zinc-500">
           어디 갈지 고민될 때, 운명에 맡겨.
         </p>
+        <Link
+          href="/map"
+          className="mt-3 inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
+        >
+          🗺️ 내 여행 지도
+        </Link>
       </header>
 
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
