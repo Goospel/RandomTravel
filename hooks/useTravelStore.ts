@@ -5,6 +5,7 @@
 // SSR 안전: 초기값 [] 로 시작 → 마운트 후(useEffect) localStorage 에서 하이드레이트.
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import type { Place } from "@/types/tour";
 import {
   addToRecent,
@@ -15,6 +16,7 @@ import {
   has,
   type SavedPlace,
 } from "@/lib/travelStore";
+import { mergePlaces } from "@/lib/syncMerge";
 import {
   appendEvent,
   makeEvent,
@@ -29,6 +31,25 @@ const K_RECENT = "rt.recent.v1";
 const K_EVENTS = "rt.events.v1";
 const K_SESSION = "rt.session.v1";
 const RECENT_CAP = 20;
+
+// 로그인 세션당 1회만 서버 병합 — 여러 페이지의 store 인스턴스 중복 병합 방지.
+let mergedForUser: string | null = null;
+
+// 서버 write-through(로그인 시). fire-and-forget — 실패해도 로컬은 이미 반영됨.
+function serverAdd(list: "saved" | "visited", place: SavedPlace) {
+  void fetch("/api/places", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ list, place }),
+  }).catch(() => {});
+}
+function serverRemove(list: "saved" | "visited", contentId: string) {
+  void fetch("/api/places", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ list, contentId }),
+  }).catch(() => {});
+}
 
 function load(key: string): SavedPlace[] {
   if (typeof window === "undefined") return [];
@@ -111,6 +132,9 @@ export function useTravelStore(): UseTravelStore {
   const eventsRef = useRef<TravelEvent[]>([]);
   const sessionIdRef = useRef<string>("");
 
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id ?? null;
+
   useEffect(() => {
     // 세션 ID(익명 UUID) — 없으면 생성
     let sid = window.localStorage.getItem(K_SESSION);
@@ -137,6 +161,49 @@ export function useTravelStore(): UseTravelStore {
     setReady(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+
+  // 로그인 시 동기화: 서버 목록 ↔ 로컬 병합(합집합) → 화면·localStorage 반영 →
+  // 합집합을 서버에 업로드(로컬에만 있던 것 올림). 세션당 1회(mergedForUser 가드).
+  useEffect(() => {
+    if (!ready) return;
+    if (status === "unauthenticated") {
+      mergedForUser = null; // 로그아웃 → 재로그인 시 다시 병합 허용
+      return;
+    }
+    if (status !== "authenticated" || !userId) return;
+    if (mergedForUser === userId) return;
+    mergedForUser = userId;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/places");
+        if (!res.ok) throw new Error(String(res.status));
+        const server = (await res.json()) as {
+          saved: SavedPlace[];
+          visited: SavedPlace[];
+        };
+        if (cancelled) return;
+        const mergedSaved = mergePlaces(load(K_SAVED), server.saved ?? []);
+        const mergedVisited = mergePlaces(load(K_VISITED), server.visited ?? []);
+        setSaved(mergedSaved);
+        setVisited(mergedVisited);
+        persist(K_SAVED, mergedSaved);
+        persist(K_VISITED, mergedVisited);
+        await fetch("/api/places/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ saved: mergedSaved, visited: mergedVisited }),
+        });
+      } catch {
+        // 네트워크/서버 실패 — 로컬 폴백 유지. 재마운트 시 재시도 허용.
+        if (!cancelled) mergedForUser = null;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, userId, ready]);
 
   function logEvent(
     event: TravelEventType,
@@ -168,7 +235,8 @@ export function useTravelStore(): UseTravelStore {
 
   function toggleSave(place: Place) {
     const adding = !has(saved, place.contentId);
-    const next = toggleSaved(saved, toSavedPlace(place, Date.now()));
+    const sp = toSavedPlace(place, Date.now());
+    const next = toggleSaved(saved, sp);
     setSaved(next);
     persist(K_SAVED, next);
     if (adding) {
@@ -178,11 +246,16 @@ export function useTravelStore(): UseTravelStore {
         contentId: place.contentId,
       });
     }
+    if (userId) {
+      if (adding) serverAdd("saved", sp);
+      else serverRemove("saved", place.contentId);
+    }
   }
 
   function toggleVisit(place: Place) {
     const adding = !has(visited, place.contentId);
-    const next = toggleSaved(visited, toSavedPlace(place, Date.now()));
+    const sp = toSavedPlace(place, Date.now());
+    const next = toggleSaved(visited, sp);
     setVisited(next);
     persist(K_VISITED, next);
     if (adding) {
@@ -191,6 +264,10 @@ export function useTravelStore(): UseTravelStore {
         contentTypeId: place.contentTypeId,
         contentId: place.contentId,
       });
+    }
+    if (userId) {
+      if (adding) serverAdd("visited", sp);
+      else serverRemove("visited", place.contentId);
     }
   }
 
@@ -228,6 +305,9 @@ export function useTravelStore(): UseTravelStore {
     const next = cur.filter((x) => x.contentId !== contentId);
     setter(next);
     persist(key, next);
+    if (userId && (list === "saved" || list === "visited")) {
+      serverRemove(list, contentId);
+    }
   }
 
   return {

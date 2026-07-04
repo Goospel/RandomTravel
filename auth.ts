@@ -19,4 +19,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   session: { strategy: "jwt" },
   providers: [Google, Kakao],
+  callbacks: {
+    // JWT 전략이라 세션에 user.id 가 기본 노출 안 됨 — token.sub(=로그인 시 DB user.id)를
+    // 세션에 실어 준다. API 라우트에서 소유자 판별에 쓴다.
+    session({ session, token }) {
+      if (session.user && token.sub) session.user.id = token.sub;
+      return session;
+    },
+  },
 });
