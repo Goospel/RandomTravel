@@ -25,7 +25,8 @@
 | 스타일 | Tailwind CSS |
 | 데이터 | 한국관광공사 TourAPI · 기상청 초단기실황 API (서버 프록시 경유) |
 | 지도 | 카카오맵 (링크 + JS SDK 임베드) |
-| 저장 | localStorage (DB·로그인 없음) |
+| 인증 | Auth.js v5 (구글 OAuth · JWT 세션) — 선택적 로그인 |
+| 저장 | localStorage(비로그인 폴백) + Neon Postgres(로그인 시 기기 간 동기화) · Drizzle ORM |
 | 배포 | Vercel |
 
 ## 🚀 시작하기
@@ -46,6 +47,7 @@ npm run dev   # → http://localhost:3000
 TOUR_API_KEY=공공데이터포털_일반인증키(Decoding)      # 필수 (M1)
 # WEATHER_API_KEY=기상청_단기예보_서비스키             # ☔ M7부터
 # NEXT_PUBLIC_KAKAO_MAP_KEY=카카오_JavaScript_키        # 🗺️ M8부터
+# AUTH_SECRET / DATABASE_URL / AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET  # 🔐 M10 로그인·동기화
 ```
 
 > 서비스키는 [공공데이터포털](https://www.data.go.kr) → "한국관광공사_국문 관광정보 서비스" 활용신청(무료)으로 발급. 날씨 필터용 "기상청_단기예보 조회서비스"도 같은 계정으로 활용신청. **둘 다 서버에서만 쓰이며 브라우저에 노출되지 않는다** (자세한 이유는 설계 문서 참고).
