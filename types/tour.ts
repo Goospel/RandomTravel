@@ -41,6 +41,12 @@ export interface SeasonalBadge {
   items: { item: string; emoji: string }[];
 }
 
+/** 🎪 축제 배지(그 지역 오늘 진행 중 축제) */
+export interface FestivalBadge {
+  name: string; // 대표(첫) 축제명
+  more: number; // 같은 지역 나머지 축제 수
+}
+
 /** 이번 뽑기가 어떤 지역·타입·조건에서 나왔는지(디버그·배지 표시용) */
 export interface PickedInfo {
   areaCode: number | null;
@@ -50,6 +56,8 @@ export interface PickedInfo {
   seaside?: SeasideBadge | null;
   /** 🦀 제철 필터로 뽑혔고 그 지역이 산지일 때만. 아니면 null/생략 */
   seasonal?: SeasonalBadge | null;
+  /** 🎪 축제 필터로 뽑혔을 때 그 지역 진행 중 축제. 아니면 null/생략 */
+  festival?: FestivalBadge | null;
 }
 
 /** /api/random 성공 응답 */

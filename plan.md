@@ -323,7 +323,7 @@ RandomTravel/
 | **M4** | 찜 / 최근 기록 + 반응형 마무리 |
 | **M5** | Vercel 배포 — 기본 기능 먼저 공개 |
 | **M6** | 조건 확장 1차 — 🌊 바다 + 🦀 제철 (상수 기반, 추가 API·키 불필요) |
-| **M7** | 조건 확장 2차 — ☔ 날씨 + 🎪 축제 (외부 API + 캐싱, §6) |
+| **M7** | 조건 확장 2차 — 🎪 축제 ✅완료(기존 TourAPI 키) / ☔ 날씨 ⏳(기상청 키 활용신청 필요) |
 | **M8** | 🗺️ 내 여행 지도 + 지도 앱 딥링크 (§7) |
 | **M9** | 📱 PWA — manifest·아이콘 추가로 폰 홈 화면 설치 (직접 쓰는 재미 극대화, 반나절 작업) |
 
@@ -427,9 +427,10 @@ RandomTravel/
 - **결과 카드 지도 링크** — ✅ **M3: 카카오맵 좌표 딥링크 채택**(§7.2). `lib/mapLink.ts`(순수·TDD): 좌표 있으면 `link/map`·`link/to`(길찾기), 없으면 이름으로 `link/search` 폴백. M1~M2 임시 구글맵 링크에서 전환. 카카오 장소ID 매칭은 백로그 유지.
 - **배포 함수 리전** — ✅ **M5: 서울(`icn1`) 고정** (`vercel.json` `regions:["icn1"]`). 기본 `iad1`(US)에선 뽑기 1건당 한국 TourAPI를 3회 **순차**(개수→항목→개요, 의존 체인이라 병렬 불가) 왕복해 1.4~4.2s 소요 → 함수 실행 리전을 서울로 옮겨 단축. ⚠️ Hobby는 **단일 리전만**(배열에 2개↑면 빌드 전 배포 실패). ⚠️ Next.js `preferredRegion='icn1'`은 **함정**(Node 런타임 무시, Vercel Edge는 `auto|global|home`만) — 반드시 `vercel.json`으로. 검증: 응답 `x-vercel-id` compute 세그먼트가 `icn1`.
 - **🌊 바다 + 🦀 제철** — ✅ **M6 구현 완료**(상수 기반, 추가 API·키 0). **🌊 바다**: `areaBasedList2` 에 바다 소분류 `cat3` 4종(해안절경·해수욕장·섬·항구, `lib/constants.ts` `SEA_CAT3`)을 얹어 대상을 바다로 한정 — 타입은 관광지(12) 고정. 4종의 `totalCount` **합산 가중**으로 분류 선택(`weightedIndex`, 개수 적은 분류 쏠림 방지, §6.3). **🦀 제철**: `lib/constants.ts` `SEASONAL_CALENDAR`(품목→월·주산지, 22종 12개월 커버) + `lib/season.ts`(순수·TDD) 로 이번 달 제철 산지와 지역 풀 **교집합**, 결과 카드에 "지금 제철 🧄마늘·🐚전복" 배지(§6.4). 둘 다 조합 가능(강원 바다+강원 제철). 빈 풀(제철∩지역=0)은 `EMPTY_POOL`(404)+안내. `drawRandom` 을 `drawByType`/`drawSeaside` 로 분기. 파라미터 `seaside=1`·`seasonal=1`(`lib/query.ts` `parseBool`).
+- **🎪 축제** — ✅ **M7 구현 완료**(추가 API·키 0 — `searchFestival2`가 기존 TourAPI 키 그대로). `lib/festival.ts`(순수·TDD) + `getFestivalMap`(1h 캐시)로 오늘 진행 중 축제 지역과 지역 풀 **교집합**, 결과 카드에 "🎪 (축제명) 외 N" 배지(§6.2). 실측(2026-07) 2대 발견: ① `eventStartDate=오늘`은 '진행 중'이 아니라 '아직 안 끝난(진행중+예정)'을 줘서 `시작≤오늘≤종료` **클라이언트 필터** 필수. ② 응답 `areacode` 거의 비고 `areaCode` 필터도 0 → **`lDongRegnCd`(법정동 시도 코드)를 `LDONG_TO_AREA`로 TourAPI areaCode 변환**(강원 42→51·전북 45→52 특별자치도 신·구 공존, 오염코드 12는 매핑 없어 자동 제외). `drawRandom` 파이프라인에 축제 교집합 단계 추가(축제→제철 순), 배지는 `BadgeCtx`로 통합. 파라미터 `festivalOnly=1`.
 - **TourAPI 버전** — ✅ **KorService2 확정**(§5). 오퍼레이션 접미사 `2`, `detailCommon2`는 `contentId`만.
 - **빈 결과 대응** — ✅ **M1: `EMPTY_POOL`(404)** + 인덱스/조합 재추첨 구현. UI 완화 제안(조건 끄기 등)은 M2 조건 UI와 함께.
-- **`searchFestival` 날짜 파라미터 의미 검증**: "오늘 진행 중" 조회가 파라미터 한 번에 되는지, 시작일·종료일 조합이 필요한지 실제 응답으로 확인
+- **`searchFestival` 날짜 파라미터 의미 검증**: ✅ **M7 확정** — `eventStartDate=오늘` 단독은 '진행 중'이 아니라 '해당일 이후 안 끝난(진행중+예정)'을 반환. "오늘 진행 중"은 `시작일 ≤ 오늘 ≤ 종료일` 클라이언트 필터로 추출. `areacode` 미신뢰 → `lDongRegnCd` 변환(위 M7 항목).
 - **시·도 대표 격자좌표(nx, ny) 확정**: 기상청 격자 변환표에서 17개 지점 추출
 - **"비 안 옴" 판정 범위**: PTY=0만 인정할지, 눈(3·7)을 어떻게 볼지 (겨울 여행 관점)
 - **🌊 바다 분류코드 보완**: 등대 등 누락 cat3를 `categoryCode` 조회로 확정, KorService2 신분류체계(lclsSystm) 전환 검토

@@ -81,6 +81,12 @@ export function ResultCard({
                 .join(" · ")}
             </span>
           )}
+          {data.picked.festival && (
+            <span className="rounded-full bg-fuchsia-50 px-2.5 py-1 text-xs font-medium text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300">
+              🎪 {data.picked.festival.name}
+              {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
+            </span>
+          )}
         </div>
 
         <h2 className="text-xl font-bold leading-snug">{place.title}</h2>
