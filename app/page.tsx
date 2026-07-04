@@ -8,6 +8,7 @@ import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
+import { AuthButtons } from "@/components/AuthButtons";
 import { buildRandomQuery } from "@/lib/query";
 import { useTravelStore } from "@/hooks/useTravelStore";
 
@@ -88,6 +89,9 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-5 py-10 lg:max-w-5xl">
+      <div className="flex justify-end">
+        <AuthButtons />
+      </div>
       <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">🎲 RandomTravel</h1>
         <p className="mt-2 text-sm text-zinc-500">
