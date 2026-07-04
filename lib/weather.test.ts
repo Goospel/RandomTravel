@@ -103,6 +103,18 @@ describe("parseNcst — getUltraSrtNcst item 목록에서 PTY·T1H 추출", () =
   it("빈 목록 → 둘 다 null", () => {
     expect(parseNcst([])).toEqual({ pty: null, t1h: null });
   });
+
+  it("빈 문자열 obsrValue 는 0 이 아니라 null (Number('')===0 오판 방어)", () => {
+    // Number("")===0, Number(" ")===0 이라 방어 안 하면 pty=0(비 안 옴)으로 오판됨
+    expect(parseNcst([{ category: "PTY", obsrValue: "" }])).toEqual({
+      pty: null,
+      t1h: null,
+    });
+    expect(parseNcst([{ category: "PTY", obsrValue: "  " }])).toEqual({
+      pty: null,
+      t1h: null,
+    });
+  });
 });
 
 describe("isRainFree — PTY 0(강수 없음)만 비 안 옴", () => {

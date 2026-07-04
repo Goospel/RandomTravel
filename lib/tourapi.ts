@@ -8,7 +8,7 @@
 //  - 0건이면 body.items 가 빈 문자열 "" 로 올 수 있음 → 배열 파싱 전 방어
 
 import type { Place, TourApiItem, PickedInfo } from "@/types/tour";
-import { RANDOM_DEFAULT_TYPES, SEA_CAT3 } from "@/lib/constants";
+import { RANDOM_DEFAULT_TYPES, SEA_CAT3, ALL_AREA_CODES } from "@/lib/constants";
 import { narrowBySeasonal, seasonalItemsForArea, currentMonth } from "@/lib/season";
 import {
   normalizeFestivals,
@@ -359,7 +359,15 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     params.areaCodes && params.areaCodes.length > 0 ? [...params.areaCodes] : null;
 
   // 동적 필터(🎪·☔) 소스 장애로 건너뛴 사실을 모아 결과에 노출(§6.5). 여러 개면 이어붙인다.
+  // 문구는 성공(결과 배지)·실패(빈 풀 오류) 양쪽에서 맞도록 "조건은 제외했어요"로 중립화한다.
   const notices: string[] = [];
+
+  // 빈 풀 오류를 던질 때 이미 쌓인 skip notice 를 메시지에 동봉 — 파이프라인 조기 종료로
+  // notice 가 유실되거나, 빈 풀 원인이 한 조건 단독으로 오귀속되는 것을 막는다(리뷰 반영).
+  const emptyPool = (msg: string): never => {
+    const detail = notices.length ? ` (${notices.join(" ")})` : "";
+    throw new TourApiError(msg + detail, "EMPTY_POOL");
+  };
 
   // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합.
   //    축제 소스가 죽으면(§6.5) 결과를 죽이지 않고 축제 필터만 건너뛰되, notice 로 알린다
@@ -369,17 +377,14 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     try {
       festivalMap = await getFestivalMap(params.today ?? todayKST());
     } catch {
-      notices.push("축제 정보를 잠시 불러오지 못해 축제 조건 없이 뽑았어요.");
+      notices.push("축제 정보를 잠시 불러오지 못해 축제 조건은 제외했어요.");
     }
     if (festivalMap) {
       const festAreas = [...festivalMap.keys()];
       const base = areaPool ?? festAreas; // 전국이면 축제 있는 지역 전체가 곧 풀
       const narrowed = base.filter((c) => festivalMap!.has(c));
       if (narrowed.length === 0) {
-        throw new TourApiError(
-          "오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.",
-          "EMPTY_POOL",
-        );
+        emptyPool("오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.");
       }
       areaPool = narrowed;
     }
@@ -393,17 +398,24 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     try {
       weatherObs = await getWeatherByArea(areaPool, params.now);
     } catch {
-      notices.push("날씨 정보를 잠시 불러오지 못해 날씨 조건 없이 뽑았어요.");
+      notices.push("날씨 정보를 잠시 불러오지 못해 날씨 조건은 제외했어요.");
     }
     if (weatherObs) {
       const narrowed = narrowByWeather(areaPool, rainFreeAreaCodes(weatherObs));
       if (narrowed.length === 0) {
-        throw new TourApiError(
-          "지금 비 안 오는 지역 중 고른 곳이 없어요. 지역을 넓히거나 실내 테마를 골라보세요.",
-          "EMPTY_POOL",
-        );
+        // 요청 지역 대비 관측 성공이 적으면(부분 실패) 확실히 비 안 오는 곳을 가릴 수 없다 →
+        // 전 지역 실패(소프트 스킵)와 대칭으로 필터만 건너뛰고 안내. 전부 관측됐는데 다 비면 빈 풀.
+        const requested =
+          areaPool && areaPool.length > 0 ? areaPool.length : ALL_AREA_CODES.length;
+        if (weatherObs.size < requested) {
+          notices.push("일부 지역 날씨를 불러오지 못해 날씨 조건은 제외했어요.");
+          weatherObs = null; // 필터·배지 모두 건너뜀
+        } else {
+          emptyPool("지금 비 안 오는 지역 중 고른 곳이 없어요. 지역을 넓히거나 실내 테마를 골라보세요.");
+        }
+      } else {
+        areaPool = narrowed;
       }
-      areaPool = narrowed;
     }
   }
 
@@ -411,10 +423,7 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   if (params.seasonal) {
     const narrowed = narrowBySeasonal(areaPool, month);
     if (narrowed.length === 0) {
-      throw new TourApiError(
-        "이번 달 제철 산지 중 고른 지역이 없어요. 지역 조건을 넓혀보세요.",
-        "EMPTY_POOL",
-      );
+      emptyPool("이번 달 제철 산지 중 고른 지역이 없어요. 지역 조건을 넓혀보세요.");
     }
     areaPool = narrowed;
   }

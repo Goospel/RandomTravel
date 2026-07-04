@@ -100,6 +100,9 @@ export function ncstBaseDateTime(now: Date = new Date()): {
 
 function toNum(s: string | undefined): number | null {
   if (s == null) return null;
+  // Number("")===0, Number(" ")===0 이라 빈/공백 문자열이 pty=0(비 안 옴)으로 오판된다 →
+  // "-"·"강수없음" 같은 결측 표기와 동일하게 null(판정 불가)로 먼저 거른다(보수적 제외).
+  if (s.trim() === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
