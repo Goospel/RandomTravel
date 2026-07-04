@@ -45,7 +45,7 @@ npm run dev   # → http://localhost:3000
 
 ```
 TOUR_API_KEY=공공데이터포털_일반인증키(Decoding)      # 필수 (M1)
-# WEATHER_API_KEY=기상청_단기예보_서비스키             # ☔ M7부터
+# WEATHER_API_KEY=기상청_단기예보_서비스키             # ☔ M11 (지금 비 안 오는 곳)
 # NEXT_PUBLIC_KAKAO_MAP_KEY=카카오_JavaScript_키        # 🗺️ M8부터
 # AUTH_SECRET / DATABASE_URL / AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET / AUTH_KAKAO_ID / AUTH_KAKAO_SECRET  # 🔐 M10 로그인·동기화(구글·카카오)
 ```
@@ -70,7 +70,8 @@ TOUR_API_KEY=공공데이터포털_일반인증키(Decoding)      # 필수 (M1)
 - [x] 찜 / 최근 / 방문 기록 (M4)
 - [x] Vercel 배포 · 함수 리전 서울 고정 (M4·M5)
 - [x] 조건 확장 1차 (🌊 바다 · 🦀 제철) (M6)
-- [x] 조건 확장 2차 (☔ 날씨 · 🎪 축제) (M7)
+- [x] 조건 확장 2차 (🎪 축제) (M7)
 - [x] 내 여행 지도 + 지도 앱 딥링크 (🗺️) (M8)
 - [x] PWA — 폰 홈 화면 설치 (📱) (M9)
-- [x] 로그인·동기화 (🔐 구글 OAuth + Neon) (M10)
+- [x] 로그인·동기화 (🔐 구글·카카오 OAuth + Neon) (M10)
+- [x] 조건 확장 3차 (☔ 지금 비 안 오는 곳) (M11)

@@ -49,11 +49,13 @@ export function FilterPanel({
   seaside,
   seasonal,
   festival,
+  noRain,
   onToggleArea,
   onToggleType,
   onToggleSeaside,
   onToggleSeasonal,
   onToggleFestival,
+  onToggleNoRain,
   onClear,
 }: {
   selectedAreas: Set<number>;
@@ -61,11 +63,13 @@ export function FilterPanel({
   seaside: boolean;
   seasonal: boolean;
   festival: boolean;
+  noRain: boolean;
   onToggleArea: (code: number) => void;
   onToggleType: (code: number) => void;
   onToggleSeaside: () => void;
   onToggleSeasonal: () => void;
   onToggleFestival: () => void;
+  onToggleNoRain: () => void;
   onClear: () => void;
 }) {
   const hasAny =
@@ -73,7 +77,8 @@ export function FilterPanel({
     selectedTypes.size > 0 ||
     seaside ||
     seasonal ||
-    festival;
+    festival ||
+    noRain;
 
   return (
     <div className="flex w-full flex-col gap-5 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -147,7 +152,7 @@ export function FilterPanel({
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">추가 조건</h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <ExtraToggle
             on={seaside}
             onToggle={onToggleSeaside}
@@ -168,6 +173,13 @@ export function FilterPanel({
             emoji="🎪"
             label="축제 중"
             desc="오늘 진행 중인 축제"
+          />
+          <ExtraToggle
+            on={noRain}
+            onToggle={onToggleNoRain}
+            emoji="☔"
+            label="비 안 오는 곳"
+            desc="지금 비 안 오는 지역"
           />
         </div>
       </section>

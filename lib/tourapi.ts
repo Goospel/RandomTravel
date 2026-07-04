@@ -8,7 +8,7 @@
 //  - 0건이면 body.items 가 빈 문자열 "" 로 올 수 있음 → 배열 파싱 전 방어
 
 import type { Place, TourApiItem, PickedInfo } from "@/types/tour";
-import { RANDOM_DEFAULT_TYPES, SEA_CAT3 } from "@/lib/constants";
+import { RANDOM_DEFAULT_TYPES, SEA_CAT3, ALL_AREA_CODES } from "@/lib/constants";
 import { narrowBySeasonal, seasonalItemsForArea, currentMonth } from "@/lib/season";
 import {
   normalizeFestivals,
@@ -18,6 +18,13 @@ import {
   type Festival,
   type RawFestival,
 } from "@/lib/festival";
+import { getWeatherByArea } from "@/lib/kma";
+import {
+  rainFreeAreaCodes,
+  narrowByWeather,
+  weatherBadge,
+  type WeatherObs,
+} from "@/lib/weather";
 
 const BASE = "https://apis.data.go.kr/B551011/KorService2";
 
@@ -255,27 +262,33 @@ export interface DrawParams {
   seasonal?: boolean;
   /** 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합 (§6.2) */
   festivalOnly?: boolean;
+  /** ☔ 날씨: 지역 풀을 지금 비 안 오는 지역으로 교집합 (§6.1) */
+  noRain?: boolean;
   /** 제철 기준 월(1-12). 미지정 시 현재 월 — 테스트·일관성 주입용 */
   month?: number;
   /** 축제 기준 날짜 YYYYMMDD. 미지정 시 오늘(KST) — 테스트·일관성 주입용 */
   today?: string;
+  /** 날씨 기준 시각. 미지정 시 현재 — 테스트·일관성 주입용 */
+  now?: Date;
 }
 
-/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제 맵. */
+/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제·날씨 맵. */
 interface BadgeCtx {
   month: number;
   seasonal: boolean;
   festivalMap: Map<number, Festival[]> | null;
+  weatherObs: Map<number, WeatherObs> | null;
 }
 
-/** 뽑힌 지역에 대한 배지들(제철·축제)을 한 번에 계산. */
+/** 뽑힌 지역에 대한 배지들(제철·축제·날씨)을 한 번에 계산. */
 function buildBadges(
   areaCode: number | null,
   ctx: BadgeCtx,
-): Pick<PickedInfo, "seasonal" | "festival"> {
+): Pick<PickedInfo, "seasonal" | "festival" | "weather"> {
   return {
     seasonal: ctx.seasonal ? seasonalBadge(areaCode, ctx.month) : null,
     festival: ctx.festivalMap ? festivalBadge(ctx.festivalMap, areaCode) : null,
+    weather: ctx.weatherObs ? weatherBadge(ctx.weatherObs, areaCode) : null,
   };
 }
 
@@ -345,50 +358,88 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   let areaPool: number[] | null =
     params.areaCodes && params.areaCodes.length > 0 ? [...params.areaCodes] : null;
 
+  // 동적 필터(🎪·☔) 소스 장애로 건너뛴 사실을 모아 결과에 노출(§6.5). 여러 개면 이어붙인다.
+  // 문구는 성공(결과 배지)·실패(빈 풀 오류) 양쪽에서 맞도록 "조건은 제외했어요"로 중립화한다.
+  const notices: string[] = [];
+
+  // 빈 풀 오류를 던질 때 이미 쌓인 skip notice 를 메시지에 동봉 — 파이프라인 조기 종료로
+  // notice 가 유실되거나, 빈 풀 원인이 한 조건 단독으로 오귀속되는 것을 막는다(리뷰 반영).
+  const emptyPool = (msg: string): never => {
+    const detail = notices.length ? ` (${notices.join(" ")})` : "";
+    throw new TourApiError(msg + detail, "EMPTY_POOL");
+  };
+
   // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합.
   //    축제 소스가 죽으면(§6.5) 결과를 죽이지 않고 축제 필터만 건너뛰되, notice 로 알린다
   //    — 바다·제철은 로컬 상수라 원격 축제 API 하나 때문에 전체가 실패하면 안 된다.
   let festivalMap: Map<number, Festival[]> | null = null;
-  let notice: string | null = null;
   if (params.festivalOnly) {
     try {
       festivalMap = await getFestivalMap(params.today ?? todayKST());
     } catch {
-      notice = "축제 정보를 잠시 불러오지 못해 축제 조건 없이 뽑았어요.";
+      notices.push("축제 정보를 잠시 불러오지 못해 축제 조건은 제외했어요.");
     }
     if (festivalMap) {
       const festAreas = [...festivalMap.keys()];
       const base = areaPool ?? festAreas; // 전국이면 축제 있는 지역 전체가 곧 풀
       const narrowed = base.filter((c) => festivalMap!.has(c));
       if (narrowed.length === 0) {
-        throw new TourApiError(
-          "오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.",
-          "EMPTY_POOL",
-        );
+        emptyPool("오늘 진행 중인 축제가 있는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.");
       }
       areaPool = narrowed;
     }
   }
 
-  // 3) 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합
+  // 3) ☔ 날씨: 지역 풀을 지금 비 안 오는 지역으로 교집합 (§6.1).
+  //    기상청 소스가 전부 죽으면 축제처럼 필터만 건너뛰고 notice. 개별 지역 실패는
+  //    관측 맵에서 빠져(=판정 불가) 보수적으로 비 안 옴 집합에 안 든다.
+  let weatherObs: Map<number, WeatherObs> | null = null;
+  if (params.noRain) {
+    try {
+      weatherObs = await getWeatherByArea(areaPool, params.now);
+    } catch {
+      notices.push("날씨 정보를 잠시 불러오지 못해 날씨 조건은 제외했어요.");
+    }
+    if (weatherObs) {
+      const narrowed = narrowByWeather(areaPool, rainFreeAreaCodes(weatherObs));
+      if (narrowed.length === 0) {
+        // 요청 지역 대비 관측 성공이 적으면(부분 실패) 확실히 비 안 오는 곳을 가릴 수 없다 →
+        // 전 지역 실패(소프트 스킵)와 대칭으로 필터만 건너뛰고 안내. 전부 관측됐는데 다 비면 빈 풀.
+        const requested =
+          areaPool && areaPool.length > 0 ? areaPool.length : ALL_AREA_CODES.length;
+        if (weatherObs.size < requested) {
+          notices.push("일부 지역 날씨를 불러오지 못해 날씨 조건은 제외했어요.");
+          weatherObs = null; // 필터·배지 모두 건너뜀
+        } else {
+          emptyPool("지금 비 안 오는 지역 중 고른 곳이 없어요. 지역을 넓히거나 실내 테마를 골라보세요.");
+        }
+      } else {
+        areaPool = narrowed;
+      }
+    }
+  }
+
+  // 4) 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합
   if (params.seasonal) {
     const narrowed = narrowBySeasonal(areaPool, month);
     if (narrowed.length === 0) {
-      throw new TourApiError(
-        "이번 달 제철 산지 중 고른 지역이 없어요. 지역 조건을 넓혀보세요.",
-        "EMPTY_POOL",
-      );
+      emptyPool("이번 달 제철 산지 중 고른 지역이 없어요. 지역 조건을 넓혀보세요.");
     }
     areaPool = narrowed;
   }
 
-  const ctx: BadgeCtx = { month, seasonal: !!params.seasonal, festivalMap };
+  const ctx: BadgeCtx = {
+    month,
+    seasonal: !!params.seasonal,
+    festivalMap,
+    weatherObs,
+  };
 
-  // 4) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 5) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
     : await drawByType(params, areaPool, ctx);
-  if (notice) result.picked.notice = notice; // 🎪 소스 장애로 필터를 건너뛴 사실 노출
+  if (notices.length) result.picked.notice = notices.join(" "); // 🎪·☔ 건너뛴 사실 노출
   return result;
 }
 

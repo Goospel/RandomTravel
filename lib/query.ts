@@ -38,11 +38,12 @@ export function parseBool(raw: string | null): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
-/** 🌊 바다·🦀 제철·🎪 축제 같은 추가 조건 플래그 */
+/** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨 같은 추가 조건 플래그 */
 export interface RandomQueryOptions {
   seaside?: boolean;
   seasonal?: boolean;
   festival?: boolean;
+  noRain?: boolean;
 }
 
 /**
@@ -67,5 +68,6 @@ export function buildRandomQuery(
   if (opts.seaside) params.set("seaside", "1");
   if (opts.seasonal) params.set("seasonal", "1");
   if (opts.festival) params.set("festivalOnly", "1");
+  if (opts.noRain) params.set("noRain", "1");
   return params.toString();
 }

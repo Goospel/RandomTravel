@@ -47,6 +47,11 @@ export interface FestivalBadge {
   more: number; // 같은 지역 나머지 축제 수
 }
 
+/** ☔ 날씨 배지(뽑힌 지역이 지금 비 안 옴 + 기온) */
+export interface WeatherBadge {
+  temp: number | null; // 현재 기온(℃). 관측 없으면 null
+}
+
 /** 이번 뽑기가 어떤 지역·타입·조건에서 나왔는지(디버그·배지 표시용) */
 export interface PickedInfo {
   areaCode: number | null;
@@ -58,7 +63,9 @@ export interface PickedInfo {
   seasonal?: SeasonalBadge | null;
   /** 🎪 축제 필터로 뽑혔을 때 그 지역 진행 중 축제. 아니면 null/생략 */
   festival?: FestivalBadge | null;
-  /** 동적 필터(🎪 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
+  /** ☔ 날씨 필터로 뽑혔을 때 그 지역 현재 날씨(비 안 옴+기온). 아니면 null/생략 */
+  weather?: WeatherBadge | null;
+  /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
   notice?: string | null;
 }
 
