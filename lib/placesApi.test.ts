@@ -65,4 +65,21 @@ describe("sanitizePlace — 신뢰 못 할 요청 바디를 SavedPlace 로 정�
     expect(p.lng).toBeNull();
     expect(p.savedAt).toBe(0);
   });
+
+  it("과도하게 긴 contentId(>64자)는 거부(식별자는 절단 불가)", () => {
+    expect(sanitizePlace({ contentId: "x".repeat(65) })).toBeNull();
+    expect(sanitizePlace({ contentId: "x".repeat(64), title: "ok" })).not.toBeNull();
+  });
+
+  it("긴 title·address·image 는 상한으로 절단(저장 팽창 방어)", () => {
+    const p = sanitizePlace({
+      contentId: "1",
+      title: "가".repeat(500),
+      address: "나".repeat(500),
+      image: "h".repeat(5000),
+    })!;
+    expect(p.title.length).toBe(256);
+    expect(p.address.length).toBe(256);
+    expect(p.image!.length).toBe(2048);
+  });
 });

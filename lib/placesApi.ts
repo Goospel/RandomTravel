@@ -12,25 +12,36 @@ export function isPlaceList(x: unknown): x is PlaceList {
 
 /** 한 번의 sync 요청에 담을 수 있는 최대 항목 수(남용 방지) */
 export const MAX_SYNC_ITEMS = 2000;
+// 필드 길이 상한 — 인증 사용자의 무제한 쓰기(저장 팽창) 방어. TourAPI 실값엔 여유.
+const MAX_CONTENT_ID = 64;
+const MAX_TEXT = 256; // title·address
+const MAX_URL = 2048; // image
 
 function num(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
-function str(v: unknown): string | null {
-  return typeof v === "string" ? v : null;
+// 문자열이면 max 로 절단, 아니면 null.
+function str(v: unknown, max: number): string | null {
+  return typeof v === "string" ? v.slice(0, max) : null;
 }
 
-/** 신뢰 못 할 입력(요청 바디)을 SavedPlace 로 정제. contentId 없으면 null. */
+/** 신뢰 못 할 입력(요청 바디)을 SavedPlace 로 정제. contentId 없거나 과길면 null. */
 export function sanitizePlace(x: unknown): SavedPlace | null {
   if (!x || typeof x !== "object") return null;
   const o = x as Record<string, unknown>;
-  if (typeof o.contentId !== "string" || o.contentId === "") return null;
+  if (
+    typeof o.contentId !== "string" ||
+    o.contentId === "" ||
+    o.contentId.length > MAX_CONTENT_ID
+  ) {
+    return null; // 식별자는 절단하면 안 되므로 과길면 거부
+  }
   return {
     contentId: o.contentId,
     contentTypeId: num(o.contentTypeId) ?? 0,
-    title: str(o.title) ?? "",
-    address: str(o.address) ?? "",
-    image: str(o.image),
+    title: str(o.title, MAX_TEXT) ?? "",
+    address: str(o.address, MAX_TEXT) ?? "",
+    image: str(o.image, MAX_URL),
     lat: num(o.lat),
     lng: num(o.lng),
     areaCode: num(o.areaCode),

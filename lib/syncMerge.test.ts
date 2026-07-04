@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergePlaces } from "@/lib/syncMerge";
+import { mergePlaces, localOnly } from "@/lib/syncMerge";
 import type { SavedPlace } from "@/lib/travelStore";
 
 function sp(contentId: string, savedAt: number, over: Partial<SavedPlace> = {}): SavedPlace {
@@ -55,5 +55,22 @@ describe("mergePlaces — 로그인 시 로컬↔서버 찜/방문 병합", () =
     mergePlaces(local, server);
     expect(local).toHaveLength(1);
     expect(server).toHaveLength(1);
+  });
+});
+
+describe("localOnly — 서버에 없는 로컬 항목(업로드 델타)", () => {
+  it("서버에 이미 있는 항목은 제외한다", () => {
+    const local = [sp("a", 100), sp("b", 200), sp("c", 300)];
+    const server = [sp("b", 50)]; // b 는 서버에 있음
+    expect(localOnly(local, server).map((p) => p.contentId).sort()).toEqual(["a", "c"]);
+  });
+  it("서버가 비면 로컬 전체가 델타", () => {
+    const local = [sp("a", 100), sp("b", 200)];
+    expect(localOnly(local, []).map((p) => p.contentId).sort()).toEqual(["a", "b"]);
+  });
+  it("로컬이 전부 서버에 있으면 빈 배열(삭제한 서버 항목을 되살리지 않음)", () => {
+    const local = [sp("a", 100)];
+    const server = [sp("a", 50)];
+    expect(localOnly(local, server)).toEqual([]);
   });
 });

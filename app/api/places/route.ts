@@ -62,10 +62,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
+  // write-through 업서트 — 이미 있으면 최신 필드로 갱신(이미지 추가·정보 수정 반영).
   await db
     .insert(userPlaces)
     .values({ userId, list, ...place })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: [userPlaces.userId, userPlaces.list, userPlaces.contentId],
+      set: {
+        contentTypeId: place.contentTypeId,
+        title: place.title,
+        address: place.address,
+        image: place.image,
+        lat: place.lat,
+        lng: place.lng,
+        areaCode: place.areaCode,
+        savedAt: place.savedAt,
+      },
+    });
 
   return NextResponse.json({ ok: true });
 }

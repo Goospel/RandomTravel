@@ -24,3 +24,15 @@ export function mergePlaces(
   }
   return [...byId.values()].sort((a, b) => b.savedAt - a.savedAt);
 }
+
+/**
+ * 로컬에만 있고 서버엔 없는 항목(contentId 기준). 로그인 병합 시 서버로 올릴 "델타".
+ * 서버에 이미 있는 항목은 안 올려, 병합 업로드가 방금 삭제한 서버 항목을 되살리는 것을 막는다.
+ */
+export function localOnly(
+  local: SavedPlace[],
+  server: SavedPlace[],
+): SavedPlace[] {
+  const serverIds = new Set(server.map((p) => p.contentId));
+  return local.filter((p) => !serverIds.has(p.contentId));
+}
