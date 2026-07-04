@@ -325,7 +325,7 @@ RandomTravel/
 | **M6** | 조건 확장 1차 — 🌊 바다 + 🦀 제철 (상수 기반, 추가 API·키 불필요) |
 | **M7** | 조건 확장 2차 — 🎪 축제 ✅완료(기존 TourAPI 키) / ☔ 날씨 ⏳(기상청 키 활용신청 필요) |
 | **M8** | 🗺️ 내 여행 지도 + 지도 앱 딥링크 (§7) |
-| **M9** | 📱 PWA — manifest·아이콘 추가로 폰 홈 화면 설치 (직접 쓰는 재미 극대화, 반나절 작업) |
+| **M9** | 📱 PWA ✅완료 — manifest·아이콘·최소 서비스워커로 폰 홈 화면 설치 + 오프라인 앱 셸 |
 
 > M6~M7이 배포 뒤인 이유: push마다 자동 재배포라 늦게 붙여도 부담이 없고, 기본 랜덤이 먼저 돌아가는 게 검증에 유리. 상수 기반의 쉬운 확장(M6)부터.
 >
@@ -428,6 +428,7 @@ RandomTravel/
 - **배포 함수 리전** — ✅ **M5: 서울(`icn1`) 고정** (`vercel.json` `regions:["icn1"]`). 기본 `iad1`(US)에선 뽑기 1건당 한국 TourAPI를 3회 **순차**(개수→항목→개요, 의존 체인이라 병렬 불가) 왕복해 1.4~4.2s 소요 → 함수 실행 리전을 서울로 옮겨 단축. ⚠️ Hobby는 **단일 리전만**(배열에 2개↑면 빌드 전 배포 실패). ⚠️ Next.js `preferredRegion='icn1'`은 **함정**(Node 런타임 무시, Vercel Edge는 `auto|global|home`만) — 반드시 `vercel.json`으로. 검증: 응답 `x-vercel-id` compute 세그먼트가 `icn1`.
 - **🌊 바다 + 🦀 제철** — ✅ **M6 구현 완료**(상수 기반, 추가 API·키 0). **🌊 바다**: `areaBasedList2` 에 바다 소분류 `cat3` 4종(해안절경·해수욕장·섬·항구, `lib/constants.ts` `SEA_CAT3`)을 얹어 대상을 바다로 한정 — 타입은 관광지(12) 고정. 4종의 `totalCount` **합산 가중**으로 분류 선택(`weightedIndex`, 개수 적은 분류 쏠림 방지, §6.3). **🦀 제철**: `lib/constants.ts` `SEASONAL_CALENDAR`(품목→월·주산지, 22종 12개월 커버) + `lib/season.ts`(순수·TDD) 로 이번 달 제철 산지와 지역 풀 **교집합**, 결과 카드에 "지금 제철 🧄마늘·🐚전복" 배지(§6.4). 둘 다 조합 가능(강원 바다+강원 제철). 빈 풀(제철∩지역=0)은 `EMPTY_POOL`(404)+안내. `drawRandom` 을 `drawByType`/`drawSeaside` 로 분기. 파라미터 `seaside=1`·`seasonal=1`(`lib/query.ts` `parseBool`).
 - **🎪 축제** — ✅ **M7 구현 완료**(추가 API·키 0 — `searchFestival2`가 기존 TourAPI 키 그대로). `lib/festival.ts`(순수·TDD) + `getFestivalMap`(1h 캐시)로 오늘 진행 중 축제 지역과 지역 풀 **교집합**, 결과 카드에 "🎪 (축제명) 외 N" 배지(§6.2). 실측(2026-07) 2대 발견: ① `eventStartDate=오늘`은 '진행 중'이 아니라 '아직 안 끝난(진행중+예정)'을 줘서 `시작≤오늘≤종료` **클라이언트 필터** 필수. ② 응답 `areacode` 거의 비고 `areaCode` 필터도 0 → **`lDongRegnCd`(법정동 시도 코드)를 `LDONG_TO_AREA`로 TourAPI areaCode 변환**(강원 42→51·전북 45→52 특별자치도 신·구 공존, 오염코드 12는 매핑 없어 자동 제외). `drawRandom` 파이프라인에 축제 교집합 단계 추가(축제→제철 순), 배지는 `BadgeCtx`로 통합. 파라미터 `festivalOnly=1`. **§6.5 소스 장애 처리**: `getFestivalMap` 실패 시 `drawRandom`이 try/catch로 잡아 **축제 필터만 건너뛰고 결과는 살리며** `picked.notice`로 "축제 조건 없이 뽑았어요" 안내(바다·제철은 로컬 상수라 원격 축제 API 하나로 전체 실패 방지). `getFestivalMap`은 `arrange="A"`(제목순)라 한 페이지 절단이 진행중 축제를 무성 누락할 수 있어 **totalCount 만큼 페이지네이션**(100/page, 상한 1500).
+- **📱 PWA** — ✅ **M9 구현 완료**(추가 키 0). `app/manifest.ts`(Next가 `/manifest.webmanifest` 자동 서빙 + `<link rel=manifest>` 주입), 아이콘은 **파일 기반 자동 감지**(`app/icon.png` 파비콘·`app/apple-icon.png` 애플터치 — ⚠️ `metadata.icons`를 명시하면 이 자동 감지가 무시되므로 지정하지 않음), manifest 아이콘은 `public/icon-192·512.png`(주사위 🎲, sharp로 SVG→PNG 생성, 512는 maskable 겸용). `themeColor`는 Next 15+에서 `viewport` export로 분리(라이트 인디고/다크). `public/sw.js` 최소 서비스워커(네비 네트워크 우선→오프라인 셸 폴백, 정적 캐시 우선, `/api/*`는 캐시 금지) + `ServiceWorkerRegister`(프로덕션에서만 등록 — dev HMR 충돌 방지).
 - **TourAPI 버전** — ✅ **KorService2 확정**(§5). 오퍼레이션 접미사 `2`, `detailCommon2`는 `contentId`만.
 - **빈 결과 대응** — ✅ **M1: `EMPTY_POOL`(404)** + 인덱스/조합 재추첨 구현. UI 완화 제안(조건 끄기 등)은 M2 조건 UI와 함께.
 - **`searchFestival` 날짜 파라미터 의미 검증**: ✅ **M7 확정** — `eventStartDate=오늘` 단독은 '진행 중'이 아니라 '해당일 이후 안 끝난(진행중+예정)'을 반환. "오늘 진행 중"은 `시작일 ≤ 오늘 ≤ 종료일` 클라이언트 필터로 추출. `areacode` 미신뢰 → `lDongRegnCd` 변환(위 M7 항목).
