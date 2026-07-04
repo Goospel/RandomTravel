@@ -130,7 +130,14 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
       buildRandomQuery("pure", new Set(), new Set(), {
         seaside: true,
         seasonal: true,
+        festival: true,
       }),
     ).toBe("");
+  });
+  it("🎪 축제는 festivalOnly=1 파라미터", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { festival: true }),
+    );
+    expect(p.get("festivalOnly")).toBe("1");
   });
 });

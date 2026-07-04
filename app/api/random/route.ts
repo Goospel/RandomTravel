@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const contentTypeIds = parseContentTypeIds(typesRaw);
   const seaside = parseBool(sp.get("seaside")); // 🌊 바다 (§6.3)
   const seasonal = parseBool(sp.get("seasonal")); // 🦀 제철 (§6.4)
+  const festivalOnly = parseBool(sp.get("festivalOnly")); // 🎪 축제 (§6.2)
 
   // 파라미터에 '내용'이 있는데 유효 코드가 하나도 없으면(조작된 URL 등) 잘못된 요청 —
   // 상류 API 호출을 낭비하지 않고 400으로 명확히 응답한다.
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
       contentTypeIds,
       seaside,
       seasonal,
+      festivalOnly,
     });
     return Response.json(result);
   } catch (e) {

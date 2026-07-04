@@ -81,7 +81,21 @@ export function ResultCard({
                 .join(" · ")}
             </span>
           )}
+          {data.picked.festival && (
+            <span
+              title={data.picked.festival.name}
+              className="inline-block max-w-[15rem] truncate rounded-full bg-fuchsia-50 px-2.5 py-1 align-bottom text-xs font-medium text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300"
+            >
+              🎪 {data.picked.festival.name}
+              {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
+            </span>
+          )}
         </div>
+        {data.picked.notice && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            ⚠️ {data.picked.notice}
+          </p>
+        )}
 
         <h2 className="text-xl font-bold leading-snug">{place.title}</h2>
         {place.address && (
