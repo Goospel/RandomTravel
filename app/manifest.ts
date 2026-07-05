@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 // <link rel="manifest"> 를 자동 주입한다. 아이콘은 public/ 의 PNG(주사위 🎲 브랜드).
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "RandomTravel — 랜덤 국내 여행지 추천",
-    short_name: "RandomTravel",
+    name: "어디든 — 랜덤 국내 여행지 추천",
+    short_name: "어디든",
     description: "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱.",
     start_url: "/",
     display: "standalone",

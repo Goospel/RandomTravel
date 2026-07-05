@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RandomTravel — 랜덤 국내 여행지 추천",
+  title: "어디든 — 랜덤 국내 여행지 추천",
   description: "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱.",
-  applicationName: "RandomTravel",
+  applicationName: "어디든",
   // Next 가 app/manifest.ts 를 감지해 <link rel="manifest"> 를 자동 주입한다.
-  appleWebApp: { capable: true, title: "RandomTravel", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "어디든", statusBarStyle: "default" },
   // 아이콘은 파일 기반 자동 감지에 맡긴다: app/icon.png(파비콘)·app/apple-icon.png(애플 터치).
   // metadata.icons 를 명시하면 그 자동 감지가 무시되므로 여기서 지정하지 않는다.
 };
