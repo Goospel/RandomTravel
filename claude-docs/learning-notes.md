@@ -6,6 +6,7 @@
 ## 📑 목차
 
 1. [지도 폴리곤 단순화가 해안선을 깎아 point-in-polygon이 새는 문제 — 최근접 경계 스냅](#1-지도-폴리곤-단순화가-해안선을-깎아-point-in-polygon이-새는-문제--최근접-경계-스냅)
+2. [카카오 JS SDK v2 모듈은 init 후에야 붙는다](#2-카카오-js-sdk-v2-모듈은-init-후에야-붙는다)
 
 ---
 
@@ -61,8 +62,57 @@ M12 정복 지도는 방문 좌표(lat/lng)를 지도 평면으로 투영한 뒤
 
 ---
 
+## 2. 카카오 JS SDK v2 모듈은 init 후에야 붙는다
+
+**한 줄 요약**: 카카오 JS SDK v2(`kakao.min.js`)를 `<script>`로 로드만 하면 `window.Kakao`엔 `VERSION·cleanup·init·isInitialized` 4개뿐이다. `Share`·`Auth`·`API` 같은 **기능 모듈은 `Kakao.init(appKey)`를 호출한 뒤에야** `Kakao` 객체에 붙는다. 그래서 `Kakao.Share.sendDefault`를 쓰기 전에 **반드시 `init` 먼저** — 안 그러면 `Kakao.Share`가 `undefined`라 터진다.
+
+### 문제 / 배경
+
+카톡 공유(M13)에서 `Kakao.Share.sendDefault`로 공유 카드를 띄운다. SDK를 로드하고 `window.Kakao`를 봤더니 로드는 분명 성공(객체 존재, `VERSION` 2.7.6)인데 **`Share`만 `undefined`**였다.
+
+### 원인
+
+카카오 v2 SDK는 로드 시 **코어(`init`/`isInitialized` 등)만** 노출하고, `Kakao.init(appKey)`가 실행되면서 `Share`/`Auth`/`API`/`Channel`/`Navi` 등 모듈을 `Kakao` 객체에 **등록**한다. 즉 `init`은 "앱 키 저장" 이상으로 **모듈 등록 트리거**다. init 전엔 모듈 접근이 곧 `undefined` 참조.
+
+실측:
+- init 전 `Object.keys(Kakao)` = `[VERSION, cleanup, init, isInitialized]`
+- init 후 = `[…, Auth, API, Share, Channel, Navi, Picker, Cert]`
+
+### 해법
+
+호출 순서를 **init → 모듈 사용**으로 고정하고, 중복 init은 `isInitialized()`로 가드:
+
+```js
+if (!Kakao.isInitialized()) Kakao.init(JS_KEY);
+Kakao.Share.sendDefault(template); // 이제 Kakao.Share 존재
+```
+
+### 테스트에서 얻은 별도 교훈 — 전역 스텁 오염
+
+로컬 검증 때 `window.Kakao`를 통째로 스텁(`{ init, isInitialized, Share: { sendDefault } }`)해 페이로드를 가로챘다. 그 뒤 **같은 페이지**에서 진짜 SDK를 로드해 "Share 있나?"를 확인했더니 `true`가 나와 "SDK에 Share 있음"으로 오판했다. 실제로는 카카오 SDK 부트스트랩이 `window.Kakao = window.Kakao || {}` 식이라 **내 스텁의 `Share`가 살아남아** 거짓 양성을 만든 것. 진상은 스텁 없는 새 페이지(프로덕션)에서 확인해야 드러났다. → **SDK를 검증할 땐 스텁·목을 완전히 걷어낸 격리 상태에서 실측**한다.
+
+### 일반화 포인트 (면접용)
+
+- **"로드 성공 ≠ 사용 준비 완료"**: 서드파티 SDK는 로드와 초기화가 분리된 경우가 많다(모듈 지연 등록·핸드셰이크·권한). 전역이 생겼다고 바로 쓰지 말고 문서가 요구하는 init/ready 단계를 지나야 한다.
+- **전역 오염은 테스트를 거짓말하게 만든다**: 스텁으로 전역을 덮은 뒤 "진짜"를 확인하면 잔재가 섞인다. 검증은 오염 없는 격리 상태에서.
+- **부작용 없는 실검증**: 프로덕션 공유를 확인할 때 `window.open`을 가로채 `sharer.kakao.com/picker/link` 호출만 잡으면, 실제 팝업·전송 없이 end-to-end 성공을 증명할 수 있다.
+
+### 코드 위치
+
+- `hooks/useKakaoShare.ts` — `loadSdk`(1회 주입)·`share`(init→`Kakao.Share.sendDefault`, 폴백 Web Share/클립보드)
+- `lib/mapView.ts` — `KAKAO_JS_SDK`(URL + 실측 sha384 integrity)
+- 지도 SDK(별개)와의 대조: `hooks/useKakaoLoader.ts`(`window.kakao.maps`)
+- PR #14, 설계 맥락 `plan.md` §7.5
+
+### 관련 노트
+
+- (추후 "SRI(subresource integrity)로 CDN 스크립트 무결성 고정" 노트 생기면 링크)
+
+---
+
 ## 🔄 누적 갱신
 
 | 일자 | 추가 항목 |
 |---|---|
 | 2026-07-05 | 초안 — 1. 지도 단순화 해안 침식 → 최근접 경계 스냅 |
+| 2026-07-05 | 2. 카카오 JS SDK v2 — init 후에야 Share 모듈이 붙는다 (+ 스텁 오염 오탐) |
