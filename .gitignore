@@ -27,3 +27,6 @@ yarn-error.log*
 
 # claude — T-026 한글 커밋 메시지 임시 파일
 .commit-msg-tmp
+
+# 🧩 정복 지도 생성기 캐시 — public-domain 시·군·구/시·도 경계 GeoJSON(수 MB, §7.4)
+scripts/.cache-*.json
