@@ -15,6 +15,13 @@
       "when": 1783160295723,
       "tag": "0001_spooky_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783270177867,
+      "tag": "0002_magical_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

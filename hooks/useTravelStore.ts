@@ -13,8 +13,10 @@ import {
   serialize,
   toSavedPlace,
   toggleSaved,
+  setRatingInList,
   has,
   type SavedPlace,
+  type RevisitRating,
 } from "@/lib/travelStore";
 import { mergePlaces, localOnly } from "@/lib/syncMerge";
 import {
@@ -134,6 +136,8 @@ export interface UseTravelStore {
   isVisited: (contentId: string) => boolean;
   toggleSave: (place: Place) => void;
   toggleVisit: (place: Place) => void;
+  /** 📊 다녀온 곳의 재방문 의향 평가 설정(M15) — null 이면 해제. write-through */
+  setRating: (place: SavedPlace, rating: RevisitRating | null) => void;
   /** 뽑기 성공 시 호출 — 최근 목록 기록 + draw/redraw 이벤트 */
   recordDraw: (place: Place, meta: { mode: Mode; isRedraw: boolean }) => void;
   /** 지도/길찾기 클릭 — navigate 이벤트 (Place·SavedPlace 공용 최소 필드) */
@@ -337,6 +341,19 @@ export function useTravelStore(): UseTravelStore {
     }
   }
 
+  // 📊 재방문 의향 평가(M15) — 다녀온 곳 목록의 해당 항목 rating 을 갱신.
+  // 방문 항목에만 노출되므로 place 는 이미 visited 에 있다(없으면 no-op).
+  function setRating(place: SavedPlace, rating: RevisitRating | null) {
+    const next = setRatingInList(visited, place.contentId, rating);
+    setVisited(next);
+    persist(K_VISITED, next);
+    if (userId) {
+      // 갱신된 항목으로 업서트 write-through(POST 가 rating 까지 갱신).
+      const updated = next.find((x) => x.contentId === place.contentId);
+      if (updated) serverAdd("visited", updated);
+    }
+  }
+
   function recordDraw(place: Place, meta: { mode: Mode; isRedraw: boolean }) {
     const next = addToRecent(recent, toSavedPlace(place, Date.now()), RECENT_CAP);
     setRecent(next);
@@ -385,6 +402,7 @@ export function useTravelStore(): UseTravelStore {
     isVisited: (id) => has(visited, id),
     toggleSave,
     toggleVisit,
+    setRating,
     recordDraw,
     logNavigate,
     remove,

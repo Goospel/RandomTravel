@@ -6,6 +6,7 @@ import {
   parseStored,
   serialize,
   toSavedPlace,
+  setRatingInList,
   type SavedPlace,
 } from "@/lib/travelStore";
 import type { Place } from "@/types/tour";
@@ -133,8 +134,50 @@ describe("toSavedPlace — Place → SavedPlace 변환", () => {
       lng: 128.6,
       areaCode: 32,
       savedAt: 1717000000000,
+      // 새로 뽑은/저장한 장소는 아직 미평가
+      rating: null,
     });
     // overview 는 목록엔 불필요 — 저장하지 않는다
     expect("overview" in out).toBe(false);
+  });
+});
+
+describe("setRatingInList — 방문 항목에 재방문 의향 평가 설정(M15)", () => {
+  it("매칭 항목만 rating 을 설정한다", () => {
+    const out = setRatingInList([sp("a"), sp("b")], "b", 3);
+    expect(out.find((x) => x.contentId === "b")!.rating).toBe(3);
+    expect(out.find((x) => x.contentId === "a")!.rating).toBeUndefined();
+  });
+
+  it("null 로 평가를 해제한다", () => {
+    const out = setRatingInList([sp("a", { rating: 2 })], "a", null);
+    expect(out[0].rating).toBeNull();
+  });
+
+  it("기존 평가를 다른 값으로 교체한다", () => {
+    const out = setRatingInList([sp("a", { rating: 1 })], "a", 3);
+    expect(out[0].rating).toBe(3);
+  });
+
+  it("매칭이 없으면 그대로", () => {
+    const list = [sp("a", { rating: 2 })];
+    const out = setRatingInList(list, "z", 3);
+    expect(out.map((x) => x.rating)).toEqual([2]);
+  });
+
+  it("원본 배열·항목을 변형하지 않는다(불변)", () => {
+    const orig = [sp("a", { rating: 1 })];
+    const out = setRatingInList(orig, "a", 3);
+    expect(orig[0].rating).toBe(1); // 원본 항목 불변
+    expect(out).not.toBe(orig);
+    expect(out[0]).not.toBe(orig[0]);
+  });
+});
+
+describe("parseStored — rating 필드 보존(M15)", () => {
+  it("저장·복원 왕복에서 rating 이 유지된다", () => {
+    const list = [sp("a", { rating: 3 }), sp("b", { rating: null }), sp("c")];
+    const round = parseStored(serialize(list));
+    expect(round.map((x) => x.rating)).toEqual([3, null, undefined]);
   });
 });

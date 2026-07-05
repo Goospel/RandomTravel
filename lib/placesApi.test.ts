@@ -24,6 +24,7 @@ describe("sanitizePlace — 신뢰 못 할 요청 바디를 SavedPlace 로 정�
       lng: 126.97,
       areaCode: 1,
       savedAt: 1000,
+      rating: 3,
     });
     expect(p).toEqual({
       contentId: "126508",
@@ -35,6 +36,7 @@ describe("sanitizePlace — 신뢰 못 할 요청 바디를 SavedPlace 로 정�
       lng: 126.97,
       areaCode: 1,
       savedAt: 1000,
+      rating: 3,
     });
   });
 
@@ -57,6 +59,7 @@ describe("sanitizePlace — 신뢰 못 할 요청 바디를 SavedPlace 로 정�
     expect(p.lng).toBeNull();
     expect(p.areaCode).toBeNull();
     expect(p.savedAt).toBe(0);
+    expect(p.rating).toBeNull();
   });
 
   it("NaN·Infinity 좌표는 널로", () => {
@@ -81,5 +84,17 @@ describe("sanitizePlace — 신뢰 못 할 요청 바디를 SavedPlace 로 정�
     expect(p.title.length).toBe(256);
     expect(p.address.length).toBe(256);
     expect(p.image!.length).toBe(2048);
+  });
+
+  it("rating 은 1|2|3 만 통과, 그 외/누락은 null (M15)", () => {
+    expect(sanitizePlace({ contentId: "1", rating: 1 })!.rating).toBe(1);
+    expect(sanitizePlace({ contentId: "1", rating: 2 })!.rating).toBe(2);
+    expect(sanitizePlace({ contentId: "1", rating: 3 })!.rating).toBe(3);
+    // 범위 밖·형식 오류·누락 → null
+    expect(sanitizePlace({ contentId: "1", rating: 0 })!.rating).toBeNull();
+    expect(sanitizePlace({ contentId: "1", rating: 4 })!.rating).toBeNull();
+    expect(sanitizePlace({ contentId: "1", rating: 2.5 })!.rating).toBeNull();
+    expect(sanitizePlace({ contentId: "1", rating: "2" })!.rating).toBeNull();
+    expect(sanitizePlace({ contentId: "1" })!.rating).toBeNull();
   });
 });

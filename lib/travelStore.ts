@@ -5,6 +5,9 @@
 
 import type { Place } from "@/types/tour";
 
+/** 재방문 의향 평가(M15) — 1=또 갈 생각 없음, 2=나쁘지 않았음, 3=또 갈 의향 있음. */
+export type RevisitRating = 1 | 2 | 3;
+
 /** 목록·지도에 필요한 최소 필드 + 저장 시각. overview 같은 큰 필드는 저장 안 함. */
 export interface SavedPlace {
   contentId: string;
@@ -16,6 +19,8 @@ export interface SavedPlace {
   lng: number | null;
   areaCode: number | null;
   savedAt: number;
+  /** 📊 재방문 의향 평가(M15) — 방문(visited) 항목에만 의미. 미평가·찜/최근은 null/미존재. */
+  rating?: RevisitRating | null;
 }
 
 /** Place(뽑기 결과) → SavedPlace(저장용 최소 형태) */
@@ -30,7 +35,20 @@ export function toSavedPlace(place: Place, ts: number): SavedPlace {
     lng: place.lng,
     areaCode: place.areaCode,
     savedAt: ts,
+    rating: null, // 새로 뽑은/저장한 장소는 아직 미평가(M15)
   };
+}
+
+/**
+ * 재방문 의향 평가 설정(M15) — 매칭 contentId 항목만 rating 을 교체(원본 불변).
+ * null 이면 평가 해제. 방문 목록에서만 호출된다.
+ */
+export function setRatingInList(
+  list: SavedPlace[],
+  contentId: string,
+  rating: RevisitRating | null,
+): SavedPlace[] {
+  return list.map((x) => (x.contentId === contentId ? { ...x, rating } : x));
 }
 
 /** contentId 포함 여부 */

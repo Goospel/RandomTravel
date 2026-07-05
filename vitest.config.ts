@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,5 +12,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    // .claude/worktrees(에이전트 격리 워크트리)의 테스트 복사본을 수집하지 않는다 —
+    // 그 복사본은 "@/" alias 가 메인 소스를 가리켜 유령 실패를 낸다.
+    exclude: [...configDefaults.exclude, "**/.claude/**"],
   },
 });

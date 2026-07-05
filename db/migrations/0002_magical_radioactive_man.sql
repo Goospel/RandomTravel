@@ -1,0 +1,1 @@
+ALTER TABLE "user_place" ADD COLUMN "rating" integer;

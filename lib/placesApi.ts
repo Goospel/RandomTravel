@@ -1,7 +1,7 @@
 // M10 동기화 API 의 순수 헬퍼 — 신뢰 못 할 요청 바디를 안전하게 정제/검증.
 // (SQL 은 Drizzle 이 파라미터화하지만, 애플리케이션 스키마 형태는 여기서 지킨다.)
 
-import type { SavedPlace } from "@/lib/travelStore";
+import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
 
 export type PlaceList = "saved" | "visited";
 
@@ -23,6 +23,10 @@ function num(v: unknown): number | null {
 // 문자열이면 max 로 절단, 아니면 null.
 function str(v: unknown, max: number): string | null {
   return typeof v === "string" ? v.slice(0, max) : null;
+}
+// 재방문 의향 평가(M15) — 1|2|3 만 통과, 그 외/누락은 null.
+function rating(v: unknown): RevisitRating | null {
+  return v === 1 || v === 2 || v === 3 ? v : null;
 }
 
 /** 신뢰 못 할 입력(요청 바디)을 SavedPlace 로 정제. contentId 없거나 과길면 null. */
@@ -46,6 +50,7 @@ export function sanitizePlace(x: unknown): SavedPlace | null {
     lng: num(o.lng),
     areaCode: num(o.areaCode),
     savedAt: num(o.savedAt) ?? 0,
+    rating: rating(o.rating),
   };
 }
 
