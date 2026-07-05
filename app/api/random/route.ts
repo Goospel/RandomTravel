@@ -3,12 +3,38 @@
 //  - 쿼리: ?areas=32,39&types=39 (콤마 다중, 둘 다 생략 시 완전 랜덤)
 
 import { type NextRequest } from "next/server";
-import { drawRandom, TourApiError } from "@/lib/tourapi";
-import { parseAreaCodes, parseContentTypeIds, parseBool } from "@/lib/query";
+import { drawRandom, drawNearby, TourApiError } from "@/lib/tourapi";
+import {
+  parseAreaCodes,
+  parseContentTypeIds,
+  parseBool,
+  parseLatLng,
+} from "@/lib/query";
 import type { ErrorResponse } from "@/types/tour";
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
+
+  // 📍 주변에서 뽑기(M14) — near=위도,경도 가 있으면 위치 기반 경로.
+  //    순수 랜덤 전용이라 areas/types/특수조건은 무시한다. 좌표가 잘못되면 400.
+  const nearRaw = sp.get("near");
+  if (nearRaw !== null && nearRaw.trim() !== "") {
+    const anchor = parseLatLng(nearRaw);
+    if (!anchor) {
+      const body: ErrorResponse = {
+        error: "기준 좌표가 올바르지 않아요.",
+        code: "BAD_REQUEST",
+      };
+      return Response.json(body, { status: 400 });
+    }
+    try {
+      const result = await drawNearby(anchor);
+      return Response.json(result);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+
   const areasRaw = sp.get("areas");
   const typesRaw = sp.get("types");
   const areaCodes = parseAreaCodes(areasRaw); // 정수·양수·화이트리스트·중복제거
@@ -47,17 +73,22 @@ export async function GET(request: NextRequest) {
     });
     return Response.json(result);
   } catch (e) {
-    if (e instanceof TourApiError) {
-      const body: ErrorResponse = { error: e.message, code: e.code };
-      const status =
-        e.code === "EMPTY_POOL" ? 404 : e.code === "BAD_REQUEST" ? 400 : 502;
-      return Response.json(body, { status });
-    }
-    console.error("[/api/random] 예상치 못한 오류:", e);
-    const body: ErrorResponse = {
-      error: "예상치 못한 오류가 발생했어요.",
-      code: "UPSTREAM_ERROR",
-    };
-    return Response.json(body, { status: 500 });
+    return errorResponse(e);
   }
+}
+
+/** TourApiError → 적절한 상태코드로 매핑, 그 외는 500. (near/일반 경로 공용) */
+function errorResponse(e: unknown): Response {
+  if (e instanceof TourApiError) {
+    const body: ErrorResponse = { error: e.message, code: e.code };
+    const status =
+      e.code === "EMPTY_POOL" ? 404 : e.code === "BAD_REQUEST" ? 400 : 502;
+    return Response.json(body, { status });
+  }
+  console.error("[/api/random] 예상치 못한 오류:", e);
+  const body: ErrorResponse = {
+    error: "예상치 못한 오류가 발생했어요.",
+    code: "UPSTREAM_ERROR",
+  };
+  return Response.json(body, { status: 500 });
 }

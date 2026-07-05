@@ -4,6 +4,8 @@ import {
   parseContentTypeIds,
   parseBool,
   buildRandomQuery,
+  parseLatLng,
+  buildNearbyQuery,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -152,5 +154,47 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
     );
     expect(p.get("areas")).toBe("32");
     expect(p.get("noRain")).toBe("1");
+  });
+});
+
+describe("parseLatLng — 📍 주변에서 뽑기 앵커 좌표 파싱(M14)", () => {
+  it("정상 '위도,경도'", () => {
+    expect(parseLatLng("37.5665,126.978")).toEqual({
+      lat: 37.5665,
+      lng: 126.978,
+    });
+  });
+  it("공백 허용", () => {
+    expect(parseLatLng(" 33.489 , 126.4983 ")).toEqual({
+      lat: 33.489,
+      lng: 126.4983,
+    });
+  });
+  it("한국 범위 밖(위도/경도) → null", () => {
+    expect(parseLatLng("0,0")).toBeNull(); // 원점
+    expect(parseLatLng("50,126")).toBeNull(); // 위도 너무 큼
+    expect(parseLatLng("37,150")).toBeNull(); // 경도 너무 큼
+    expect(parseLatLng("30,126")).toBeNull(); // 위도 너무 작음(제주 남쪽 밖)
+  });
+  it("비수치·형식 오류 → null", () => {
+    expect(parseLatLng("abc,126")).toBeNull();
+    expect(parseLatLng("37")).toBeNull(); // 경도 누락
+    expect(parseLatLng("37,126,5")).toBeNull(); // 부분 3개
+    expect(parseLatLng("Infinity,126")).toBeNull();
+  });
+  it("빈 입력·null → null", () => {
+    expect(parseLatLng(null)).toBeNull();
+    expect(parseLatLng("")).toBeNull();
+    expect(parseLatLng(" , ")).toBeNull();
+  });
+});
+
+describe("buildNearbyQuery — near= 좌표 쿼리 조립(M14)", () => {
+  it("near=위도,경도", () => {
+    expect(buildNearbyQuery(37.5665, 126.978)).toBe("near=37.5665%2C126.978");
+  });
+  it("왕복: build → parse 가 좌표를 보존", () => {
+    const p = new URLSearchParams(buildNearbyQuery(35.1796, 129.0756));
+    expect(parseLatLng(p.get("near"))).toEqual({ lat: 35.1796, lng: 129.0756 });
   });
 });

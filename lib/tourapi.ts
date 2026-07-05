@@ -8,7 +8,12 @@
 //  - 0건이면 body.items 가 빈 문자열 "" 로 올 수 있음 → 배열 파싱 전 방어
 
 import type { Place, TourApiItem, PickedInfo } from "@/types/tour";
-import { RANDOM_DEFAULT_TYPES, SEA_CAT3, ALL_AREA_CODES } from "@/lib/constants";
+import {
+  RANDOM_DEFAULT_TYPES,
+  SEA_CAT3,
+  ALL_AREA_CODES,
+  NEARBY_RADIUS_M,
+} from "@/lib/constants";
 import { narrowBySeasonal, seasonalItemsForArea, currentMonth } from "@/lib/season";
 import {
   normalizeFestivals,
@@ -137,21 +142,30 @@ function queryParams(q: Query): Record<string, string | number> {
   return p;
 }
 
-/** 조합의 전체 개수 — 거의 안 변하므로 24h 캐시 (§5.6) */
-async function getTotalCount(q: Query): Promise<number> {
+type ListParams = Record<string, string | number>;
+
+/** 조합의 전체 개수 — 거의 안 변하므로 24h 캐시 (§5.6). endpoint 로 지역/위치 경로 공용. */
+async function getTotalCount(
+  endpoint: string,
+  params: ListParams,
+): Promise<number> {
   const body = await tourFetch(
-    "areaBasedList2",
-    { ...queryParams(q), numOfRows: 1, pageNo: 1 },
+    endpoint,
+    { ...params, numOfRows: 1, pageNo: 1 },
     { revalidate: 86400 },
   );
   return body.totalCount ?? 0;
 }
 
 /** 정렬된 전체 목록의 index번째 1건 (1-indexed). 캐시 금지 — 매 뽑기가 달라야 함 */
-async function getItemAt(q: Query, index: number): Promise<TourApiItem | null> {
+async function getItemAt(
+  endpoint: string,
+  params: ListParams,
+  index: number,
+): Promise<TourApiItem | null> {
   const body = await tourFetch(
-    "areaBasedList2",
-    { ...queryParams(q), numOfRows: 1, pageNo: index },
+    endpoint,
+    { ...params, numOfRows: 1, pageNo: index },
     "no-store",
   );
   return itemsOf(body)[0] ?? null;
@@ -317,12 +331,13 @@ export function weightedIndex(
 
 /** 결정된 조합에서 항목 1건 뽑기(인덱스 최대 MAX_INDEX_TRIES 재시도). 실패 시 null. */
 async function pickItemFrom(
-  q: Query,
+  endpoint: string,
+  params: ListParams,
   totalCount: number,
 ): Promise<TourApiItem | null> {
   for (let t = 0; t < MAX_INDEX_TRIES; t++) {
     const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
-    const item = await getItemAt(q, index);
+    const item = await getItemAt(endpoint, params, index);
     if (item) return item; // stale count 등으로 빈 결과면 인덱스 재추첨
   }
   return null;
@@ -473,10 +488,11 @@ async function drawByType(
 
   for (let i = 0; i < limit; i++) {
     const q = combos[i];
-    const totalCount = await getTotalCount(q);
+    const params = queryParams(q);
+    const totalCount = await getTotalCount("areaBasedList2", params);
     if (totalCount <= 0) continue; // 빈 조합 → 다음 조합
 
-    const item = await pickItemFrom(q, totalCount);
+    const item = await pickItemFrom("areaBasedList2", params, totalCount);
     if (!item) continue;
 
     const overview = await getOverview(item.contentid);
@@ -526,7 +542,7 @@ async function drawSeaside(
   // 조합별 totalCount 수집(24h 캐시) → 빈 조합 제외
   const weighted: { q: Query; count: number }[] = [];
   for (let i = 0; i < limit; i++) {
-    const count = await getTotalCount(combos[i]);
+    const count = await getTotalCount("areaBasedList2", queryParams(combos[i]));
     if (count > 0) weighted.push({ q: combos[i], count });
   }
   if (weighted.length === 0) {
@@ -542,7 +558,7 @@ async function drawSeaside(
     const { q, count } = weighted[idx];
     weighted.splice(idx, 1);
 
-    const item = await pickItemFrom(q, count);
+    const item = await pickItemFrom("areaBasedList2", queryParams(q), count);
     if (!item) continue;
 
     const overview = await getOverview(item.contentid);
@@ -562,6 +578,61 @@ async function drawSeaside(
 
   throw new TourApiError(
     "바다 여행지를 찾지 못했어요. 다시 시도해 주세요.",
+    "EMPTY_POOL",
+  );
+}
+
+export interface NearbyParams {
+  /** 앵커(첫 여행지) 위도 */
+  lat: number;
+  /** 앵커 경도 */
+  lng: number;
+  /** 반경(m). 미지정 시 NEARBY_RADIUS_M(20km) */
+  radius?: number;
+}
+
+/**
+ * 📍 주변에서 뽑기(M14) — 앵커 좌표 반경 내에서 랜덤 1건.
+ *  - locationBasedList2(mapX=경도, mapY=위도, radius, contentTypeId, arrange="E")로 조회.
+ *  - RANDOM_DEFAULT_TYPES 를 셔플해 첫 비어있지 않은 타입에서 랜덤 인덱스 1건(타입 균등, §13).
+ *  - 응답의 dist(m)를 picked.distanceM 으로 실어 카드가 "○○에서 N km"를 표시.
+ *  - 반경 내 후보가 없으면 EMPTY_POOL — 결과를 죽이지 않고 "그냥 다시 뽑기"로 유도.
+ *  - 순수 랜덤 전용(조건·지역 필터 미적용) — 호출부(route)에서 near= 단독으로 들어온다.
+ */
+export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
+  const radius = params.radius ?? NEARBY_RADIUS_M;
+  const types = shuffle([...RANDOM_DEFAULT_TYPES]);
+
+  for (const contentTypeId of types) {
+    const locParams: ListParams = {
+      mapX: params.lng, // ⚠️ mapX=경도, mapY=위도
+      mapY: params.lat,
+      radius,
+      contentTypeId,
+      arrange: "E", // 거리순 — 응답 dist 채워짐
+    };
+    const totalCount = await getTotalCount("locationBasedList2", locParams);
+    if (totalCount <= 0) continue; // 이 타입은 반경 내 0건 → 다음 타입
+
+    const item = await pickItemFrom("locationBasedList2", locParams, totalCount);
+    if (!item) continue;
+
+    const overview = await getOverview(item.contentid);
+    const areaCode = item.areacode ? Number(item.areacode) : null;
+    const distRaw = item.dist != null ? Number(item.dist) : NaN;
+    return {
+      place: normalizePlace(item, overview),
+      picked: {
+        areaCode,
+        contentTypeId,
+        totalCount,
+        distanceM: Number.isFinite(distRaw) ? distRaw : null,
+      },
+    };
+  }
+
+  throw new TourApiError(
+    "주변에 추천할 여행지를 찾지 못했어요. '다시 뽑기'로 다른 곳을 받아보세요.",
     "EMPTY_POOL",
   );
 }

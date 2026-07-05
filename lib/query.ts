@@ -38,6 +38,36 @@ export function parseBool(raw: string | null): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
+// ─── 📍 주변에서 뽑기 앵커 좌표 (M14) ─────────────────────────────────
+// 대한민국 대략 경계 — 이 범위를 벗어난 near= 는 조작·오류로 보고 무시(400).
+const KOREA_LAT = { min: 33, max: 39 } as const; // 제주 남단 ~ 강원 북단
+const KOREA_LNG = { min: 124, max: 132 } as const; // 서해 ~ 독도
+
+/**
+ * `?near=위도,경도` → {lat,lng}. 유한수 + 한국 대략 범위 안일 때만.
+ * 형식 오류·범위 밖·null 은 모두 null(상류 위치 API에 쓰레기 좌표를 흘리지 않게 경계에서 차단).
+ */
+export function parseLatLng(
+  raw: string | null,
+): { lat: number; lng: number } | null {
+  if (!raw) return null;
+  const parts = raw.split(",");
+  if (parts.length !== 2) return null;
+  const lat = Number(parts[0].trim());
+  const lng = Number(parts[1].trim());
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < KOREA_LAT.min || lat > KOREA_LAT.max) return null;
+  if (lng < KOREA_LNG.min || lng > KOREA_LNG.max) return null;
+  return { lat, lng };
+}
+
+/** {lat,lng} → `near=위도,경도` 쿼리스트링(주변에서 뽑기 요청용). */
+export function buildNearbyQuery(lat: number, lng: number): string {
+  const p = new URLSearchParams();
+  p.set("near", `${lat},${lng}`);
+  return p.toString();
+}
+
 /** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨 같은 추가 조건 플래그 */
 export interface RandomQueryOptions {
   seaside?: boolean;
