@@ -60,6 +60,8 @@ TOUR_API_KEY=공공데이터포털_일반인증키(Decoding)      # 필수 (M1)
 
 상세 설계·데이터 흐름·랜덤 알고리즘은 **[plan.md](plan.md)** 참고.
 
+작업하며 모르고 물어봐서 배운 기술 개념(면접 대비)은 **[claude-docs/learning-notes.md](claude-docs/learning-notes.md)** 에 누적한다.
+
 ## 📋 진행 상황
 
 - [x] 서비스 컨셉 & 설계 확정
