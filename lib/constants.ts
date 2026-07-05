@@ -46,6 +46,9 @@ export type ContentTypeId = (typeof CONTENT_TYPES)[number]["code"];
  */
 export const RANDOM_DEFAULT_TYPES: ContentTypeId[] = [12, 14, 15, 25, 28];
 
+/** 📍 주변에서 뽑기(M14) 반경(m). TourAPI locationBasedList2 최대치 20km. */
+export const NEARBY_RADIUS_M = 20000;
+
 /** code → 한글명 조회 */
 export const AREA_NAME: Record<number, string> = Object.fromEntries(
   AREA_CODES.map((a) => [a.code, a.name]),

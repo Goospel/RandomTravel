@@ -15,6 +15,7 @@ export interface TourApiItem {
   areacode?: string;
   tel?: string;
   overview?: string; // detailCommon 보강 시
+  dist?: string; // 📍 locationBasedList2 응답 — 기준점에서의 거리(m, M14)
 }
 
 /** 카드 렌더용으로 정규화한 여행지 1건 */
@@ -65,6 +66,8 @@ export interface PickedInfo {
   festival?: FestivalBadge | null;
   /** ☔ 날씨 필터로 뽑혔을 때 그 지역 현재 날씨(비 안 옴+기온). 아니면 null/생략 */
   weather?: WeatherBadge | null;
+  /** 📍 주변에서 뽑기(M14)로 나왔을 때 앵커에서의 거리(m). 아니면 null/생략 */
+  distanceM?: number | null;
   /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
   notice?: string | null;
 }

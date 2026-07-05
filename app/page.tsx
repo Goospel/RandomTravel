@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { RandomResponse, ErrorResponse } from "@/types/tour";
+import type { RandomResponse, ErrorResponse, Place } from "@/types/tour";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
 import { AuthButtons } from "@/components/AuthButtons";
-import { buildRandomQuery } from "@/lib/query";
+import { buildRandomQuery, buildNearbyQuery } from "@/lib/query";
 import { useTravelStore } from "@/hooks/useTravelStore";
 
 type Status =
@@ -29,6 +29,8 @@ export default function Home() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
+  // 📍 주변에서 뽑기(M14) 기준점 = 가장 최근 전국 랜덤 결과. 주변 뽑기는 이 값을 안 바꾼다.
+  const [anchor, setAnchor] = useState<Place | null>(null);
   const store = useTravelStore();
 
   const toggleArea = (code: number) =>
@@ -54,18 +56,14 @@ export default function Home() {
     setNoRain(false);
   };
 
-  async function draw(isRedraw: boolean) {
+  // 공통 뽑기 실행 — URL 을 받아 상태·기록을 처리. updateAnchor=true 면 결과를 앵커로 잡는다.
+  async function runDraw(
+    url: string,
+    isRedraw: boolean,
+    updateAnchor: boolean,
+  ) {
     setStatus({ kind: "loading" });
     setSeq((s) => s + 1);
-
-    // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
-    const qs = buildRandomQuery(mode, areas, types, {
-      seaside,
-      seasonal,
-      festival,
-      noRain,
-    });
-    const url = qs ? `/api/random?${qs}` : "/api/random";
 
     try {
       const res = await fetch(url, { cache: "no-store" });
@@ -80,6 +78,11 @@ export default function Home() {
       setStatus({ kind: "ok", data });
       // 최근 본 곳 기록 + draw/redraw 이벤트(§12.6 P0: 로컬 전용)
       store.recordDraw(data.place, { mode, isRedraw });
+      // 전국 랜덤(뽑기/다시뽑기)만 앵커 갱신 — 좌표 없으면 주변 뽑기 불가라 null.
+      if (updateAnchor) {
+        const p = data.place;
+        setAnchor(p.lat != null && p.lng != null ? p : null);
+      }
     } catch {
       setStatus({
         kind: "error",
@@ -88,7 +91,29 @@ export default function Home() {
     }
   }
 
+  function draw(isRedraw: boolean) {
+    // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
+    const qs = buildRandomQuery(mode, areas, types, {
+      seaside,
+      seasonal,
+      festival,
+      noRain,
+    });
+    const url = qs ? `/api/random?${qs}` : "/api/random";
+    void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
+  }
+
+  // 📍 첫 여행지 주변에서 뽑기 — 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
+  function drawNearby() {
+    if (!anchor || anchor.lat == null || anchor.lng == null) return;
+    const url = `/api/random?${buildNearbyQuery(anchor.lat, anchor.lng)}`;
+    void runDraw(url, true, false);
+  }
+
   const loading = status.kind === "loading";
+  // 주변 버튼 노출 조건 — 순수 모드 + 앵커에 좌표가 있을 때만.
+  const canDrawNearby =
+    mode === "pure" && !!anchor && anchor.lat != null && anchor.lng != null;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-5 py-10 lg:max-w-5xl">
@@ -147,6 +172,8 @@ export default function Home() {
                 key={seq}
                 data={status.data}
                 onRedraw={() => draw(true)}
+                onDrawNearby={canDrawNearby ? drawNearby : null}
+                anchorTitle={anchor?.title ?? null}
                 saved={store.isSaved(status.data.place.contentId)}
                 visited={store.isVisited(status.data.place.contentId)}
                 onToggleSave={() => store.toggleSave(status.data.place)}

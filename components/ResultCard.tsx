@@ -6,10 +6,13 @@ import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 import { useKakaoShare } from "@/hooks/useKakaoShare";
 import { shareText } from "@/lib/kakaoShare";
+import { formatKm } from "@/lib/geo";
 
 export function ResultCard({
   data,
   onRedraw,
+  onDrawNearby,
+  anchorTitle,
   saved,
   visited,
   onToggleSave,
@@ -18,6 +21,10 @@ export function ResultCard({
 }: {
   data: RandomResponse;
   onRedraw: () => void;
+  /** 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 전달, 아니면 null */
+  onDrawNearby: (() => void) | null;
+  /** 주변 뽑기 기준점(첫 여행지) 이름 — 버튼·거리 배지 라벨용 */
+  anchorTitle: string | null;
   saved: boolean;
   visited: boolean;
   onToggleSave: () => void;
@@ -25,6 +32,8 @@ export function ResultCard({
   onNavigate: () => void;
 }) {
   const { place } = data;
+  // 📍 주변에서 뽑기로 나온 결과면 앵커에서의 거리(m)가 실려온다.
+  const distanceM = data.picked.distanceM;
   const [imgError, setImgError] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const { share } = useKakaoShare();
@@ -145,6 +154,15 @@ export function ResultCard({
                 ` · ${Math.round(data.picked.weather.temp)}℃`}
             </span>
           )}
+          {distanceM != null && (
+            <span
+              title={anchorTitle ?? undefined}
+              className="inline-block max-w-[15rem] truncate rounded-full bg-indigo-50 px-2.5 py-1 align-bottom text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+            >
+              📍 {anchorTitle ? `${anchorTitle}에서 ` : "주변 "}
+              {formatKm(distanceM)}
+            </span>
+          )}
         </div>
         {data.picked.notice && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -201,6 +219,17 @@ export function ResultCard({
           >
             🎲 다시 뽑기
           </button>
+
+          {/* 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 */}
+          {onDrawNearby && (
+            <button
+              type="button"
+              onClick={onDrawNearby}
+              className="w-full truncate rounded-xl border border-indigo-200 px-4 py-2.5 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950"
+            >
+              📍 {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
+            </button>
+          )}
 
           {/* 길 안내 — 지도·길찾기 (한 묶음: 세그먼트) */}
           {(mapHref || routeHref) && (
