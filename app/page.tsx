@@ -144,7 +144,7 @@ export default function Home() {
         <AuthButtons />
       </div>
       <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">🎲 RandomTravel</h1>
+        <h1 className="text-3xl font-bold tracking-tight">🎲 어디든</h1>
         <p className="mt-2 text-sm text-zinc-500">
           어디 갈지 고민될 때, 운명에 맡겨.
         </p>

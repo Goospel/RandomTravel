@@ -84,7 +84,7 @@ export function buildShareFeed(place: Place, ctx: ShareContext): FeedTemplate {
 /** 폴백(Web Share/클립보드)용 평문 — 빈 필드는 줄을 만들지 않는다. */
 export function shareText(place: Place, appUrl: string): string {
   const title = place.title?.trim() || "오늘의 여행지";
-  const lines = [`🎲 RandomTravel 추천: ${title}`];
+  const lines = [`🎲 어디든 추천: ${title}`];
   const addr = place.address?.trim();
   if (addr) lines.push(addr);
   lines.push(appUrl);
