@@ -162,15 +162,16 @@ export function ResultCard({
           </p>
         )}
 
-        <div className="flex gap-2">
+        {/* 내 기록 — 찜·다녀옴 (한 묶음: 세그먼트 토글) */}
+        <div className="flex divide-x divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           <button
             type="button"
             onClick={onToggleSave}
             aria-pressed={saved}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors ${
               saved
-                ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                ? "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300"
+                : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
             }`}
           >
             <span aria-hidden>{saved ? "♥" : "♡"}</span>
@@ -180,10 +181,10 @@ export function ResultCard({
             type="button"
             onClick={onToggleVisit}
             aria-pressed={visited}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors ${
               visited
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
             }`}
           >
             <span aria-hidden>{visited ? "✔" : "➕"}</span>
@@ -192,6 +193,7 @@ export function ResultCard({
         </div>
 
         <div className="mt-1 flex flex-col gap-2">
+          {/* 주요 행동 — 다시 뽑기 (유일한 강조 버튼) */}
           <button
             type="button"
             onClick={onRedraw}
@@ -199,15 +201,17 @@ export function ResultCard({
           >
             🎲 다시 뽑기
           </button>
+
+          {/* 길 안내 — 지도·길찾기 (한 묶음: 세그먼트) */}
           {(mapHref || routeHref) && (
-            <div className="flex gap-2">
+            <div className="flex divide-x divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
               {mapHref && (
                 <a
                   href={mapHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onNavigate}
-                  className="flex flex-1 items-center justify-center rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   🗺️ 지도에서 보기
                 </a>
@@ -218,7 +222,7 @@ export function ResultCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onNavigate}
-                  className="flex flex-1 items-center justify-center rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   🧭 길찾기
                 </a>
@@ -226,18 +230,19 @@ export function ResultCard({
             </div>
           )}
 
-          <div className="flex gap-2">
+          {/* 공유 — 카톡·링크 복사 (한 묶음: 세그먼트, 카톡 강조) */}
+          <div className="flex overflow-hidden rounded-xl">
             <button
               type="button"
               onClick={onShare}
-              className="flex flex-[2] items-center justify-center gap-1.5 rounded-xl bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
+              className="flex flex-[2] items-center justify-center gap-1.5 bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
             >
               <span aria-hidden>💬</span> 카카오톡 공유
             </button>
             <button
               type="button"
               onClick={onCopyLink}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="flex flex-1 items-center justify-center gap-1.5 border-l border-black/10 bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
             >
               <span aria-hidden>🔗</span> 링크 복사
             </button>
