@@ -5,6 +5,7 @@ import type { RandomResponse } from "@/types/tour";
 import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 import { useKakaoShare } from "@/hooks/useKakaoShare";
+import { shareText } from "@/lib/kakaoShare";
 
 export function ResultCard({
   data,
@@ -41,6 +42,12 @@ export function ResultCard({
 
   const showImage = place.image && !imgError;
 
+  // 안내 문구를 잠깐 띄웠다 지운다.
+  function flash(msg: string | null) {
+    setShareMsg(msg);
+    if (msg) window.setTimeout(() => setShareMsg(null), 2200);
+  }
+
   // 💬 카톡 공유(M13) — 카카오 피드 카드, 실패 시 Web Share/클립보드 폴백.
   async function onShare() {
     const origin = window.location.origin;
@@ -49,12 +56,34 @@ export function ResultCard({
       mapUrl: mapHref,
       fallbackImage: `${origin}/icon-512.png`,
     });
-    if (result === "copied") setShareMsg("링크가 복사됐어요 ✓");
-    else if (result === "failed") setShareMsg("공유를 열 수 없었어요.");
-    else setShareMsg(null); // kakao/shared — 팝업·공유시트가 뜸
-    if (result === "copied" || result === "failed") {
-      window.setTimeout(() => setShareMsg(null), 2000);
+    if (result === "copied") flash("링크가 복사됐어요 ✓");
+    else if (result === "failed") flash("공유를 열 수 없었어요.");
+    else flash(null); // kakao/shared — 팝업·공유시트가 뜸
+  }
+
+  // 🔗 링크 복사 — 카톡 웹 공유가 카카오 계정 문제로 실패해도(우리가 감지 못 함)
+  // 항상 되는 탈출구. 클립보드 우선, 안 되면 Web Share(모바일)로 폴백.
+  async function onCopyLink() {
+    const text = shareText(place, window.location.origin);
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        flash("링크가 복사됐어요 ✓ — 카톡에 붙여넣어 보내세요");
+        return;
+      } catch {
+        /* 다음 폴백 */
+      }
     }
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return; // 공유시트가 뜸
+      } catch {
+        flash("공유를 열 수 없었어요.");
+        return;
+      }
+    }
+    flash("이 브라우저에선 복사를 지원하지 않아요.");
   }
 
   return (
@@ -197,13 +226,22 @@ export function ResultCard({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={onShare}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
-          >
-            <span aria-hidden>💬</span> 카카오톡 공유
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onShare}
+              className="flex flex-[2] items-center justify-center gap-1.5 rounded-xl bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
+            >
+              <span aria-hidden>💬</span> 카카오톡 공유
+            </button>
+            <button
+              type="button"
+              onClick={onCopyLink}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              <span aria-hidden>🔗</span> 링크 복사
+            </button>
+          </div>
           {shareMsg && (
             <p
               aria-live="polite"
