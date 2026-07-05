@@ -155,14 +155,14 @@ function PlaceRow({
       </div>
 
       {canDrawNearby && (
+        // 아이콘만이면 특히 모바일(hover 없음)에서 용도 전달이 어려워 글자 라벨을 붙인다.
         <button
           type="button"
           onClick={onDrawNearby}
-          className="flex-none rounded-lg px-2 py-1 text-lg transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-950"
+          className="flex-none whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900"
           aria-label={`${place.title} 주변에서 뽑기`}
-          title="주변에서 뽑기"
         >
-          📍
+          📍 주변 뽑기
         </button>
       )}
       {mapHref && (
