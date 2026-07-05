@@ -19,12 +19,15 @@ export function RecordPanel({
   visited,
   onRemove,
   onNavigate,
+  onDrawNearby,
 }: {
   saved: SavedPlace[];
   recent: SavedPlace[];
   visited: SavedPlace[];
   onRemove: (list: TabKey, contentId: string) => void;
   onNavigate: (p: SavedPlace) => void;
+  /** 📍 이 장소를 거점으로 주변에서 뽑기 (좌표 있는 기록만) */
+  onDrawNearby: (p: SavedPlace) => void;
 }) {
   const [tab, setTab] = useState<TabKey>("saved");
   const lists: Record<TabKey, SavedPlace[]> = { saved, recent, visited };
@@ -100,6 +103,7 @@ export function RecordPanel({
                 place={p}
                 onRemove={() => onRemove(tab, p.contentId)}
                 onNavigate={() => onNavigate(p)}
+                onDrawNearby={() => onDrawNearby(p)}
               />
             ))}
           </ul>
@@ -113,14 +117,18 @@ function PlaceRow({
   place,
   onRemove,
   onNavigate,
+  onDrawNearby,
 }: {
   place: SavedPlace;
   onRemove: () => void;
   onNavigate: () => void;
+  onDrawNearby: () => void;
 }) {
   const areaName =
     place.areaCode != null ? AREA_NAME[place.areaCode] : undefined;
   const mapHref = kakaoMapLink(place.title, place.lat, place.lng);
+  // 좌표가 있어야 반경 검색이 되므로, 좌표 없는 기록엔 주변 뽑기 버튼을 숨긴다.
+  const canDrawNearby = place.lat != null && place.lng != null;
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
@@ -146,6 +154,17 @@ function PlaceRow({
         )}
       </div>
 
+      {canDrawNearby && (
+        <button
+          type="button"
+          onClick={onDrawNearby}
+          className="flex-none rounded-lg px-2 py-1 text-lg transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-950"
+          aria-label={`${place.title} 주변에서 뽑기`}
+          title="주변에서 뽑기"
+        >
+          📍
+        </button>
+      )}
       {mapHref && (
         <a
           href={mapHref}
