@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { RandomResponse } from "@/types/tour";
 import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
+import { useKakaoShare } from "@/hooks/useKakaoShare";
 
 export function ResultCard({
   data,
@@ -24,6 +25,8 @@ export function ResultCard({
 }) {
   const { place } = data;
   const [imgError, setImgError] = useState(false);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const { share } = useKakaoShare();
 
   // 정규화 결과가 비었으면 실제 뽑은 풀 값(picked)으로 폴백 → 배지가 사라지지 않게
   const areaCode = place.areaCode ?? data.picked.areaCode;
@@ -37,6 +40,22 @@ export function ResultCard({
   const routeHref = kakaoRouteLink(place.title, place.lat, place.lng);
 
   const showImage = place.image && !imgError;
+
+  // 💬 카톡 공유(M13) — 카카오 피드 카드, 실패 시 Web Share/클립보드 폴백.
+  async function onShare() {
+    const origin = window.location.origin;
+    const result = await share(place, {
+      appUrl: origin,
+      mapUrl: mapHref,
+      fallbackImage: `${origin}/icon-512.png`,
+    });
+    if (result === "copied") setShareMsg("링크가 복사됐어요 ✓");
+    else if (result === "failed") setShareMsg("공유를 열 수 없었어요.");
+    else setShareMsg(null); // kakao/shared — 팝업·공유시트가 뜸
+    if (result === "copied" || result === "failed") {
+      window.setTimeout(() => setShareMsg(null), 2000);
+    }
+  }
 
   return (
     <article className="animate-card-reveal w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -176,6 +195,22 @@ export function ResultCard({
                 </a>
               )}
             </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
+          >
+            <span aria-hidden>💬</span> 카카오톡 공유
+          </button>
+          {shareMsg && (
+            <p
+              aria-live="polite"
+              className="text-center text-xs text-zinc-500 dark:text-zinc-400"
+            >
+              {shareMsg}
+            </p>
           )}
         </div>
       </div>
