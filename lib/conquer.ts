@@ -77,28 +77,50 @@ function hitAt(x: number, y: number): Sigungu | null {
   return null;
 }
 
-// 경계 nudge 반경(px). 인접 시·군·구 경계를 각자 독립 단순화(Douglas-Peucker)하면
-// 공유 경계가 어긋나 어느 쪽에도 안 속하는 서브픽셀 갭(실거리 ~수백 m)이 생긴다.
-// 정확 판정이 그 갭에 떨어지면 실제 방문이 '미정복'으로 새므로, 실패 시에만 8방향으로
-// 살짝 밀어 인접 조각을 잡는다. 갭 폭(<1px)보다 크게 잡되 바다 좌표는 여전히 못 잡을 만큼 작게.
-const NUDGE = 2;
-const NUDGES: [number, number][] = [
-  [NUDGE, 0], [-NUDGE, 0], [0, NUDGE], [0, -NUDGE],
-  [NUDGE, NUDGE], [NUDGE, -NUDGE], [-NUDGE, NUDGE], [-NUDGE, -NUDGE],
-];
+// 해안 스냅 최대 거리(px). 두 가지 무성 미스를 함께 구제한다.
+//  1) 인접 시·군·구 경계를 각자 독립 단순화하면 공유 경계가 어긋나 어느 쪽에도 안 속하는
+//     서브픽셀 갭이 생긴다.
+//  2) 해안선 단순화(EPS ~450m)와 작은 섬 제거(KEEP)가 해안·반도·소도서의 관광지 좌표를
+//     폴리곤 밖으로 밀어낸다(실측: 인천 월미도 관광지가 중구 경계 밖 0.04px).
+// 관광지 좌표는 늘 육지·해안에 있으므로, 정확 판정 실패 시 가장 가까운 시·군·구 경계까지의
+// 거리가 임계 이내면 그 조각으로 스냅한다. 실측상 해안 미스는 ~0.04px, 먼바다(동해 한가운데)는
+// ~103px라 그 사이인 12px(~7.5km)면 해안·소도서는 구제하되 먼바다는 배제한다.
+const SNAP_MAX = 12;
 
-/** 좌표가 속한 시·군·구(없으면 null). 정확 판정 우선, 경계 갭이면 nudge 폴백. */
+// 점(px)에서 선분 [a,b]까지 최단거리.
+function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+// 정확 판정 실패 시: 경계까지 거리가 SNAP_MAX 이내인 가장 가까운 시·군·구(없으면 null).
+// bbox 를 SNAP_MAX 로 확장해 프리필터 후, 남은 조각의 링 선분까지 최단거리를 잰다.
+function nearestWithin(x: number, y: number): Sigungu | null {
+  let best = SNAP_MAX, bestSg: Sigungu | null = null;
+  for (const b of index()) {
+    if (x < b.minX - SNAP_MAX || x > b.maxX + SNAP_MAX || y < b.minY - SNAP_MAX || y > b.maxY + SNAP_MAX) continue;
+    for (const r of b.sg.rings) {
+      const n = r.length / 2;
+      for (let i = 0, j = n - 1; i < n; j = i++) {
+        const d = segDist(x, y, r[2 * j], r[2 * j + 1], r[2 * i], r[2 * i + 1]);
+        if (d < best) { best = d; bestSg = b.sg; }
+      }
+    }
+  }
+  return bestSg;
+}
+
+/** 좌표가 속한 시·군·구(없으면 null). 정확 판정 우선, 경계 갭·해안 미스면 최근접 스냅. */
 export function sigunguAt(lat: number, lng: number): Sigungu | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const { x, y } = projectLatLng(lat, lng);
   const exact = hitAt(x, y);
   if (exact) return exact;
-  // 경계 슬리버 갭 구제 — 정확 판정 실패 시에만(대부분 내부점은 여기 안 옴).
-  for (const [dx, dy] of NUDGES) {
-    const h = hitAt(x + dx, y + dy);
-    if (h) return h;
-  }
-  return null;
+  // 경계 갭·해안 침식 구제 — 정확 판정 실패 시에만(내부점은 여기 안 옴).
+  return nearestWithin(x, y);
 }
 
 /** 정복한 시·군·구 code 집합. 방문 좌표가 유효하고 어느 시·군·구에 속하면 정복. */

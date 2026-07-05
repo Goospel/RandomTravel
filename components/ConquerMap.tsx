@@ -47,6 +47,10 @@ export function ConquerMap({
   const n = conquered.size;
   const total = TOTAL_SIGUNGU;
   const percent = Math.round((n / total) * 100);
+  // 250개 분모라 1~2곳은 반올림 0% → 방금 정복했는데 0%로 보이는 김빠짐 방지.
+  const percentLabel = n > 0 && percent < 1 ? "1% 미만" : `${percent}%`;
+  // 게이지 막대도 정복이 있으면 최소 한 조각은 보이게(값 0%여도 2% 슬리버).
+  const barWidth = n > 0 ? Math.max(percent, 2) : percent;
   const byArea = useMemo(() => conquerByArea(conquered), [conquered]);
 
   return (
@@ -56,7 +60,7 @@ export function ConquerMap({
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-semibold">🏴 전국 정복률</span>
           <span aria-live="polite" className="text-sm text-zinc-500 dark:text-zinc-400">
-            {storeReady ? `${n} / ${total}곳 · ${percent}%` : " "}
+            {storeReady ? `${n} / ${total}곳 · ${percentLabel}` : " "}
           </span>
         </div>
         <div
@@ -69,7 +73,7 @@ export function ConquerMap({
         >
           <div
             className="h-full rounded-full bg-indigo-600 transition-[width] duration-500"
-            style={{ width: `${percent}%` }}
+            style={{ width: `${barWidth}%` }}
           />
         </div>
       </div>
