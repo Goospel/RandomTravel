@@ -56,6 +56,22 @@ describe("mergePlaces — 로그인 시 로컬↔서버 찜/방문 병합", () =
     expect(local).toHaveLength(1);
     expect(server).toHaveLength(1);
   });
+
+  it("충돌 시 rating 은 null 아닌 쪽을 살린다 — 평가 유실 방지(M15)", () => {
+    // 서버(먼저·평가 없음) + 로컬(나중·평가 있음) → 기저는 서버지만 rating 은 로컬 것 보존
+    const server = [sp("a", 100, { rating: null })];
+    const local = [sp("a", 500, { rating: 3 })];
+    const merged = mergePlaces(local, server);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].savedAt).toBe(100); // 기저는 여전히 이른 저장
+    expect(merged[0].rating).toBe(3); // 평가는 유지
+  });
+
+  it("양쪽 모두 평가면 기저(이른 savedAt) 쪽 평가를 쓴다(결정적)", () => {
+    const server = [sp("a", 100, { rating: 1 })];
+    const local = [sp("a", 500, { rating: 3 })];
+    expect(mergePlaces(local, server)[0].rating).toBe(1);
+  });
 });
 
 describe("localOnly — 서버에 없는 로컬 항목(업로드 델타)", () => {

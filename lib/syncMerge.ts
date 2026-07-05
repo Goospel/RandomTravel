@@ -18,9 +18,15 @@ export function mergePlaces(
   // server 를 먼저 넣어 동점(savedAt 동일) 시 서버 기록이 자리 잡게 한다.
   for (const item of [...server, ...local]) {
     const prev = byId.get(item.contentId);
-    if (!prev || item.savedAt < prev.savedAt) {
+    if (!prev) {
       byId.set(item.contentId, item);
+      continue;
     }
+    // 충돌: 이른 savedAt 을 기저로 유지하되, rating(M15)은 null 아닌 쪽을 살려
+    // 한 기기의 평가가 평가 없는 다른 기기 기록에 덮여 사라지는 것을 막는다.
+    const base = item.savedAt < prev.savedAt ? item : prev;
+    const other = base === item ? prev : item;
+    byId.set(item.contentId, { ...base, rating: base.rating ?? other.rating });
   }
   return [...byId.values()].sort((a, b) => b.savedAt - a.savedAt);
 }

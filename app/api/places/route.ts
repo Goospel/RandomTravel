@@ -10,7 +10,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { userPlaces } from "@/db/schema";
 import { isPlaceList, sanitizePlace } from "@/lib/placesApi";
-import type { SavedPlace } from "@/lib/travelStore";
+import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
 
 type Row = typeof userPlaces.$inferSelect;
 
@@ -25,6 +25,10 @@ function rowToPlace(r: Row): SavedPlace {
     lng: r.lng,
     areaCode: r.areaCode,
     savedAt: r.savedAt,
+    // DB 는 정수/널만 보장 — 방어적으로 1|2|3 만 통과시켜 SavedPlace 타입에 맞춘다.
+    rating: (r.rating === 1 || r.rating === 2 || r.rating === 3
+      ? r.rating
+      : null) as RevisitRating | null,
   };
 }
 
@@ -77,6 +81,7 @@ export async function POST(req: Request) {
         lng: place.lng,
         areaCode: place.areaCode,
         savedAt: place.savedAt,
+        rating: place.rating, // 📊 재방문 의향 평가(M15) write-through
       },
     });
 

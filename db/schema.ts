@@ -89,6 +89,8 @@ export const userPlaces = pgTable(
     lng: doublePrecision("lng"),
     areaCode: integer("area_code"),
     savedAt: bigint("saved_at", { mode: "number" }).notNull(), // epoch ms
+    // 📊 재방문 의향 평가(M15) — 1|2|3, 미평가는 null. visited 항목에만 의미.
+    rating: integer("rating"),
   },
   (t) => [unique().on(t.userId, t.list, t.contentId)],
 );

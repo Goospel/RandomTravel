@@ -223,6 +223,7 @@ export default function Home() {
             onRemove={store.remove}
             onNavigate={store.logNavigate}
             onDrawNearby={drawNearbyFrom}
+            onRate={store.setRating}
           />
         </aside>
       </div>
