@@ -73,3 +73,11 @@ export function boundsOf(
 export function kakaoSdkUrl(appkey: string): string {
   return `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appkey}&autoload=false`;
 }
+
+// 카카오 JS SDK(공유·메시지용, M13). 지도 SDK(dapi, window.kakao.maps)와 **별개 스크립트·별개 전역**
+// (window.Kakao)이라 공존한다. integrity 는 2.7.6 파일의 sha384 실측값(SRI 검증됨).
+export const KAKAO_JS_SDK = {
+  src: "https://t1.kakaocdn.net/kakao_js_sdk/2.7.6/kakao.min.js",
+  integrity:
+    "sha384-WAtVcQYcmTO/N+C1N+1m6Gp8qxh+3NlnP7X1U7qP6P5dQY/MsRBNTh+e1ahJrkEm",
+} as const;
