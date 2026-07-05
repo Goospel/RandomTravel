@@ -1,80 +1,140 @@
 import { describe, it, expect } from "vitest";
 import {
-  conqueredAreaCodes,
+  pointInRings,
+  projectLatLng,
+  sigunguAt,
+  conqueredSigunguCodes,
   conquerStats,
-  TOTAL_AREAS,
+  conquerByArea,
+  TOTAL_SIGUNGU,
 } from "@/lib/conquer";
+import { KOREA_PROJECTION, KOREA_SIGUNGU } from "@/lib/koreaMap";
 import type { SavedPlace } from "@/lib/travelStore";
 
-// 테스트용 최소 SavedPlace — areaCode 만 관심사, 나머지는 채움값.
-function sp(areaCode: number | null, contentId: string): SavedPlace {
+function sp(
+  lat: number | null,
+  lng: number | null,
+  contentId: string,
+): SavedPlace {
   return {
     contentId,
     contentTypeId: 12,
     title: "t" + contentId,
     address: "주소",
     image: null,
-    lat: null,
-    lng: null,
-    areaCode,
+    lat,
+    lng,
+    areaCode: null,
     savedAt: 0,
   };
 }
 
-describe("conquer — 전국 정복 집계", () => {
-  it("전체 시·도 수는 17", () => {
-    expect(TOTAL_AREAS).toBe(17);
+describe("pointInRings — even-odd ray casting", () => {
+  const square = [[0, 0, 10, 0, 10, 10, 0, 10]]; // 정사각형 1개 링
+
+  it("사각형 내부/외부 판정", () => {
+    expect(pointInRings(square, 5, 5)).toBe(true);
+    expect(pointInRings(square, 15, 5)).toBe(false);
+    expect(pointInRings(square, -1, 5)).toBe(false);
+    expect(pointInRings(square, 5, 15)).toBe(false);
   });
 
-  it("방문이 없으면 정복 0", () => {
-    expect(conqueredAreaCodes([]).size).toBe(0);
-    expect(conquerStats([])).toEqual({ conquered: 0, total: 17, percent: 0 });
+  it("홀(내부 링)은 제외된다", () => {
+    const withHole = [
+      [0, 0, 10, 0, 10, 10, 0, 10],
+      [3, 3, 7, 3, 7, 7, 3, 7],
+    ];
+    expect(pointInRings(withHole, 5, 5)).toBe(false); // 홀 안 → 밖
+    expect(pointInRings(withHole, 1, 5)).toBe(true); // 링 사이 → 안
   });
 
-  it("한 곳 방문 → 그 시·도 1개 정복(퍼센트 반올림)", () => {
-    const set = conqueredAreaCodes([sp(1, "a")]);
-    expect([...set]).toEqual([1]);
-    // 1/17 = 5.88% → 6
-    expect(conquerStats([sp(1, "a")])).toEqual({ conquered: 1, total: 17, percent: 6 });
+  it("떨어진 두 섬(별도 링)은 각자 내부 인정", () => {
+    const islands = [
+      [0, 0, 4, 0, 4, 4, 0, 4],
+      [10, 10, 14, 10, 14, 14, 10, 14],
+    ];
+    expect(pointInRings(islands, 2, 2)).toBe(true);
+    expect(pointInRings(islands, 12, 12)).toBe(true);
+    expect(pointInRings(islands, 6, 6)).toBe(false);
+  });
+});
+
+describe("projectLatLng — 위도 보정 등거리 투영", () => {
+  it("bbox 좌상단(maxLat, minLng)은 (pad, pad)로", () => {
+    const p = KOREA_PROJECTION;
+    const { x, y } = projectLatLng(p.maxLat, p.minLng);
+    expect(x).toBeCloseTo(p.pad, 5);
+    expect(y).toBeCloseTo(p.pad, 5);
   });
 
-  it("같은 시·도 여러 곳은 1개로만 집계", () => {
-    const v = [sp(6, "a"), sp(6, "b"), sp(6, "c")];
-    expect(conqueredAreaCodes(v).size).toBe(1);
+  it("경도↑ → x↑, 위도↑ → y↓(북쪽이 위)", () => {
+    const a = projectLatLng(36, 127);
+    const bEast = projectLatLng(36, 128);
+    const bNorth = projectLatLng(37, 127);
+    expect(bEast.x).toBeGreaterThan(a.x);
+    expect(bNorth.y).toBeLessThan(a.y);
+  });
+});
+
+describe("conquer — 시·군·구 정복 집계(실제 데이터)", () => {
+  it("전체 시·군·구 수는 데이터와 일치", () => {
+    expect(TOTAL_SIGUNGU).toBe(KOREA_SIGUNGU.length);
+    expect(TOTAL_SIGUNGU).toBeGreaterThan(200); // 약 250
+  });
+
+  it("서울시청 좌표 → 서울(area=1) 시·군·구로 판정", () => {
+    const sg = sigunguAt(37.5665, 126.978);
+    expect(sg).not.toBeNull();
+    expect(sg?.area).toBe(1);
+    expect(sg?.code.startsWith("11")).toBe(true);
+  });
+
+  it("방문 없으면 정복 0", () => {
+    expect(conqueredSigunguCodes([]).size).toBe(0);
+    expect(conquerStats([]).conquered).toBe(0);
+    expect(conquerStats([]).percent).toBe(0);
+  });
+
+  it("좌표 없는 방문은 제외", () => {
+    expect(conquerStats([sp(null, null, "a")]).conquered).toBe(0);
+    expect(conquerStats([sp(37.5665, null, "b")]).conquered).toBe(0);
+  });
+
+  it("국내 밖 좌표는 어느 시·군·구에도 안 들어감", () => {
+    expect(sigunguAt(0, 0)).toBeNull();
+    expect(sigunguAt(48, 150)).toBeNull();
+    expect(conquerStats([sp(0, 0, "a")]).conquered).toBe(0);
+  });
+
+  it("경계 nudge 폴백이 바다 좌표를 잘못 잡지 않는다(동해 한가운데)", () => {
+    // 육지에서 먼 열린 바다 — nudge(2px)로도 어느 조각에 안 닿아야 함
+    expect(sigunguAt(37.5, 130.0)).toBeNull();
+  });
+
+  it("같은 시·군·구 여러 곳은 1로 집계", () => {
+    // 서울시청 근처 두 점 — 같은 구로 수렴
+    const v = [sp(37.5665, 126.978, "a"), sp(37.5651, 126.98, "b")];
+    expect(conqueredSigunguCodes(v).size).toBe(1);
     expect(conquerStats(v).conquered).toBe(1);
   });
 
-  it("areaCode 가 null 이면 제외", () => {
-    const v = [sp(null, "a"), sp(1, "b")];
-    const set = conqueredAreaCodes(v);
-    expect(set.has(1)).toBe(true);
-    expect(set.size).toBe(1);
+  it("서로 다른 시·도의 두 곳 → 정복 2 + 시·도별 진행", () => {
+    const v = [sp(37.5665, 126.978, "seoul"), sp(35.1631, 129.1639, "busan")];
+    const codes = conqueredSigunguCodes(v);
+    expect(codes.size).toBe(2);
+    const byArea = conquerByArea(codes);
+    const areas = byArea.map((a) => a.area).sort((x, y) => x - y);
+    expect(areas).toEqual([1, 6]); // 서울·부산
+    for (const a of byArea) {
+      expect(a.done).toBe(1);
+      expect(a.total).toBeGreaterThanOrEqual(1);
+    }
   });
 
-  it("17개 시·도가 아닌 코드(손상값)는 제외", () => {
-    const v = [sp(999, "a"), sp(0, "b"), sp(-1, "c"), sp(2, "d")];
-    const set = conqueredAreaCodes(v);
-    expect([...set]).toEqual([2]);
-    expect(conquerStats(v).conquered).toBe(1);
-  });
-
-  it("서로 다른 9개 시·도 → 53% (9/17=52.94 반올림)", () => {
-    const codes = [1, 2, 3, 4, 5, 6, 7, 8, 31];
-    const v = codes.map((c, i) => sp(c, "p" + i));
-    expect(conquerStats(v)).toEqual({ conquered: 9, total: 17, percent: 53 });
-  });
-
-  it("17개 시·도 모두 방문 → 100%", () => {
-    const all = [1, 2, 3, 4, 5, 6, 7, 8, 31, 32, 33, 34, 35, 36, 37, 38, 39];
-    const v = all.map((c, i) => sp(c, "q" + i));
-    expect(conquerStats(v)).toEqual({ conquered: 17, total: 17, percent: 100 });
-  });
-
-  it("null·손상·중복이 섞여도 유효 시·도만 집계", () => {
-    const v = [sp(1, "a"), sp(1, "b"), sp(null, "c"), sp(999, "d"), sp(2, "e")];
-    const set = conqueredAreaCodes(v);
-    expect([...set].sort((x, y) => x - y)).toEqual([1, 2]);
-    // 2/17 = 11.76 → 12
-    expect(conquerStats(v).percent).toBe(12);
+  it("percent 는 conquered/total 반올림", () => {
+    const v = [sp(37.5665, 126.978, "a")];
+    const { conquered, total, percent } = conquerStats(v);
+    expect(conquered).toBe(1);
+    expect(percent).toBe(Math.round((1 / total) * 100));
   });
 });

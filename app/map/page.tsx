@@ -2,11 +2,24 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useTravelStore } from "@/hooks/useTravelStore";
 import { VisitedMap } from "@/components/VisitedMap";
-import { ConquerMap } from "@/components/ConquerMap";
 import { visitedWithCoords } from "@/lib/mapView";
-import { conquerStats } from "@/lib/conquer";
+
+// 정복 지도는 시·군·구 경계 데이터(약 200KB)를 싣는다 → 정복 뷰로 전환할 때만 지연 로드.
+// (핀 뷰 기본 방문자는 이 데이터를 받지 않는다.) 정복 카운트는 컴포넌트 내부 게이지가 표시.
+const ConquerMap = dynamic(
+  () => import("@/components/ConquerMap").then((m) => m.ConquerMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/50">
+        정복 지도 불러오는 중…
+      </div>
+    ),
+  },
+);
 
 // 🗺️ 내 여행 지도 (M8 핀 지도 §7.1 + M12 정복 지도 §7.4) — 보기 방식 토글.
 type View = "pin" | "conquer";
@@ -19,7 +32,6 @@ export default function MapPage() {
   const store = useTravelStore();
   const [view, setView] = useState<View>("pin");
   const pinCount = visitedWithCoords(store.visited).length;
-  const { conquered } = conquerStats(store.visited);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-5 py-8">
@@ -36,11 +48,7 @@ export default function MapPage() {
             aria-live="polite"
             className="text-sm text-zinc-500 dark:text-zinc-400"
           >
-            {store.ready
-              ? view === "pin"
-                ? `다녀온 곳 ${pinCount}곳`
-                : `${conquered} / 17 정복`
-              : " "}
+            {store.ready && view === "pin" ? `다녀온 곳 ${pinCount}곳` : " "}
           </span>
         </div>
       </header>
@@ -78,7 +86,7 @@ export default function MapPage() {
       <p className="text-center text-xs text-zinc-400">
         {view === "pin"
           ? "마커를 누르면 장소 이름이 보여요. 지도는 카카오맵으로 표시됩니다."
-          : "다녀온 지역이 색으로 채워져요. 조각 위에 마우스를 올리면 시·도 이름이 보여요."}
+          : "다녀온 시·군·구가 색으로 채워져요. 조각 위에 마우스를 올리면 이름이 보여요."}
       </p>
     </main>
   );
