@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import type { RandomResponse, ErrorResponse, Place } from "@/types/tour";
+import type { RandomResponse, ErrorResponse } from "@/types/tour";
+import type { SavedPlace } from "@/lib/travelStore";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
@@ -18,6 +19,9 @@ type Status =
   | { kind: "ok"; data: RandomResponse }
   | { kind: "error"; error: ErrorResponse };
 
+// 📍 주변 뽑기 거점 — 결과 카드/기록 어느 쪽에서 잡든 이름·좌표만 있으면 된다.
+type Anchor = { title: string; lat: number; lng: number };
+
 export default function Home() {
   const [mode, setMode] = useState<Mode>("pure");
   const [areas, setAreas] = useState<Set<number>>(new Set());
@@ -29,9 +33,11 @@ export default function Home() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
-  // 📍 주변에서 뽑기(M14) 기준점 = 가장 최근 전국 랜덤 결과. 주변 뽑기는 이 값을 안 바꾼다.
-  const [anchor, setAnchor] = useState<Place | null>(null);
+  // 📍 주변에서 뽑기 거점 — 전국 랜덤 결과 또는 기록(찜·최근·다녀옴)에서 잡는다.
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
   const store = useTravelStore();
+  // 기록에서 주변 뽑기를 누르면 결과가 위/옆에서 갱신되므로(모바일은 스크롤 밖) 결과로 이동.
+  const resultRef = useRef<HTMLDivElement>(null);
 
   const toggleArea = (code: number) =>
     setAreas((prev) => {
@@ -81,7 +87,11 @@ export default function Home() {
       // 전국 랜덤(뽑기/다시뽑기)만 앵커 갱신 — 좌표 없으면 주변 뽑기 불가라 null.
       if (updateAnchor) {
         const p = data.place;
-        setAnchor(p.lat != null && p.lng != null ? p : null);
+        setAnchor(
+          p.lat != null && p.lng != null
+            ? { title: p.title, lat: p.lat, lng: p.lng }
+            : null,
+        );
       }
     } catch {
       setStatus({
@@ -103,17 +113,30 @@ export default function Home() {
     void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
   }
 
-  // 📍 첫 여행지 주변에서 뽑기 — 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
+  // 📍 결과 카드의 "주변에서 뽑기" — 현재 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
   function drawNearby() {
-    if (!anchor || anchor.lat == null || anchor.lng == null) return;
+    if (!anchor) return;
     const url = `/api/random?${buildNearbyQuery(anchor.lat, anchor.lng)}`;
     void runDraw(url, true, false);
   }
 
+  // 📍 기록(찜·최근·다녀옴)에서 그 장소를 거점으로 삼아 주변 뽑기 — 앵커를 그 장소로 바꾼다.
+  // 결과 카드가 사라진 뒤에도(새로고침·시간 경과) 남은 기록으로 주변 뽑기를 이어갈 수 있게.
+  function drawNearbyFrom(place: SavedPlace) {
+    if (place.lat == null || place.lng == null) return;
+    setAnchor({ title: place.title, lat: place.lat, lng: place.lng });
+    const url = `/api/random?${buildNearbyQuery(place.lat, place.lng)}`;
+    void runDraw(url, true, false);
+    // 모바일은 기록 패널이 결과 아래(desktop은 우측)라, 갱신된 결과로 부드럽게 이동.
+    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   const loading = status.kind === "loading";
-  // 주변 버튼 노출 조건 — 순수 모드 + 앵커에 좌표가 있을 때만.
-  const canDrawNearby =
-    mode === "pure" && !!anchor && anchor.lat != null && anchor.lng != null;
+  // 결과 카드의 주변 버튼 — 앵커가 있고, 순수 모드이거나 지금 결과 자체가 주변 뽑기 결과일 때.
+  // (기록에서 주변 뽑기를 하면 조건 모드여도 거리 결과엔 노출해 이어서 탐색 가능하게.)
+  const currentIsNearby =
+    status.kind === "ok" && status.data.picked.distanceM != null;
+  const canDrawNearby = !!anchor && (mode === "pure" || currentIsNearby);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-5 py-10 lg:max-w-5xl">
@@ -165,7 +188,7 @@ export default function Home() {
           </button>
 
           {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내 */}
-          <div className="w-full" aria-live="polite">
+          <div ref={resultRef} className="w-full" aria-live="polite">
             {status.kind === "loading" && <SlotMachine />}
             {status.kind === "ok" && (
               <ResultCard
@@ -199,6 +222,7 @@ export default function Home() {
             visited={store.visited}
             onRemove={store.remove}
             onNavigate={store.logNavigate}
+            onDrawNearby={drawNearbyFrom}
           />
         </aside>
       </div>
