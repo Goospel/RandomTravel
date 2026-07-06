@@ -52,3 +52,14 @@ export function kakaoRouteLink(
   }
   return null;
 }
+
+// 🟢 네이버 지도 딥링크(M16) — 다녀온 곳 리스트에서 카카오와 병기해 앱 선택지를 준다.
+//   네이버 좌표 스킴은 앱/웹 간 동작이 불안정해, 이름 검색(p/search)만 사용한다.
+const NAVER_BASE = "https://map.naver.com/p/search";
+
+/** 이름으로 네이버 지도 검색 링크. 이름이 비면(공백뿐) null. */
+export function naverMapLink(name: string): string | null {
+  const label = name.trim();
+  if (!label) return null;
+  return `${NAVER_BASE}/${encodeURIComponent(label)}`;
+}

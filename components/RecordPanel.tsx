@@ -14,10 +14,34 @@ const RATING_SELECTED: Record<RevisitRating, string> = {
   3: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
 };
 
-const TABS: { key: TabKey; label: string; emoji: string; empty: string }[] = [
-  { key: "saved", label: "찜", emoji: "♥", empty: "아직 찜한 곳이 없어요." },
-  { key: "recent", label: "최근", emoji: "🕘", empty: "최근 본 곳이 없어요." },
-  { key: "visited", label: "다녀옴", emoji: "✔", empty: "다녀온 곳을 체크해 보세요." },
+const TABS: {
+  key: TabKey;
+  label: string;
+  emoji: string;
+  emptyEmoji: string;
+  empty: string;
+}[] = [
+  {
+    key: "saved",
+    label: "찜",
+    emoji: "♥",
+    emptyEmoji: "♡",
+    empty: "마음에 든 곳의 하트를 누르면 여기 모여요.",
+  },
+  {
+    key: "recent",
+    label: "최근",
+    emoji: "🕘",
+    emptyEmoji: "🎲",
+    empty: "위에서 한 곳 뽑으면 최근 본 곳이 쌓여요.",
+  },
+  {
+    key: "visited",
+    label: "다녀옴",
+    emoji: "✔",
+    emptyEmoji: "🧩",
+    empty: "다녀온 곳을 체크하면 위 정복 지도가 채워져요.",
+  },
 ];
 
 export function RecordPanel({
@@ -58,19 +82,17 @@ export function RecordPanel({
     e.preventDefault();
     const nextKey = TABS[ni].key;
     setTab(nextKey);
-    // 로빙 포커스: 새 활성 탭으로 포커스 이동. 세 탭은 항상 DOM에 있고
-    // tabIndex=-1 이어도 프로그램적 focus 는 가능하므로 리렌더를 기다릴 필요 없이 즉시.
     document.getElementById(`rt-tab-${nextKey}`)?.focus();
   }
 
   return (
-    <section className="w-full rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <section className="w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <h2 className="sr-only">내 기록</h2>
       <div
         role="tablist"
         aria-label="내 기록"
         onKeyDown={onKeyDown}
-        className="flex border-b border-zinc-200 dark:border-zinc-800"
+        className="flex border-b border-zinc-100 dark:border-zinc-800"
       >
         {TABS.map((t) => {
           const count = lists[t.key].length;
@@ -85,9 +107,9 @@ export function RecordPanel({
               aria-controls={`rt-panel-${t.key}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setTab(t.key)}
-              className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-3 text-sm font-bold transition-colors ${
                 selected
-                  ? "border-b-2 border-indigo-600 text-indigo-700 dark:text-indigo-300"
+                  ? "border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-300"
                   : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               }`}
             >
@@ -102,9 +124,12 @@ export function RecordPanel({
 
       <div role="tabpanel" id={panelId} aria-labelledby={tabId} tabIndex={0}>
         {active.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            {activeMeta.empty}
-          </p>
+          <div className="px-6 py-9 text-center text-zinc-400">
+            <div className="mb-2 text-3xl" aria-hidden>
+              {activeMeta.emptyEmoji}
+            </div>
+            <p className="text-sm leading-relaxed">{activeMeta.empty}</p>
+          </div>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {active.map((p) => (
@@ -134,7 +159,6 @@ function PlaceRow({
   onRate,
 }: {
   place: SavedPlace;
-  /** 📊 다녀옴 탭에서만 재방문 의향 평가 세그먼트를 노출 */
   showRating: boolean;
   onRemove: () => void;
   onNavigate: () => void;
@@ -144,21 +168,16 @@ function PlaceRow({
   const areaName =
     place.areaCode != null ? AREA_NAME[place.areaCode] : undefined;
   const mapHref = kakaoMapLink(place.title, place.lat, place.lng);
-  // 좌표가 있어야 반경 검색이 되므로, 좌표 없는 기록엔 주변 뽑기 버튼을 숨긴다.
   const canDrawNearby = place.lat != null && place.lng != null;
   const rating = place.rating ?? null;
 
   return (
     <li className="px-4 py-3">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 flex-none overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+        <div className="h-[46px] w-[46px] flex-none overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
           {place.image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={place.image}
-              alt=""
-              className="h-full w-full object-cover"
-            />
+            <img src={place.image} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-lg">
               🏞️
@@ -167,20 +186,17 @@ function PlaceRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{place.title}</p>
+          <p className="truncate text-sm font-bold">{place.title}</p>
           {areaName && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {areaName}
-            </p>
+            <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400">{areaName}</p>
           )}
         </div>
 
         {canDrawNearby && (
-          // 아이콘만이면 특히 모바일(hover 없음)에서 용도 전달이 어려워 글자 라벨을 붙인다.
           <button
             type="button"
             onClick={onDrawNearby}
-            className="flex-none whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900"
+            className="flex-none whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1.5 text-[11.5px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"
             aria-label={`${place.title} 주변에서 뽑기`}
           >
             📍 주변 뽑기
@@ -192,7 +208,7 @@ function PlaceRow({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onNavigate}
-            className="flex-none rounded-lg px-2 py-1 text-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="flex-none rounded-lg px-2 py-1 text-base transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
             aria-label={`${place.title} 지도에서 보기`}
           >
             🗺️
@@ -224,7 +240,7 @@ function PlaceRow({
                 onClick={() => onRate(selected ? null : opt.value)}
                 aria-pressed={selected}
                 aria-label={`${place.title} — ${opt.full}`}
-                className={`flex-1 px-1.5 py-2 text-xs font-medium transition-colors ${
+                className={`flex-1 px-1.5 py-2 text-xs font-semibold transition-colors ${
                   selected
                     ? RATING_SELECTED[opt.value]
                     : "text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800"

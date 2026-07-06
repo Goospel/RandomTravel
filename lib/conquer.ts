@@ -134,6 +134,19 @@ export function conqueredSigunguCodes(visited: SavedPlace[]): Set<string> {
   return set;
 }
 
+/**
+ * 발 들인 시·도 code 집합(M16) — areaCode 기준 직접 집계.
+ * 시·군·구 정복(좌표 판정)과 달리 **좌표 없는 방문도 포함**한다. 홈 히어로 17타일·
+ * 헤더 정복 pill·지도 '발 들인 시·도'가 공유하는 단일 출처(숫자 일관성).
+ */
+export function visitedAreaCodes(visited: SavedPlace[]): Set<number> {
+  const set = new Set<number>();
+  for (const p of visited) {
+    if (p.areaCode != null) set.add(p.areaCode);
+  }
+  return set;
+}
+
 export interface ConquerStats {
   /** 정복한 시·군·구 수 */
   conquered: number;

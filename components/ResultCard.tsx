@@ -8,6 +8,21 @@ import { useKakaoShare } from "@/hooks/useKakaoShare";
 import { shareText } from "@/lib/kakaoShare";
 import { formatKm } from "@/lib/geo";
 
+// 🎴 결과 카드(M16 탐험 로그) — 사진 위 오버레이 찜·다녀옴 토글 + 주요 2(다시뽑기·주변) /
+//   보조 4아이콘(지도·길찾기·공유·복사) 2단 계층. 데이터·공유 로직은 그대로 재사용.
+
+const BADGE: Record<string, string> = {
+  area: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  type: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+  sea: "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  seasonal: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  festival: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
+  weather: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
+  dist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+};
+const pill =
+  "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
+
 export function ResultCard({
   data,
   onRedraw,
@@ -32,26 +47,21 @@ export function ResultCard({
   onNavigate: () => void;
 }) {
   const { place } = data;
-  // 📍 주변에서 뽑기로 나온 결과면 앵커에서의 거리(m)가 실려온다.
   const distanceM = data.picked.distanceM;
   const [imgError, setImgError] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const { share } = useKakaoShare();
 
-  // 정규화 결과가 비었으면 실제 뽑은 풀 값(picked)으로 폴백 → 배지가 사라지지 않게
   const areaCode = place.areaCode ?? data.picked.areaCode;
   const areaName = areaCode != null ? AREA_NAME[areaCode] : undefined;
   const typeName =
     CONTENT_TYPE_NAME[place.contentTypeId] ??
     CONTENT_TYPE_NAME[data.picked.contentTypeId];
 
-  // 카카오맵 딥링크(§7.2) — 좌표 있으면 지도/길찾기, 없으면 이름 검색으로 폴백.
   const mapHref = kakaoMapLink(place.title, place.lat, place.lng);
   const routeHref = kakaoRouteLink(place.title, place.lat, place.lng);
-
   const showImage = place.image && !imgError;
 
-  // 안내 문구를 잠깐 띄웠다 지운다.
   function flash(msg: string | null) {
     setShareMsg(msg);
     if (msg) window.setTimeout(() => setShareMsg(null), 2200);
@@ -67,11 +77,10 @@ export function ResultCard({
     });
     if (result === "copied") flash("링크가 복사됐어요 ✓");
     else if (result === "failed") flash("공유를 열 수 없었어요.");
-    else flash(null); // kakao/shared — 팝업·공유시트가 뜸
+    else flash(null);
   }
 
-  // 🔗 링크 복사 — 카톡 웹 공유가 카카오 계정 문제로 실패해도(우리가 감지 못 함)
-  // 항상 되는 탈출구. 클립보드 우선, 안 되면 Web Share(모바일)로 폴백.
+  // 🔗 링크 복사 — 클립보드 우선, 안 되면 Web Share(모바일)로 폴백.
   async function onCopyLink() {
     const text = shareText(place, window.location.origin);
     if (navigator.clipboard?.writeText) {
@@ -86,7 +95,7 @@ export function ResultCard({
     if (navigator.share) {
       try {
         await navigator.share({ text });
-        return; // 공유시트가 뜸
+        return;
       } catch {
         flash("공유를 열 수 없었어요.");
         return;
@@ -95,9 +104,16 @@ export function ResultCard({
     flash("이 브라우저에선 복사를 지원하지 않아요.");
   }
 
+  // 사진 위 오버레이 원형 토글 공통 클래스
+  const overlayBtn =
+    "flex h-10 w-10 items-center justify-center rounded-full text-lg shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-colors";
+  const iconTile =
+    "flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2.5 text-base";
+  const iconLabel = "text-[10.5px] font-semibold text-zinc-500 dark:text-zinc-400";
+
   return (
-    <article className="animate-card-reveal w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="aspect-video w-full bg-zinc-100 dark:bg-zinc-800">
+    <article className="animate-card-reveal w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_6px_20px_-14px_rgba(20,40,30,0.3)] dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="relative aspect-video w-full bg-zinc-100 dark:bg-zinc-800">
         {showImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -111,27 +127,48 @@ export function ResultCard({
             🏞️
           </div>
         )}
+        {/* 사진 위 오버레이 — 찜 ♥ / 다녀옴 ✔ */}
+        <div className="absolute right-3 top-3 flex gap-2">
+          <button
+            type="button"
+            onClick={onToggleSave}
+            aria-pressed={saved}
+            aria-label={saved ? "찜 해제" : "찜하기"}
+            className={`${overlayBtn} ${
+              saved
+                ? "bg-rose-600 text-white"
+                : "bg-white/95 text-rose-600 hover:bg-white"
+            }`}
+          >
+            <span aria-hidden>{saved ? "♥" : "♡"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onToggleVisit}
+            aria-pressed={visited}
+            aria-label={visited ? "다녀옴 해제" : "다녀왔어요"}
+            className={`${overlayBtn} ${
+              visited
+                ? "bg-emerald-600 text-white"
+                : "bg-white/95 text-zinc-600 hover:bg-white"
+            }`}
+          >
+            <span aria-hidden>{visited ? "✔" : "➕"}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          {areaName && (
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-              {areaName}
-            </span>
-          )}
-          {typeName && (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {typeName}
-            </span>
-          )}
+      <div className="flex flex-col gap-2 p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {areaName && <span className={`${pill} ${BADGE.area}`}>{areaName}</span>}
+          {typeName && <span className={`${pill} ${BADGE.type}`}>{typeName}</span>}
           {data.picked.seaside && (
-            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+            <span className={`${pill} ${BADGE.sea}`}>
               {data.picked.seaside.emoji} {data.picked.seaside.category}
             </span>
           )}
           {data.picked.seasonal && data.picked.seasonal.items.length > 0 && (
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            <span className={`${pill} ${BADGE.seasonal}`}>
               지금 제철{" "}
               {data.picked.seasonal.items
                 .map((s) => `${s.emoji}${s.item}`)
@@ -141,14 +178,14 @@ export function ResultCard({
           {data.picked.festival && (
             <span
               title={data.picked.festival.name}
-              className="inline-block max-w-[15rem] truncate rounded-full bg-fuchsia-50 px-2.5 py-1 align-bottom text-xs font-medium text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300"
+              className={`inline-block max-w-[15rem] truncate align-bottom ${pill} ${BADGE.festival}`}
             >
               🎪 {data.picked.festival.name}
               {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
             </span>
           )}
           {data.picked.weather && (
-            <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+            <span className={`${pill} ${BADGE.weather}`}>
               ☀️ 지금 비 안 와요
               {data.picked.weather.temp != null &&
                 ` · ${Math.round(data.picked.weather.temp)}℃`}
@@ -157,7 +194,7 @@ export function ResultCard({
           {distanceM != null && (
             <span
               title={anchorTitle ?? undefined}
-              className="inline-block max-w-[15rem] truncate rounded-full bg-indigo-50 px-2.5 py-1 align-bottom text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+              className={`inline-block max-w-[15rem] truncate align-bottom ${pill} ${BADGE.dist}`}
             >
               📍 {anchorTitle ? `${anchorTitle}에서 ` : "주변 "}
               {formatKm(distanceM)}
@@ -170,121 +207,87 @@ export function ResultCard({
           </p>
         )}
 
-        <h2 className="text-xl font-bold leading-snug">{place.title}</h2>
+        <h2 className="text-lg font-extrabold leading-snug">{place.title}</h2>
         {place.address && (
-          <p className="text-sm text-zinc-500">{place.address}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{place.address}</p>
         )}
         {place.overview && (
-          <p className="line-clamp-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             {place.overview}
           </p>
         )}
 
-        {/* 내 기록 — 찜·다녀옴 (한 묶음: 세그먼트 토글) */}
-        <div className="flex divide-x divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={onToggleSave}
-            aria-pressed={saved}
-            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors ${
-              saved
-                ? "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300"
-                : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            }`}
-          >
-            <span aria-hidden>{saved ? "♥" : "♡"}</span>
-            {saved ? "찜함" : "찜"}
-          </button>
-          <button
-            type="button"
-            onClick={onToggleVisit}
-            aria-pressed={visited}
-            className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors ${
-              visited
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            }`}
-          >
-            <span aria-hidden>{visited ? "✔" : "➕"}</span>
-            {visited ? "다녀옴" : "다녀왔어요"}
-          </button>
-        </div>
-
-        <div className="mt-1 flex flex-col gap-2">
-          {/* 주요 행동 — 다시 뽑기 (유일한 강조 버튼) */}
+        {/* 주요 액션 — 🎲 다시 뽑기 (+ 📍 주변) */}
+        <div className="mt-2 flex gap-2">
           <button
             type="button"
             onClick={onRedraw}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 active:bg-indigo-700"
+            className="flex-[2] rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-500 active:bg-emerald-700"
           >
             🎲 다시 뽑기
           </button>
-
-          {/* 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 */}
           {onDrawNearby && (
             <button
               type="button"
               onClick={onDrawNearby}
-              className="w-full truncate rounded-xl border border-indigo-200 px-4 py-2.5 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950"
+              className="flex-1 truncate rounded-xl border border-emerald-200 px-2 py-3 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
             >
-              📍 {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
+              📍 주변
             </button>
-          )}
-
-          {/* 길 안내 — 지도·길찾기 (한 묶음: 세그먼트) */}
-          {(mapHref || routeHref) && (
-            <div className="flex divide-x divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-              {mapHref && (
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={onNavigate}
-                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  🗺️ 지도에서 보기
-                </a>
-              )}
-              {routeHref && (
-                <a
-                  href={routeHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={onNavigate}
-                  className="flex flex-1 items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  🧭 길찾기
-                </a>
-              )}
-            </div>
-          )}
-
-          {/* 공유 — 카톡·링크 복사 (한 묶음: 세그먼트, 카톡 강조) */}
-          <div className="flex overflow-hidden rounded-xl">
-            <button
-              type="button"
-              onClick={onShare}
-              className="flex flex-[2] items-center justify-center gap-1.5 bg-[#FEE500] px-4 py-3 text-sm font-semibold text-[#191600] transition-[filter] hover:brightness-95 active:brightness-90"
-            >
-              <span aria-hidden>💬</span> 카카오톡 공유
-            </button>
-            <button
-              type="button"
-              onClick={onCopyLink}
-              className="flex flex-1 items-center justify-center gap-1.5 border-l border-black/10 bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-            >
-              <span aria-hidden>🔗</span> 링크 복사
-            </button>
-          </div>
-          {shareMsg && (
-            <p
-              aria-live="polite"
-              className="text-center text-xs text-zinc-500 dark:text-zinc-400"
-            >
-              {shareMsg}
-            </p>
           )}
         </div>
+
+        {/* 보조 액션 — 지도 · 길찾기 · 공유 · 복사 (아이콘 + 라벨) */}
+        <div className="flex gap-1.5">
+          {mapHref && (
+            <a
+              href={mapHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavigate}
+              className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
+            >
+              <span aria-hidden>🗺️</span>
+              <span className={iconLabel}>지도</span>
+            </a>
+          )}
+          {routeHref && (
+            <a
+              href={routeHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavigate}
+              className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
+            >
+              <span aria-hidden>🧭</span>
+              <span className={iconLabel}>길찾기</span>
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onShare}
+            className={`${iconTile} bg-[#FEE500] transition-[filter] hover:brightness-95`}
+          >
+            <span aria-hidden>💬</span>
+            <span className="text-[10.5px] font-bold text-[#7a6b00]">공유</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCopyLink}
+            className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
+          >
+            <span aria-hidden>🔗</span>
+            <span className={iconLabel}>복사</span>
+          </button>
+        </div>
+        {shareMsg && (
+          <p
+            aria-live="polite"
+            className="text-center text-xs text-zinc-500 dark:text-zinc-400"
+          >
+            {shareMsg}
+          </p>
+        )}
       </div>
     </article>
   );

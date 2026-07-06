@@ -1,16 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
-import type { RandomResponse, ErrorResponse } from "@/types/tour";
+import { useEffect, useRef, useState } from "react";
+import type { RandomResponse, ErrorResponse, Place } from "@/types/tour";
 import type { SavedPlace } from "@/lib/travelStore";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
+import { MapHero } from "@/components/MapHero";
 import { AuthButtons } from "@/components/AuthButtons";
 import { buildRandomQuery, buildNearbyQuery } from "@/lib/query";
+import { visitedAreaCodes } from "@/lib/conquer";
+import { AREA_CODES } from "@/lib/constants";
 import { useTravelStore } from "@/hooks/useTravelStore";
 
 type Status =
@@ -35,9 +37,16 @@ export default function Home() {
   const [seq, setSeq] = useState(0);
   // 📍 주변에서 뽑기 거점 — 전국 랜덤 결과 또는 기록(찜·최근·다녀옴)에서 잡는다.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
+  const [filledArea, setFilledArea] = useState<number | null>(null);
   const store = useTravelStore();
-  // 기록에서 주변 뽑기를 누르면 결과가 위/옆에서 갱신되므로(모바일은 스크롤 밖) 결과로 이동.
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (filledArea == null) return;
+    const t = window.setTimeout(() => setFilledArea(null), 1700);
+    return () => window.clearTimeout(t);
+  }, [filledArea]);
 
   const toggleArea = (code: number) =>
     setAreas((prev) => {
@@ -63,11 +72,7 @@ export default function Home() {
   };
 
   // 공통 뽑기 실행 — URL 을 받아 상태·기록을 처리. updateAnchor=true 면 결과를 앵커로 잡는다.
-  async function runDraw(
-    url: string,
-    isRedraw: boolean,
-    updateAnchor: boolean,
-  ) {
+  async function runDraw(url: string, isRedraw: boolean, updateAnchor: boolean) {
     setStatus({ kind: "loading" });
     setSeq((s) => s + 1);
 
@@ -82,9 +87,7 @@ export default function Home() {
       }
       const data = (await res.json()) as RandomResponse;
       setStatus({ kind: "ok", data });
-      // 최근 본 곳 기록 + draw/redraw 이벤트(§12.6 P0: 로컬 전용)
       store.recordDraw(data.place, { mode, isRedraw });
-      // 전국 랜덤(뽑기/다시뽑기)만 앵커 갱신 — 좌표 없으면 주변 뽑기 불가라 null.
       if (updateAnchor) {
         const p = data.place;
         setAnchor(
@@ -102,7 +105,7 @@ export default function Home() {
   }
 
   function draw(isRedraw: boolean) {
-    // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식). lib/query.ts 단위 테스트로 고정.
+    // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식).
     const qs = buildRandomQuery(mode, areas, types, {
       seaside,
       seasonal,
@@ -121,74 +124,105 @@ export default function Home() {
   }
 
   // 📍 기록(찜·최근·다녀옴)에서 그 장소를 거점으로 삼아 주변 뽑기 — 앵커를 그 장소로 바꾼다.
-  // 결과 카드가 사라진 뒤에도(새로고침·시간 경과) 남은 기록으로 주변 뽑기를 이어갈 수 있게.
   function drawNearbyFrom(place: SavedPlace) {
     if (place.lat == null || place.lng == null) return;
     setAnchor({ title: place.title, lat: place.lat, lng: place.lng });
     const url = `/api/random?${buildNearbyQuery(place.lat, place.lng)}`;
     void runDraw(url, true, false);
-    // 모바일은 기록 패널이 결과 아래(desktop은 우측)라, 갱신된 결과로 부드럽게 이동.
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  // ✔ 다녀왔어요 — 새 시·도를 처음 채우면 🎉 토스트를 띄운다(정복 지도 즉시 반영 연출).
+  function handleToggleVisit(place: Place) {
+    const wasVisited = store.isVisited(place.contentId);
+    const before = visitedAreaCodes(store.visited);
+    store.toggleVisit(place);
+    if (!wasVisited && place.areaCode != null && !before.has(place.areaCode)) {
+      setFilledArea(place.areaCode);
+    }
+  }
+
   const loading = status.kind === "loading";
-  // 결과 카드의 주변 버튼 — 앵커가 있고, 순수 모드이거나 지금 결과 자체가 주변 뽑기 결과일 때.
-  // (기록에서 주변 뽑기를 하면 조건 모드여도 거리 결과엔 노출해 이어서 탐색 가능하게.)
   const currentIsNearby =
     status.kind === "ok" && status.data.picked.distanceM != null;
   const canDrawNearby = !!anchor && (mode === "pure" || currentIsNearby);
 
+  const hasCondition =
+    areas.size > 0 || types.size > 0 || seaside || seasonal || festival || noRain;
+
+  // 🧩 발 들인 시·도 정복 pill(헤더) — 홈 히어로 타일과 같은 출처(areaCode 기준).
+  const conqueredAreas = visitedAreaCodes(store.visited).size;
+  const conqueredPct = Math.round((conqueredAreas / AREA_CODES.length) * 100);
+
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-5 py-10 lg:max-w-5xl">
-      <div className="flex justify-end">
+    <main className="mx-auto w-full max-w-[1140px] flex-1 px-4 pb-16 pt-6 sm:px-5">
+      <div className="mb-3 flex justify-end">
         <AuthButtons />
       </div>
-      <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">🎲 어디든</h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          어디 갈지 고민될 때, 운명에 맡겨.
-        </p>
-        <Link
-          href="/map"
-          className="mt-3 inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
+
+      <header className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-extrabold tracking-tight">🎲 어디든</h1>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            어디 갈지 고민될 때, 운명에 맡겨.
+          </p>
+        </div>
+        <div
+          aria-live="polite"
+          className="flex flex-none items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-900 dark:bg-zinc-900 dark:text-emerald-300"
         >
-          🗺️ 내 여행 지도
-        </Link>
+          <span aria-hidden>🧩</span>
+          <span>
+            정복 <b className="text-sm">{conqueredAreas}</b>
+            <span className="font-semibold text-zinc-400"> / 17 · {conqueredPct}%</span>
+          </span>
+        </div>
       </header>
 
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <section className="flex flex-col items-center gap-6">
+      <MapHero
+        visited={store.visited}
+        storeReady={store.ready}
+        filledArea={filledArea}
+      />
+
+      <div className="mt-4 flex flex-wrap items-start gap-4">
+        {/* 뽑기 덱 — raised sheet */}
+        <section className="min-w-[300px] flex-[1_1_360px] rounded-[22px_22px_20px_20px] border border-zinc-200 bg-white px-4 pb-5 pt-2 shadow-[0_12px_34px_-20px_rgba(20,40,30,0.4)] dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mx-auto mb-3.5 mt-1.5 h-1.5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+
           <ModeToggle mode={mode} onChange={setMode} />
 
           {mode === "filtered" && (
-            <FilterPanel
-              selectedAreas={areas}
-              selectedTypes={types}
-              seaside={seaside}
-              seasonal={seasonal}
-              festival={festival}
-              noRain={noRain}
-              onToggleArea={toggleArea}
-              onToggleType={toggleType}
-              onToggleSeaside={() => setSeaside((v) => !v)}
-              onToggleSeasonal={() => setSeasonal((v) => !v)}
-              onToggleFestival={() => setFestival((v) => !v)}
-              onToggleNoRain={() => setNoRain((v) => !v)}
-              onClear={clearFilters}
-            />
+            <div className="mt-3.5">
+              <FilterPanel
+                selectedAreas={areas}
+                selectedTypes={types}
+                seaside={seaside}
+                seasonal={seasonal}
+                festival={festival}
+                noRain={noRain}
+                onToggleArea={toggleArea}
+                onToggleType={toggleType}
+                onToggleSeaside={() => setSeaside((v) => !v)}
+                onToggleSeasonal={() => setSeasonal((v) => !v)}
+                onToggleFestival={() => setFestival((v) => !v)}
+                onToggleNoRain={() => setNoRain((v) => !v)}
+                onClear={clearFilters}
+              />
+            </div>
           )}
 
           <button
             type="button"
             onClick={() => draw(false)}
             disabled={loading}
-            className="w-full rounded-2xl bg-indigo-600 px-6 py-5 text-lg font-semibold text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-60"
+            className="mt-3.5 w-full rounded-2xl bg-emerald-600 px-6 py-4 text-base font-extrabold text-white shadow-[0_12px_22px_-10px_rgba(5,150,105,0.6)] transition-colors hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? "여행지를 뽑는 중…" : "🎲 뽑기"}
+            {loading ? "여행지를 뽑는 중…" : "🎲 여기서 한 곳 뽑기"}
           </button>
 
           {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내 */}
-          <div ref={resultRef} className="w-full" aria-live="polite">
+          <div ref={resultRef} className="mt-3.5" aria-live="polite">
             {status.kind === "loading" && <SlotMachine />}
             {status.kind === "ok" && (
               <ResultCard
@@ -200,13 +234,20 @@ export default function Home() {
                 saved={store.isSaved(status.data.place.contentId)}
                 visited={store.isVisited(status.data.place.contentId)}
                 onToggleSave={() => store.toggleSave(status.data.place)}
-                onToggleVisit={() => store.toggleVisit(status.data.place)}
+                onToggleVisit={() => handleToggleVisit(status.data.place)}
                 onNavigate={() => store.logNavigate(status.data.place)}
               />
             )}
-            {status.kind === "error" && <ErrorPanel error={status.error} />}
+            {status.kind === "error" && (
+              <ErrorPanel
+                error={status.error}
+                onClearConditions={
+                  mode === "filtered" && hasCondition ? clearFilters : null
+                }
+              />
+            )}
             {status.kind === "idle" && (
-              <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="px-2 py-3.5 text-center text-sm leading-relaxed text-zinc-400">
                 {mode === "pure"
                   ? "버튼을 눌러 전국 어디든 랜덤으로 한 곳을 받아보세요."
                   : "조건을 고르고 뽑거나, 아무것도 안 고르면 완전 랜덤이에요."}
@@ -215,7 +256,7 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className="w-full lg:sticky lg:top-10">
+        <aside className="min-w-[280px] flex-[1_1_300px]">
           <RecordPanel
             saved={store.saved}
             recent={store.recent}
@@ -227,20 +268,40 @@ export default function Home() {
           />
         </aside>
       </div>
+
+      <p className="mt-6 text-center text-[11.5px] leading-relaxed text-zinc-400">
+        탐험 로그 · 뽑기·결과·지도가 한 화면 — <b>다녀왔어요</b>를 누르면 위 정복
+        지도가 바로 채워져요.
+      </p>
     </main>
   );
 }
 
-function ErrorPanel({ error }: { error: ErrorResponse }) {
+function ErrorPanel({
+  error,
+  onClearConditions,
+}: {
+  error: ErrorResponse;
+  onClearConditions: (() => void) | null;
+}) {
   const isKeyIssue = error.code === "UPSTREAM_ERROR";
   return (
-    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-      <p className="font-medium">{error.error}</p>
+    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <p className="font-semibold">⚠️ {error.error}</p>
       {isKeyIssue && (
         <p className="mt-2 text-amber-700 dark:text-amber-300">
           서버의 <code className="font-mono">TOUR_API_KEY</code> 설정을 확인해
           주세요. (<code className="font-mono">.env.local.example</code> 참고)
         </p>
+      )}
+      {onClearConditions && (
+        <button
+          type="button"
+          onClick={onClearConditions}
+          className="mt-2.5 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+        >
+          조건 초기화
+        </button>
       )}
     </div>
   );

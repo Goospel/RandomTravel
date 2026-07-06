@@ -1,13 +1,23 @@
 "use client";
 
-// 🗺️ 내 여행 지도 (M8) — 다녀온 곳(localStorage, 좌표 포함)을 카카오맵에 마커로 표시.
-// 순수 계산은 lib/mapView, SDK 로드는 hooks/useKakaoLoader 가 담당. 여기선 지도·마커 렌더만.
+// 🗺️ 내 여행 지도 핀 뷰 (M8 + M16 리디자인) — 실제 카카오맵 마커 + 하단 다녀온 곳 리스트.
+//   지도 SDK 로드는 hooks/useKakaoLoader, 순수 계산은 lib/mapView. 리스트는 카카오/네이버 딥링크.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useKakaoLoader } from "@/hooks/useKakaoLoader";
 import { visitedWithCoords, DEFAULT_LEVEL, SINGLE_LEVEL } from "@/lib/mapView";
-import type { SavedPlace } from "@/lib/travelStore";
+import { AREA_NAME, REVISIT_OPTIONS } from "@/lib/constants";
+import { kakaoMapLink, naverMapLink } from "@/lib/mapLink";
+import { relativeDay } from "@/lib/relativeDate";
+import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
 import type { KakaoInfoWindow } from "@/types/kakao";
+
+// 📊 재방문 의향 배지 색(다녀온 곳 리스트) — 선택 시 rose/amber/emerald.
+const RATING_BADGE: Record<RevisitRating, string> = {
+  1: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
+  2: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  3: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+};
 
 export function VisitedMap({
   visited,
@@ -20,6 +30,12 @@ export function VisitedMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const pts = visitedWithCoords(visited);
   const showMap = storeReady && status === "ready" && pts.length > 0;
+  // 상대 날짜용 현재 시각 — 렌더 중 Date.now()(비순수) 대신 마운트 후 1회 캡처.
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setNow(Date.now());
+  }, []);
 
   useEffect(() => {
     if (!showMap || !containerRef.current || !window.kakao) return;
@@ -40,7 +56,6 @@ export function VisitedMap({
       const marker = new kakao.maps.Marker({ position: pos, map, title: p.title });
       bounds.extend(pos);
 
-      // 제목은 API 원문 → innerHTML 대신 textContent 로 넣어 XSS 방지.
       const content = document.createElement("div");
       content.style.cssText =
         "padding:6px 10px;font-size:12px;max-width:200px;color:#18181b;line-height:1.4";
@@ -55,14 +70,11 @@ export function VisitedMap({
     }
 
     if (pts.length >= 2) {
-      map.setBounds(bounds); // 여러 곳: 모두 담기게 자동 경계맞춤
+      map.setBounds(bounds);
     } else {
-      // 단일 점 bounds(넓이 0)에 setBounds 하면 최대 배율로 과확대(건물 단위)돼
-      // DEFAULT_LEVEL 이 무시된다. 중심은 생성 시 그 점이므로 축척만 도시 규모로.
       map.setLevel(SINGLE_LEVEL);
     }
 
-    // 언마운트/재실행 시 열린 InfoWindow 닫고 지도 DOM 정리(인스턴스 GC 유도).
     return () => {
       openInfo?.close();
       el.innerHTML = "";
@@ -70,14 +82,97 @@ export function VisitedMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMap, visited]);
 
+  // 리스트 — 최근 다녀온 순.
+  const sorted = [...visited].sort((a, b) => b.savedAt - a.savedAt);
+
   return (
-    <div className="relative h-[60vh] min-h-[320px] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
-      {showMap ? (
-        <div ref={containerRef} className="h-full w-full" />
-      ) : (
-        <MapMessage status={status} storeReady={storeReady} empty={pts.length === 0} />
+    <div className="flex flex-col gap-4">
+      <div className="relative h-[60vh] min-h-[320px] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
+        {showMap ? (
+          <div ref={containerRef} className="h-full w-full" />
+        ) : (
+          <MapMessage status={status} storeReady={storeReady} empty={pts.length === 0} />
+        )}
+      </div>
+
+      {storeReady && sorted.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="border-b border-zinc-100 px-4 py-3 text-sm font-extrabold dark:border-zinc-800">
+            다녀온 곳 <span className="text-zinc-400">{sorted.length}</span>
+          </div>
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {sorted.map((p) => (
+              <VisitedRow key={p.contentId} place={p} now={now} />
+            ))}
+          </ul>
+        </section>
       )}
     </div>
+  );
+}
+
+function VisitedRow({ place, now }: { place: SavedPlace; now: number }) {
+  const areaName = place.areaCode != null ? AREA_NAME[place.areaCode] : "";
+  const kakaoHref = kakaoMapLink(place.title, place.lat, place.lng);
+  const naverHref = naverMapLink(place.title);
+  const rating = place.rating ?? null;
+  const opt = rating != null ? REVISIT_OPTIONS.find((o) => o.value === rating) : null;
+  const dateText = now > 0 ? relativeDay(place.savedAt, now) : "";
+
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <div className="h-[46px] w-[46px] flex-none overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+        {place.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={place.image} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-lg">
+            🏞️
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-bold">{place.title}</p>
+          <span
+            className={`flex-none rounded-full px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap ${
+              opt
+                ? RATING_BADGE[opt.value]
+                : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+            }`}
+          >
+            {opt ? `${opt.emoji} ${opt.short}` : "평가 전"}
+          </span>
+        </div>
+        <p className="mt-0.5 text-[11.5px] text-zinc-500 dark:text-zinc-400">
+          {areaName}
+          {areaName && dateText ? " · " : ""}
+          {dateText}
+        </p>
+      </div>
+
+      {kakaoHref && (
+        <a
+          href={kakaoHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-none rounded-lg bg-[#FEE500] px-2.5 py-1.5 text-[11.5px] font-bold text-[#3d3000]"
+        >
+          🗺️ 카카오
+        </a>
+      )}
+      {naverHref && (
+        <a
+          href={naverHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-none rounded-lg bg-[#03c75a] px-2.5 py-1.5 text-[11.5px] font-bold text-white"
+        >
+          N 네이버
+        </a>
+      )}
+    </li>
   );
 }
 

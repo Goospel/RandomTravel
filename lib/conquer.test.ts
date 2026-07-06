@@ -6,6 +6,7 @@ import {
   conqueredSigunguCodes,
   conquerStats,
   conquerByArea,
+  visitedAreaCodes,
   TOTAL_SIGUNGU,
 } from "@/lib/conquer";
 import { KOREA_PROJECTION, KOREA_SIGUNGU } from "@/lib/koreaMap";
@@ -145,5 +146,32 @@ describe("conquer — 시·군·구 정복 집계(실제 데이터)", () => {
     const { conquered, total, percent } = conquerStats(v);
     expect(conquered).toBe(1);
     expect(percent).toBe(Math.round((1 / total) * 100));
+  });
+});
+
+describe("visitedAreaCodes — 발 들인 시·도(M16, areaCode 기준)", () => {
+  // 홈 히어로 17타일·헤더 정복 pill·지도 '발 들인 시·도'의 단일 출처.
+  // 좌표→시·군·구 판정과 달리 areaCode 로 직접 집계 → 좌표 없는 방문도 포함.
+  function withArea(areaCode: number | null, id: string): SavedPlace {
+    return { ...sp(null, null, id), areaCode };
+  }
+
+  it("방문 없으면 빈 집합", () => {
+    expect(visitedAreaCodes([]).size).toBe(0);
+  });
+
+  it("서로 다른 시·도만 카운트(중복 제거)", () => {
+    const v = [withArea(1, "a"), withArea(6, "b"), withArea(1, "c")];
+    const set = visitedAreaCodes(v);
+    expect(set.size).toBe(2);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(6)).toBe(true);
+  });
+
+  it("areaCode 없는 방문은 제외", () => {
+    const v = [withArea(null, "a"), withArea(32, "b")];
+    const set = visitedAreaCodes(v);
+    expect(set.size).toBe(1);
+    expect(set.has(32)).toBe(true);
   });
 });
