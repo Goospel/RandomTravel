@@ -95,4 +95,16 @@ describe("실데이터 SEASONAL_CALENDAR — 최소 정합성", () => {
       expect(seasonalItemsForMonth(m).length).toBeGreaterThan(0);
     }
   });
+
+  it("연중 상비 향신료·양념(마늘·고추 등)은 제철 품목이 아니다", () => {
+    // 마늘·고추 같은 양념/향신료는 사철 유통돼 '제철이라 특별히 맛있는' 여행 유인이
+    // 아니다 → 산지 풀·"지금 제철" 배지에서 제외한다(§6.4). §13 달력 검수 때 재유입 방지 가드.
+    const YEAR_ROUND_AROMATICS = [
+      "마늘", "고추", "양파", "생강", "대파", "쪽파", "부추", "파", "청양고추",
+    ];
+    const items = SEASONAL_CALENDAR.map((s) => s.item);
+    for (const a of YEAR_ROUND_AROMATICS) {
+      expect(items).not.toContain(a);
+    }
+  });
 });
