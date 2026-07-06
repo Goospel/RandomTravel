@@ -20,7 +20,12 @@ import {
   NEARBY_RADIUS_M,
 } from "@/lib/constants";
 import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
-import { narrowBySeasonal, seasonalItemsForArea, currentMonth } from "@/lib/season";
+import {
+  narrowBySeasonal,
+  seasonalItemsForArea,
+  dishSeasonalItemsForArea,
+  currentMonth,
+} from "@/lib/season";
 import {
   normalizeFestivals,
   festivalsByArea,
@@ -319,6 +324,7 @@ export interface DrawResult {
 
 const COMBO_BUDGET = 34; // 상류 getTotalCount 호출 상한 (대부분 24h 캐시)
 const MAX_INDEX_TRIES = 3;
+const RESTAURANT_TYPE = 39; // 🍽️ 음식점 contentTypeId — 🦀 제철과 조합 시 품목-맛집 키워드 매칭 대상
 
 /** count 가중 랜덤 인덱스 — 큰 풀일수록 뽑힐 확률↑ (개수 적은 분류로의 쏠림 방지, §6.3) */
 export function weightedIndex(
@@ -359,6 +365,36 @@ function seasonalBadge(
     emoji: s.emoji,
   }));
   return items.length > 0 ? { items } : null;
+}
+
+/**
+ * 🦀+🍽️ 제철 음식점 매칭 — 이 지역 이번 달 dish 제철 품목명으로 그 지역 맛집을 실제 검색한다.
+ * dish 품목(회·해산물)을 셔플해 하나씩 searchKeyword2, 결과가 있는 첫 품목의 맛집 1건 + 매칭
+ * 품목을 반환. dish 품목이 없거나(수박 산지) 전부 0건이면 null → 호출부가 일반 음식점으로 폴백.
+ * 이렇게 "제철 재료 ↔ 뽑힌 식당"을 맞춰 '수박 제철 지역의 횟집' 같은 미스매치를 없앤다(§6.4).
+ */
+async function pickSeasonalRestaurant(
+  areaCode: number,
+  month: number,
+): Promise<{
+  item: TourApiItem;
+  matched: { item: string; emoji: string };
+  count: number;
+} | null> {
+  const dishItems = shuffle(dishSeasonalItemsForArea(areaCode, month));
+  for (const s of dishItems) {
+    const params: ListParams = {
+      keyword: s.item,
+      contentTypeId: RESTAURANT_TYPE,
+      areaCode,
+    };
+    const count = await getTotalCount("searchKeyword2", params);
+    if (count <= 0) continue; // 이 품목 맛집 0건 → 다음 dish 품목
+    const picked = await pickItemFrom("searchKeyword2", params, count);
+    if (picked)
+      return { item: picked, matched: { item: s.item, emoji: s.emoji }, count };
+  }
+  return null;
 }
 
 /**
@@ -494,6 +530,32 @@ async function drawByType(
 
   for (let i = 0; i < limit; i++) {
     const q = combos[i];
+
+    // 🦀+🍽️ 제철 음식점: 제철 품목명으로 그 지역 맛집을 실제 검색해 재료-식당을 맞춘다(§6.4).
+    //   회·해산물 산지는 대게집·갈치집을 뽑고, 수박 같은 농산물 산지는 매칭이 없어 아래로 폴백.
+    if (ctx.seasonal && q.contentTypeId === RESTAURANT_TYPE && q.areaCode != null) {
+      const linked = await pickSeasonalRestaurant(q.areaCode, ctx.month);
+      if (linked) {
+        const overview = await getOverview(linked.item.contentid);
+        const areaCode = linked.item.areacode
+          ? Number(linked.item.areacode)
+          : q.areaCode;
+        const badges = buildBadges(areaCode, ctx);
+        // 배지는 지역 전체가 아니라 **매칭된 그 품목만** — 뽑힌 맛집과 정확히 일치.
+        badges.seasonal = { items: [linked.matched] };
+        return {
+          place: normalizePlace(linked.item, overview),
+          picked: {
+            areaCode,
+            contentTypeId: RESTAURANT_TYPE,
+            totalCount: linked.count,
+            ...badges,
+          },
+        };
+      }
+      // 매칭 실패(농산물 산지·키워드 0건) → 아래 일반 음식점 경로로 폴백.
+    }
+
     const params = queryParams(q);
     const totalCount = await getTotalCount("areaBasedList2", params);
     if (totalCount <= 0) continue; // 빈 조합 → 다음 조합
@@ -503,13 +565,17 @@ async function drawByType(
 
     const overview = await getOverview(item.contentid);
     const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
+    const badges = buildBadges(areaCode, ctx);
+    // 제철 음식점인데 품목 매칭에 실패해 여기로 왔으면, 랜덤 식당에 "이 집=제철" 오해를 줄
+    // 제철 배지는 숨긴다(수박 배지 + 무관한 횟집 방지). 다른 타입·매칭 성공 경로는 그대로.
+    if (ctx.seasonal && q.contentTypeId === RESTAURANT_TYPE) badges.seasonal = null;
     return {
       place: normalizePlace(item, overview),
       picked: {
         areaCode,
         contentTypeId: q.contentTypeId,
         totalCount,
-        ...buildBadges(areaCode, ctx),
+        ...badges,
       },
     };
   }

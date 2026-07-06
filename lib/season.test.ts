@@ -5,16 +5,18 @@ import {
   seasonalAreaCodes,
   narrowBySeasonal,
   seasonalItemsForArea,
+  dishSeasonalItemsForArea,
 } from "@/lib/season";
 import { SEASONAL_CALENDAR, type SeasonalItem } from "@/lib/constants";
 
 // 로직은 실제 달력 데이터에 결합시키지 않으려 픽스처를 주입해 검증한다.
 // (달력 내용이 §13 검수로 바뀌어도 로직 테스트는 안 깨진다.)
+// dish = 식당에서 먹는 것(회·해산물). 대게만 dish, 과일류는 dish 아님.
 const FIX: SeasonalItem[] = [
-  { item: "대게", emoji: "🦀", months: [11, 12, 1, 2], areaCodes: [35, 32] },
-  { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35] },
-  { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32] },
-  { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39] },
+  { item: "대게", emoji: "🦀", months: [11, 12, 1, 2], areaCodes: [35, 32], dish: true },
+  { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35], dish: false },
+  { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32], dish: false },
+  { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39], dish: false },
 ];
 
 describe("currentMonth — 항상 KST 기준(서버 UTC 월경계 방어)", () => {
@@ -80,6 +82,20 @@ describe("seasonalItemsForArea — 이 지역이 이번 달 산지인 품목(배
   });
 });
 
+describe("dishSeasonalItemsForArea — 이 지역 이번 달 제철 중 '식당 음식(dish)'만 (음식점 키워드 매칭용)", () => {
+  it("dish 품목만 남긴다 — 회·해산물은 남고 과일류는 빠진다", () => {
+    // 12월 경북(35): 대게(dish) → ["대게"]
+    expect(dishSeasonalItemsForArea(35, 12, FIX).map((s) => s.item)).toEqual(["대게"]);
+  });
+  it("dish 아닌 품목만 제철이면 빈 배열(음식점 키워드 매칭 불가 → 폴백 신호)", () => {
+    // 7월 경북(35): 참외(dish 아님)뿐 → []
+    expect(dishSeasonalItemsForArea(35, 7, FIX)).toEqual([]);
+  });
+  it("areaCode=null → 빈 배열", () => {
+    expect(dishSeasonalItemsForArea(null, 12, FIX)).toEqual([]);
+  });
+});
+
 describe("실데이터 SEASONAL_CALENDAR — 최소 정합성", () => {
   it("모든 항목의 months·areaCodes 가 유효 범위", () => {
     for (const s of SEASONAL_CALENDAR) {
@@ -94,6 +110,18 @@ describe("실데이터 SEASONAL_CALENDAR — 최소 정합성", () => {
     for (let m = 1; m <= 12; m++) {
       expect(seasonalItemsForMonth(m).length).toBeGreaterThan(0);
     }
+  });
+
+  it("회·해산물은 dish(식당 음식), 과일·채소는 dish 아님 — 제철+음식점 키워드 매칭 대상 구분", () => {
+    // 제철+음식점일 때 dish 품목명으로 맛집을 검색한다(§6.4). '식당에서 먹는 것'만 dish여야
+    // 수박·사과 같은 농산물이 "○○ 맛집"으로 검색되는 헛발질(0건)을 구조적으로 막는다.
+    const byName = new Map(SEASONAL_CALENDAR.map((s) => [s.item, s]));
+    const SEAFOOD = ["대게", "방어", "굴", "주꾸미", "멸치", "전복", "전어", "갈치", "대하", "오징어"];
+    const PRODUCE = ["감귤", "딸기", "사과", "매실", "참외", "자두", "옥수수", "복숭아", "수박", "포도", "배"];
+    for (const n of SEAFOOD) expect(byName.get(n)?.dish, `${n}은 dish여야`).toBe(true);
+    for (const n of PRODUCE) expect(byName.get(n)?.dish, `${n}은 dish가 아니어야`).toBe(false);
+    // 모든 항목이 dish 여부를 명시(플래그 누락 방지 — §13 검수 때 새 품목도 강제)
+    for (const s of SEASONAL_CALENDAR) expect(typeof s.dish).toBe("boolean");
   });
 
   it("연중 상비 향신료·양념(마늘·고추 등)은 제철 품목이 아니다", () => {
