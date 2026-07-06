@@ -10,6 +10,7 @@ import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
 import { MapHero } from "@/components/MapHero";
 import { AuthButtons } from "@/components/AuthButtons";
+import { InstallButton } from "@/components/InstallButton";
 import { buildRandomQuery, buildNearbyQuery } from "@/lib/query";
 import { visitedAreaCodes } from "@/lib/conquer";
 import { AREA_CODES } from "@/lib/constants";
@@ -156,7 +157,8 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-[1140px] flex-1 px-4 pb-16 pt-6 sm:px-5">
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <InstallButton />
         <AuthButtons />
       </div>
 
