@@ -84,3 +84,12 @@ export interface ErrorResponse {
   /** 조건이 좁아 후보가 0건인 경우 등 구분용 */
   code?: "EMPTY_POOL" | "UPSTREAM_ERROR" | "BAD_REQUEST";
 }
+
+/**
+ * 🔢 /api/random/count 응답(M16) — 조건별 실시간 후보 수 배지용.
+ *  - dynamic: 🎪·☔ 처럼 정확 집계 불가(값 대신 정성 라벨)
+ *  - totalCount: 후보 총합. approx=true 면 예산 상한에 잘린 근사(≈ N곳+)
+ */
+export type CountResponse =
+  | { dynamic: true }
+  | { totalCount: number; approx: boolean };

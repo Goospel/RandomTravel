@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 // themeColor 는 Next 15+ 에서 viewport 로 분리됨(상태바 틴트). 다크/라이트 각각 지정.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
+    { media: "(prefers-color-scheme: light)", color: "#059669" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };

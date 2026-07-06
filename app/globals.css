@@ -29,13 +29,14 @@ body {
    지는 문제 보완. 마우스 클릭(:focus)엔 안 뜨고 키보드(:focus-visible)에만.
    outline 은 요소의 border-radius 를 따라가므로 둥근 모서리와도 맞는다. */
 :focus-visible {
-  outline: 2px solid #6366f1; /* indigo-500 */
+  outline: 2px solid #059669; /* emerald-600 — 탐험 로그(1C) 액센트 */
   outline-offset: 2px;
 }
 
-/* ── M3 뽑기 애니메이션 ─────────────────────────────
+/* ── M3 뽑기 애니메이션 + M16 탐험 로그 연출 ─────────────
    슬롯 릴은 리스트를 2번 이어 붙인 컬럼을 -50%까지 밀어 무한 반복(이음새 없음).
-   카드 등장은 살짝 떠오르며 페이드인. */
+   카드 등장은 살짝 떠오르며 페이드인. tile-pop=정복 타일, fade-up=토스트/라벨,
+   pop-in=핀 선택 강조. */
 @keyframes slot-spin {
   from {
     transform: translateY(0);
@@ -56,6 +57,45 @@ body {
   }
 }
 
+@keyframes tile-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.3;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.2;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .animate-slot-spin {
   animation: slot-spin 0.6s linear infinite;
   will-change: transform;
@@ -65,10 +105,25 @@ body {
   animation: card-reveal 0.4s ease-out both;
 }
 
+.animate-tile-pop {
+  animation: tile-pop 0.5s ease-out;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.32s ease-out;
+}
+
+.animate-pop-in {
+  animation: pop-in 0.3s ease-out;
+}
+
 /* 접근성: 모션 최소화 설정이면 회전·등장 애니메이션을 끈다 */
 @media (prefers-reduced-motion: reduce) {
   .animate-slot-spin,
-  .animate-card-reveal {
+  .animate-card-reveal,
+  .animate-tile-pop,
+  .animate-fade-up,
+  .animate-pop-in {
     animation: none;
   }
 }

@@ -7,13 +7,19 @@
 //  - HTTP 200 이어도 response.header.resultCode 로 실패 판별
 //  - 0건이면 body.items 가 빈 문자열 "" 로 올 수 있음 → 배열 파싱 전 방어
 
-import type { Place, TourApiItem, PickedInfo } from "@/types/tour";
+import type {
+  Place,
+  TourApiItem,
+  PickedInfo,
+  CountResponse,
+} from "@/types/tour";
 import {
   RANDOM_DEFAULT_TYPES,
   SEA_CAT3,
   ALL_AREA_CODES,
   NEARBY_RADIUS_M,
 } from "@/lib/constants";
+import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
 import { narrowBySeasonal, seasonalItemsForArea, currentMonth } from "@/lib/season";
 import {
   normalizeFestivals,
@@ -635,4 +641,27 @@ export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
     "주변에 추천할 여행지를 찾지 못했어요. '다시 뽑기'로 다른 곳을 받아보세요.",
     "EMPTY_POOL",
   );
+}
+
+/**
+ * 🔢 실시간 후보 수(M16) — 현재 조건의 후보 총합. 뽑지 않고 세기만 한다.
+ *  - 조합 계획은 순수 planCandidateCount(테스트됨), 여기선 각 조합의 getTotalCount(24h 캐시)를 합산.
+ *  - 🎪·☔ 는 dynamic(정확 집계 불가) — UI 는 정성 라벨.
+ *  - 예산 상한(COUNT_COMBO_BUDGET)에 잘리면 approx=true(≈ N곳+).
+ *
+ *  ※ 배지용 부가 정보라 정확도보다 저비용·캐시 재사용이 우선(같은 24h 캐시를 뽑기와 공유).
+ */
+export async function countCandidates(
+  params: CountParams,
+  month: number = currentMonth(),
+): Promise<CountResponse> {
+  const plan = planCandidateCount(params, month);
+  if (plan.kind === "dynamic") return { dynamic: true };
+  if (plan.kind === "empty") return { totalCount: 0, approx: false };
+
+  let total = 0;
+  for (const combo of plan.combos) {
+    total += await getTotalCount("areaBasedList2", queryParams(combo));
+  }
+  return { totalCount: total, approx: plan.capped };
 }
