@@ -69,3 +69,16 @@ export function seasonalItemsForArea(
     s.areaCodes.includes(areaCode),
   );
 }
+
+/**
+ * 이 지역·이번 달 제철 품목 중 **식당에서 먹는 것(dish)** 만 — 🦀+🍽️ 제철+음식점 조합에서
+ * 이 품목명들로 그 지역 맛집을 검색(searchKeyword2)하기 위한 후보(§6.4).
+ * 빈 배열이면 "이 지역엔 지금 식당에서 먹을 제철거리가 없다"(예: 수박 산지) → 음식점 폴백 신호.
+ */
+export function dishSeasonalItemsForArea(
+  areaCode: number | null,
+  month: number,
+  calendar: readonly SeasonalItem[] = SEASONAL_CALENDAR,
+): SeasonalItem[] {
+  return seasonalItemsForArea(areaCode, month, calendar).filter((s) => s.dish);
+}
