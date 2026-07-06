@@ -118,6 +118,10 @@ export const LDONG_TO_AREA: Record<string, number> = {
 // "이번 달 제철 재료 → 산지 시·도" 완성형 공공 API가 없어 정적 테이블로 구축.
 // months = 제철 월(1-12, 걸침은 배열에 명시), areaCodes = 주산지 시·도(§5.4 코드).
 // ⚠️ 1차 편성 — 널리 알려진 특산물·산지 위주. §13 백로그 "제철 달력 검수" 대상.
+//
+// 자격: **여행 동기가 되는 계절 별미만** 넣는다. 마늘·고추 같은 연중 상비 향신료/양념은
+// 사철 유통돼 '제철이라 특별히 맛있는' 유인이 없고, "지금 제철: 마늘 🧄" 배지도 여행
+// 스토리가 안 되므로 제외한다. (가드: season.test.ts "연중 상비 향신료·양념…")
 
 export interface SeasonalItem {
   item: string;
@@ -141,7 +145,6 @@ export const SEASONAL_CALENDAR: SeasonalItem[] = [
   // 여름 (6~8월)
   { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35] }, // 경북(성주)
   { item: "자두", emoji: "🟣", months: [6, 7], areaCodes: [35] }, // 경북(김천)
-  { item: "마늘", emoji: "🧄", months: [6, 7], areaCodes: [36, 38] }, // 경남(남해)·전남(고흥)
   { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32] }, // 강원(홍천·평창)
   { item: "복숭아", emoji: "🍑", months: [7, 8], areaCodes: [35, 33] }, // 경북(청도)·충북(음성)
   { item: "수박", emoji: "🍉", months: [7, 8], areaCodes: [34, 36] }, // 충남(부여)·경남(함안)
