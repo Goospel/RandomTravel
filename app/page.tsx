@@ -212,13 +212,19 @@ export default function Home() {
             </div>
           )}
 
+          {/* 유일한 전국 랜덤 뽑기 버튼 — 결과가 뜬 뒤엔 "다시 뽑기"로 라벨만 바뀐다
+              (결과 카드에 뽑기 버튼을 또 두지 않아 중복 제거). */}
           <button
             type="button"
-            onClick={() => draw(false)}
+            onClick={() => draw(status.kind === "ok")}
             disabled={loading}
             className="mt-3.5 w-full rounded-2xl bg-emerald-600 px-6 py-4 text-base font-extrabold text-white shadow-[0_12px_22px_-10px_rgba(5,150,105,0.6)] transition-colors hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? "여행지를 뽑는 중…" : "🎲 여기서 한 곳 뽑기"}
+            {loading
+              ? "여행지를 뽑는 중…"
+              : status.kind === "ok"
+                ? "🎲 다시 뽑기"
+                : "🎲 여기서 한 곳 뽑기"}
           </button>
 
           {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내 */}
@@ -228,7 +234,6 @@ export default function Home() {
               <ResultCard
                 key={seq}
                 data={status.data}
-                onRedraw={() => draw(true)}
                 onDrawNearby={canDrawNearby ? drawNearby : null}
                 anchorTitle={anchor?.title ?? null}
                 saved={store.isSaved(status.data.place.contentId)}

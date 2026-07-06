@@ -25,7 +25,6 @@ const pill =
 
 export function ResultCard({
   data,
-  onRedraw,
   onDrawNearby,
   anchorTitle,
   saved,
@@ -35,8 +34,8 @@ export function ResultCard({
   onNavigate,
 }: {
   data: RandomResponse;
-  onRedraw: () => void;
-  /** 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 전달, 아니면 null */
+  /** 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 전달, 아니면 null.
+      전국 랜덤 재추첨은 상단 "다시 뽑기" 버튼이 담당하므로 카드엔 뽑기 버튼을 두지 않는다. */
   onDrawNearby: (() => void) | null;
   /** 주변 뽑기 기준점(첫 여행지) 이름 — 버튼·거리 배지 라벨용 */
   anchorTitle: string | null;
@@ -217,28 +216,20 @@ export function ResultCard({
           </p>
         )}
 
-        {/* 주요 액션 — 🎲 다시 뽑기 (+ 📍 주변) */}
-        <div className="mt-2 flex gap-2">
+        {/* 📍 주변에서 뽑기(M14) — 전국 랜덤 재추첨과 다른 별개 동작이라 카드에 유지.
+            뽑기(재추첨)는 상단 버튼 하나로 통합됨. */}
+        {onDrawNearby && (
           <button
             type="button"
-            onClick={onRedraw}
-            className="flex-[2] rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-500 active:bg-emerald-700"
+            onClick={onDrawNearby}
+            className="mt-2 w-full truncate rounded-xl border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
           >
-            🎲 다시 뽑기
+            📍 {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
           </button>
-          {onDrawNearby && (
-            <button
-              type="button"
-              onClick={onDrawNearby}
-              className="flex-1 truncate rounded-xl border border-emerald-200 px-2 py-3 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
-            >
-              📍 주변
-            </button>
-          )}
-        </div>
+        )}
 
         {/* 보조 액션 — 지도 · 길찾기 · 공유 · 복사 (아이콘 + 라벨) */}
-        <div className="flex gap-1.5">
+        <div className="mt-2 flex gap-1.5">
           {mapHref && (
             <a
               href={mapHref}
