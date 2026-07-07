@@ -30,3 +30,6 @@ yarn-error.log*
 
 # 🧩 정복 지도 생성기 캐시 — public-domain 시·군·구/시·도 경계 GeoJSON(수 MB, §7.4)
 scripts/.cache-*.json
+
+# 🎨 디자인 핸드오프 산출물 — 참고용 프로토타입/zip(제품 소스 아님, 레포 미관리)
+claude-design/
