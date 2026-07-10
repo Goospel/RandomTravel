@@ -9,6 +9,7 @@ import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
 import { MapHero } from "@/components/MapHero";
+import { StoryBanner } from "@/components/StoryBanner";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
 import { buildRandomQuery, buildNearbyQuery } from "@/lib/query";
@@ -25,6 +26,10 @@ type Status =
 // 📍 주변 뽑기 거점 — 결과 카드/기록 어느 쪽에서 잡든 이름·좌표만 있으면 된다.
 type Anchor = { title: string; lat: number; lng: number };
 
+// 🎰 슬롯 최소 노출시간(§6.5·§7.9) — 뽑기가 이보다 빨리 끝나도 연출을 이 시간만큼 유지.
+const MIN_SPIN_MS = 1200;
+const delay = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
 export default function Home() {
   const [mode, setMode] = useState<Mode>("pure");
   const [areas, setAreas] = useState<Set<number>>(new Set());
@@ -34,9 +39,14 @@ export default function Home() {
   const [festival, setFestival] = useState(false); // 🎪 축제 (§6.2)
   const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
   const [quiet, setQuiet] = useState(false); // 🍃 한적 (§6.7)
+  // 📅 방문 시점 기준일(§6.8) — null = 오늘(기본). 미래 칩 선택 시 그 ymd 저장(날짜 단독=완전 랜덤).
+  const [dateYmd, setDateYmd] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
+  // 최신 뽑기 토큰(동기적) — 슬롯 최소 노출로 커밋이 뒤로 밀리면서, 늦게 끝난 옛 뽑기가
+  // 그 사이 시작된 새 뽑기 결과를 덮어쓰는 경합을 막는다(기록 패널 📍는 loading 게이트 밖이라 실재).
+  const drawTokenRef = useRef(0);
   // 📍 주변에서 뽑기 거점 — 전국 랜덤 결과 또는 기록(찜·최근·다녀옴)에서 잡는다.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
@@ -72,39 +82,54 @@ export default function Home() {
     setFestival(false);
     setNoRain(false);
     setQuiet(false);
+    setDateYmd(null); // 📅 '오늘' 복귀(§6.8)
   };
 
   // 공통 뽑기 실행 — URL 을 받아 상태·기록을 처리. updateAnchor=true 면 결과를 앵커로 잡는다.
+  //   슬롯 최소 노출(§7.9): fetch 를 '커밋 클로저'로 감싸 reject 없는 형태로 만들고, delay 와
+  //   Promise.all 로 묶어 **에러 포함 모든 결과**가 최소 노출을 따르게 한다(두 속도 비대칭 방지).
   async function runDraw(url: string, isRedraw: boolean, updateAnchor: boolean) {
+    const token = ++drawTokenRef.current; // 이 뽑기의 순번 — 커밋 직전 최신인지 확인
     setStatus({ kind: "loading" });
     setSeq((s) => s + 1);
 
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) {
-        const error = (await res.json().catch(() => ({
-          error: "알 수 없는 오류가 발생했어요.",
-        }))) as ErrorResponse;
-        setStatus({ kind: "error", error });
-        return;
+    const work = (async (): Promise<() => void> => {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) {
+          const error = (await res.json().catch(() => ({
+            error: "알 수 없는 오류가 발생했어요.",
+          }))) as ErrorResponse;
+          return () => setStatus({ kind: "error", error });
+        }
+        const data = (await res.json()) as RandomResponse;
+        return () => {
+          setStatus({ kind: "ok", data });
+          store.recordDraw(data.place, { mode, isRedraw });
+          if (updateAnchor) {
+            const p = data.place;
+            setAnchor(
+              p.lat != null && p.lng != null
+                ? { title: p.title, lat: p.lat, lng: p.lng }
+                : null,
+            );
+          }
+        };
+      } catch {
+        return () =>
+          setStatus({
+            kind: "error",
+            error: {
+              error: "네트워크 오류 — 연결을 확인하고 다시 시도해 주세요.",
+            },
+          });
       }
-      const data = (await res.json()) as RandomResponse;
-      setStatus({ kind: "ok", data });
-      store.recordDraw(data.place, { mode, isRedraw });
-      if (updateAnchor) {
-        const p = data.place;
-        setAnchor(
-          p.lat != null && p.lng != null
-            ? { title: p.title, lat: p.lat, lng: p.lng }
-            : null,
-        );
-      }
-    } catch {
-      setStatus({
-        kind: "error",
-        error: { error: "네트워크 오류 — 연결을 확인하고 다시 시도해 주세요." },
-      });
-    }
+    })();
+
+    const [commit] = await Promise.all([work, delay(MIN_SPIN_MS)]);
+    // 더 새로운 뽑기가 이미 시작됐으면 옛 결과로 상태·앵커·기록을 덮어쓰지 않는다(최신 승리).
+    if (token !== drawTokenRef.current) return;
+    commit();
   }
 
   function draw(isRedraw: boolean) {
@@ -115,6 +140,7 @@ export default function Home() {
       festival,
       noRain,
       quiet,
+      dateYmd, // 📅 미래 기준일이면 date 방출 + ☔ 미방출(§6.8)
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
     void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
@@ -175,7 +201,7 @@ export default function Home() {
         <div>
           <h1 className="text-[22px] font-extrabold tracking-tight">🎲 어디든</h1>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            어디 갈지 고민될 때, 운명에 맡겨.
+            어디 갈지 고민될 때, 운명에 맡겨 — 전국 어디든 같은 출발선.
           </p>
         </div>
         <div
@@ -189,6 +215,8 @@ export default function Home() {
           </span>
         </div>
       </header>
+
+      <StoryBanner />
 
       <MapHero
         visited={store.visited}
@@ -213,6 +241,7 @@ export default function Home() {
                 festival={festival}
                 noRain={noRain}
                 quiet={quiet}
+                dateYmd={dateYmd}
                 onToggleArea={toggleArea}
                 onToggleType={toggleType}
                 onToggleSeaside={() => setSeaside((v) => !v)}
@@ -220,6 +249,7 @@ export default function Home() {
                 onToggleFestival={() => setFestival((v) => !v)}
                 onToggleNoRain={() => setNoRain((v) => !v)}
                 onToggleQuiet={() => setQuiet((v) => !v)}
+                onSelectDate={setDateYmd}
                 onClear={clearFilters}
               />
             </div>

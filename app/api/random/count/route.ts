@@ -4,11 +4,18 @@
 
 import { type NextRequest } from "next/server";
 import { countCandidates } from "@/lib/tourapi";
-import { parseAreaCodes, parseContentTypeIds, parseBool } from "@/lib/query";
+import {
+  parseAreaCodes,
+  parseContentTypeIds,
+  parseBool,
+  parseDateYmd,
+} from "@/lib/query";
 import type { CountResponse } from "@/types/tour";
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
+  const now = new Date(); // 📅 요청당 단일 시계(§6.8) — parseDateYmd·countCandidates 공유
+  const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined;
   const params = {
     areaCodes: parseAreaCodes(sp.get("areas")),
     contentTypeIds: parseContentTypeIds(sp.get("types")),
@@ -20,7 +27,7 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    const result = await countCandidates(params);
+    const result = await countCandidates(params, { now, dateYmd });
     return Response.json(result);
   } catch (e) {
     // 카운트는 부가 배지 — 상류 장애로 앱 흐름을 끊지 않고 정성 라벨로 조용히 폴백.

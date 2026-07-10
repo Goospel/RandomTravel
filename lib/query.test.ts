@@ -6,6 +6,7 @@ import {
   buildRandomQuery,
   parseLatLng,
   buildNearbyQuery,
+  parseDateYmd,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -222,5 +223,103 @@ describe("buildNearbyQuery — near= 좌표 쿼리 조립(M14)", () => {
   it("왕복: build → parse 가 좌표를 보존", () => {
     const p = new URLSearchParams(buildNearbyQuery(35.1796, 129.0756));
     expect(parseLatLng(p.get("near"))).toEqual({ lat: 35.1796, lng: 129.0756 });
+  });
+});
+
+// ─── 📅 방문 시점 칩(M19, §6.8) ─────────────────────────────────────
+describe("parseDateYmd — 8자리·실존·범위(오늘 ≤ date ≤ 오늘+29)", () => {
+  const NOW = new Date("2026-07-10T03:00:00Z"); // KST 7/10 정오
+  it("오늘·오늘+29 경계는 통과", () => {
+    expect(parseDateYmd("20260710", NOW)).toBe("20260710"); // 오늘
+    expect(parseDateYmd("20260808", NOW)).toBe("20260808"); // 오늘+29
+    expect(parseDateYmd(" 20260712 ", NOW)).toBe("20260712"); // 공백 허용
+  });
+  it("범위 밖(어제·오늘+30)은 null(무시)", () => {
+    expect(parseDateYmd("20260709", NOW)).toBeNull(); // 어제
+    expect(parseDateYmd("20260809", NOW)).toBeNull(); // 오늘+30
+  });
+  it("형식·실존 위반은 null", () => {
+    expect(parseDateYmd("2026071", NOW)).toBeNull(); // 7자리
+    expect(parseDateYmd("2026-07-12", NOW)).toBeNull(); // 하이픈
+    expect(parseDateYmd("20260230", NOW)).toBeNull(); // 2월 30일(실존 아님)
+    expect(parseDateYmd("abcdefgh", NOW)).toBeNull();
+  });
+  it("null·빈값은 null", () => {
+    expect(parseDateYmd(null, NOW)).toBeNull();
+    expect(parseDateYmd("", NOW)).toBeNull();
+  });
+});
+
+describe("buildRandomQuery — 📅 date 방출/오늘 생략/date≠오늘 시 noRain 미방출", () => {
+  const TODAY = "20260710";
+  it("미래 기준일은 date 방출", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        dateYmd: "20260712",
+        todayYmd: TODAY,
+      }),
+    ).toBe("date=20260712");
+  });
+  it("오늘 선택은 date 생략(기준일=오늘과 동일 → 파라미터 없음)", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        dateYmd: TODAY,
+        todayYmd: TODAY,
+      }),
+    ).toBe("");
+  });
+  it("과거(자정 통과 stale) ymd 도 오늘로 취급 → 생략", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        dateYmd: "20260709",
+        todayYmd: TODAY,
+      }),
+    ).toBe("");
+  });
+  it("미래 기준일 + noRain → ☔ 미방출(미래엔 현재 관측 불가)", () => {
+    const q = buildRandomQuery("filtered", new Set(), new Set(), {
+      noRain: true,
+      dateYmd: "20260712",
+      todayYmd: TODAY,
+    });
+    const p = new URLSearchParams(q);
+    expect(p.get("date")).toBe("20260712");
+    expect(p.has("noRain")).toBe(false); // 잠금 — 전송 안 함
+  });
+  it("오늘 기준일 + noRain → ☔ 정상 방출(오늘 전용)", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        noRain: true,
+        dateYmd: TODAY,
+        todayYmd: TODAY,
+      }),
+    ).toBe("noRain=1");
+  });
+  it("date 없이 noRain → 방출(기존 회귀)", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        noRain: true,
+        todayYmd: TODAY,
+      }),
+    ).toBe("noRain=1");
+  });
+  it("미래 기준일 + quiet(원격 아님) → date·quiet 둘 다", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        quiet: true,
+        dateYmd: "20260712",
+        todayYmd: TODAY,
+      }),
+    );
+    expect(p.get("date")).toBe("20260712");
+    expect(p.get("quiet")).toBe("1");
+  });
+  it("순수 모드는 date 가 있어도 빈 문자열", () => {
+    expect(
+      buildRandomQuery("pure", new Set(), new Set(), {
+        dateYmd: "20260712",
+        todayYmd: TODAY,
+      }),
+    ).toBe("");
   });
 });

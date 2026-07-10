@@ -9,11 +9,15 @@ import {
   parseContentTypeIds,
   parseBool,
   parseLatLng,
+  parseDateYmd,
 } from "@/lib/query";
 import type { ErrorResponse } from "@/types/tour";
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
+  // 📅 요청당 단일 시계(§6.8) — parseDateYmd 검증과 drawRandom 판정에 같은 now 를 주입해
+  //    자정 걸침 시 '검증 기준일 ≠ 판정 기준일' 어긋남을 막는다.
+  const now = new Date();
 
   // 📍 주변에서 뽑기(M14) — near=위도,경도 가 있으면 위치 기반 경로.
   //    순수 랜덤 전용이라 areas/types/특수조건은 무시한다. 좌표가 잘못되면 400.
@@ -44,6 +48,7 @@ export async function GET(request: NextRequest) {
   const festivalOnly = parseBool(sp.get("festivalOnly")); // 🎪 축제 (§6.2)
   const noRain = parseBool(sp.get("noRain")); // ☔ 날씨 (§6.1)
   const quiet = parseBool(sp.get("quiet")); // 🍃 한적 (§6.7)
+  const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined; // 📅 방문 시점 (§6.8)
 
   // 파라미터에 '내용'이 있는데 유효 코드가 하나도 없으면(조작된 URL 등) 잘못된 요청 —
   // 상류 API 호출을 낭비하지 않고 400으로 명확히 응답한다.
@@ -72,6 +77,8 @@ export async function GET(request: NextRequest) {
       festivalOnly,
       noRain,
       quiet,
+      dateYmd,
+      now,
     });
     return Response.json(result);
   } catch (e) {

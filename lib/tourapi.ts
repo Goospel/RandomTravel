@@ -24,13 +24,12 @@ import {
   narrowBySeasonal,
   seasonalItemsForArea,
   dishSeasonalItemsForArea,
-  currentMonth,
+  resolveMonth,
 } from "@/lib/season";
 import {
   normalizeFestivals,
   festivalsByArea,
   festivalBadge,
-  todayKST,
   type Festival,
   type RawFestival,
 } from "@/lib/festival";
@@ -308,6 +307,9 @@ export interface DrawParams {
   today?: string;
   /** 날씨 기준 시각. 미지정 시 현재 — 테스트·일관성 주입용 */
   now?: Date;
+  /** 📅 방문 시점 기준일 YYYYMMDD(§6.8). 켜진 조건의 판정 날짜만 바꾼다(날짜 단독=완전 랜덤).
+      우선순위: 명시 주입(month·today) > dateYmd 파생 > 현재시각. */
+  dateYmd?: string;
 }
 
 /** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제·날씨·혼잡도. */
@@ -315,11 +317,15 @@ interface BadgeCtx {
   month: number;
   seasonal: boolean;
   festivalMap: Map<number, Festival[]> | null;
+  /** 🎪 오늘 아닌 기준일이면 그 날짜 YYYYMMDD(배지 "(M/D 기준)"), 오늘이면 null (§6.8). */
+  festivalBaseYmd: string | null;
   weatherObs: Map<number, WeatherObs> | null;
   /** 🍃 조회된 그날 전국 시군구 pctRank(법정동cd→pctRank). null = 필터 꺼짐/스킵 → 배지 없음 */
   sigunguRanks: Map<string, number> | null;
   /** 🍃 데이터 기준일 YYYYMMDD(배지 문구용). */
   congestionBaseYmd: string | null;
+  /** 🍃 예측 대상일 = 요청 기준일 YYYYMMDD(배지 선두, §6.8). 정상 경로에선 baseYmd 와 일치. */
+  congestionTargetYmd: string | null;
 }
 
 /** 🍃 뽑힌 좌표 → 시군구 → 법정동 → pctRank 로 한적 배지(pctRank ≤ 0.5일 때만). 데이터 없으면 null. */
@@ -333,7 +339,20 @@ function congestionBadgeFor(
   }
   const sg = sigunguAt(lat, lng); // §7.4 점-다각형 + 최근접 스냅
   if (!sg) return null;
-  return congestionBadge(sg.area, sg.name, ctx.sigunguRanks, ctx.congestionBaseYmd);
+  return congestionBadge(
+    sg.area,
+    sg.name,
+    ctx.sigunguRanks,
+    ctx.congestionBaseYmd,
+    ctx.congestionTargetYmd ?? ctx.congestionBaseYmd, // 예측 대상일(요청 기준일)
+  );
+}
+
+/** 🎪 축제 배지 + 오늘 아닌 기준일이면 그 날짜 부착("(M/D 기준)" — 시작 전 축제 오해 방지, §6.8). */
+function festivalBadgeFor(ctx: BadgeCtx, areaCode: number | null) {
+  if (!ctx.festivalMap) return null;
+  const f = festivalBadge(ctx.festivalMap, areaCode);
+  return f ? { ...f, baseYmd: ctx.festivalBaseYmd } : null;
 }
 
 /** 뽑힌 지역에 대한 배지들(제철·축제·날씨·한적)을 한 번에 계산. lat/lng 는 🍃 배지용(뽑힌 좌표). */
@@ -345,7 +364,7 @@ function buildBadges(
 ): Pick<PickedInfo, "seasonal" | "festival" | "weather" | "congestion"> {
   return {
     seasonal: ctx.seasonal ? seasonalBadge(areaCode, ctx.month) : null,
-    festival: ctx.festivalMap ? festivalBadge(ctx.festivalMap, areaCode) : null,
+    festival: festivalBadgeFor(ctx, areaCode),
     weather: ctx.weatherObs ? weatherBadge(ctx.weatherObs, areaCode) : null,
     congestion: congestionBadgeFor(ctx, lat, lng),
   };
@@ -443,7 +462,9 @@ async function pickSeasonalRestaurant(
  *    최대 24h 노출이 지연될 수 있다(허용 트레이드오프).
  */
 export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
-  const month = params.month ?? currentMonth();
+  // 📅 방문 시점(§6.8) — 켜진 조건의 판정 날짜만 바꾼다. 요청당 단일 시계(todayYmd)로 일관.
+  const todayYmd = kstYmd(params.now);
+  const month = resolveMonth(params); // 명시 month > dateYmd 파생 > 현재 월
 
   // 1) 지역 풀 (비면 전국=null)
   let areaPool: number[] | null =
@@ -463,10 +484,13 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   // 2) 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합.
   //    축제 소스가 죽으면(§6.5) 결과를 죽이지 않고 축제 필터만 건너뛰되, notice 로 알린다
   //    — 바다·제철은 로컬 상수라 원격 축제 API 하나 때문에 전체가 실패하면 안 된다.
+  // 축제 기준일: 명시 today > dateYmd > 오늘. eventStartDate 로 URL 캐시 자동 분리(§6.8).
+  const festivalYmd = params.today ?? params.dateYmd ?? todayYmd;
+  const festivalBaseYmd = festivalYmd !== todayYmd ? festivalYmd : null; // 오늘 아니면 배지에 기준일
   let festivalMap: Map<number, Festival[]> | null = null;
   if (params.festivalOnly) {
     try {
-      festivalMap = await getFestivalMap(params.today ?? todayKST());
+      festivalMap = await getFestivalMap(festivalYmd);
     } catch {
       notices.push("축제 정보를 잠시 불러오지 못해 축제 조건은 제외했어요.");
     }
@@ -485,7 +509,11 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   //    기상청 소스가 전부 죽으면 축제처럼 필터만 건너뛰고 notice. 개별 지역 실패는
   //    관측 맵에서 빠져(=판정 불가) 보수적으로 비 안 옴 집합에 안 든다.
   let weatherObs: Map<number, WeatherObs> | null = null;
-  if (params.noRain) {
+  // ☔ 는 오늘 전용(초단기실황=현재 관측만). 미래 기준일이면 서버가 무시 + notice(직접 URL 방어 —
+  //   정상 UI 경로는 buildRandomQuery 가 noRain 을 미방출해 여기 안 옴). §6.8.
+  if (params.noRain && params.dateYmd && params.dateYmd > todayYmd) {
+    notices.push("오늘이 아닌 날짜라 ☔ 조건은 건너뛰었어요.");
+  } else if (params.noRain) {
     try {
       weatherObs = await getWeatherByArea(areaPool, params.now);
     } catch {
@@ -523,10 +551,12 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   //    ☔ 날씨 단계 동형 — 조회 실패·stale 이면 필터·배지 모두 건너뛰고 notice(soft-skip).
   let sigunguRanks: Map<string, number> | null = null;
   let congestionBaseYmd: string | null = null;
+  // 🍃 판정 기준일 = 요청 기준일(§6.8) — getCongestionDay 가 날짜별 캐시라 인자만 바꾸면 된다.
+  const congestionTargetYmd = params.dateYmd ?? todayYmd;
   if (params.quiet) {
     let day: Awaited<ReturnType<typeof getCongestionDay>> = null;
     try {
-      day = await getCongestionDay(kstYmd(params.now));
+      day = await getCongestionDay(congestionTargetYmd);
     } catch {
       day = null;
     }
@@ -549,9 +579,11 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     month,
     seasonal: !!params.seasonal,
     festivalMap,
+    festivalBaseYmd,
     weatherObs,
     sigunguRanks,
     congestionBaseYmd,
+    congestionTargetYmd,
   };
 
   // 6) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
@@ -784,15 +816,19 @@ export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
  */
 export async function countCandidates(
   params: CountParams,
-  month: number = currentMonth(),
-  now: Date = new Date(),
+  opts: { month?: number; now?: Date; dateYmd?: string } = {},
 ): Promise<CountResponse> {
+  // 📅 방문 시점(§6.8) — 파생 규칙은 drawRandom 과 동일(month=resolveMonth, quietSet=요청 기준일).
+  const now = opts.now ?? new Date();
+  const month = resolveMonth({ month: opts.month, dateYmd: opts.dateYmd, now });
+  const targetYmd = opts.dateYmd ?? kstYmd(now);
+
   // 🍃 한적은 배치 DB 조회라 정확 집계 가능(☔·🎪 dynamic과 달리). 한적 시·도 집합을 계산해 주입.
   //    조회 실패·stale 은 예외가 아니라 정상 경로로 quietSet=null → planCandidateCount 가 dynamic.
   let quietSet: Set<number> | null | undefined;
   if (params.quiet) {
     try {
-      const day = await getCongestionDay(kstYmd(now));
+      const day = await getCongestionDay(targetYmd);
       quietSet =
         day && !congestionStale(day.maxFetchedAt, now.getTime())
           ? quietAreaCodes(rankDaily(day.ranks), QUIET_AREA_CUT)

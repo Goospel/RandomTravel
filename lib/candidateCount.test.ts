@@ -118,6 +118,20 @@ describe("planCandidateCount", () => {
     expect(plan.combos.every((c) => c.areaCode === 1)).toBe(true);
   });
 
+  it("📅 날짜 단독(조건 0개)은 계획 무변 — month 가 달라도 조합 동일(§6.8 불변식)", () => {
+    // 제철이 꺼져 있으면 month 는 조합에 영향 없다 → '내일/주말' 기준일만 바꿔도 후보 무변.
+    const july = planCandidateCount(params(), 7);
+    const august = planCandidateCount(params(), 8);
+    expect(august).toEqual(july);
+  });
+
+  it("📅 month 파생은 제철이 켜졌을 때만 조합에 반영(7월 vs 12월 산지 상이)", () => {
+    // 7월 산지 ≠ 12월 산지 → 제철 켜짐이면 파생 month 로 후보가 갈린다(데모에서 숫자가 변함).
+    const july = planCandidateCount(params({ seasonal: true }), 7);
+    const december = planCandidateCount(params({ seasonal: true }), 12);
+    expect(december).not.toEqual(july);
+  });
+
   it("조합이 예산을 넘으면 상한까지 자르고 capped 표시", () => {
     // 전 지역(17)×전 타입(8)=136 > 34
     const plan = planCandidateCount(

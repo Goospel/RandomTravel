@@ -42,10 +42,12 @@ export interface SeasonalBadge {
   items: { item: string; emoji: string }[];
 }
 
-/** 🎪 축제 배지(그 지역 오늘 진행 중 축제) */
+/** 🎪 축제 배지(그 지역 진행 중 축제) */
 export interface FestivalBadge {
   name: string; // 대표(첫) 축제명
   more: number; // 같은 지역 나머지 축제 수
+  /** 📅 오늘 아닌 기준일이면 그 날짜 YYYYMMDD(카드에 "(M/D 기준)" 부가, §6.8). 오늘이면 null/생략 */
+  baseYmd?: string | null;
 }
 
 /** ☔ 날씨 배지(뽑힌 지역이 지금 비 안 옴 + 기온) */
@@ -58,6 +60,8 @@ export interface CongestionBadge {
   sigunguName: string; // 뽑힌 시·군·구명
   pctBelow: number; // round(pctRank×100) — "집중률 하위 N%"
   baseYmd: string; // 데이터 기준일 YYYYMMDD(실시간 아님·'예측' 표기용)
+  /** 📅 예측 대상일 YYYYMMDD(= 요청 기준일, §6.8). 카드 배지 선두. 정상 경로에선 baseYmd 와 일치 */
+  targetYmd: string;
 }
 
 /** 이번 뽑기가 어떤 지역·타입·조건에서 나왔는지(디버그·배지 표시용) */
