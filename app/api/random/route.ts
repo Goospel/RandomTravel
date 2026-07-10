@@ -3,15 +3,21 @@
 //  - 쿼리: ?areas=32,39&types=39 (콤마 다중, 둘 다 생략 시 완전 랜덤)
 
 import { type NextRequest } from "next/server";
-import { drawRandom, drawNearby, TourApiError } from "@/lib/tourapi";
+import { drawRandom, drawNearby, drawEmptySpot, TourApiError } from "@/lib/tourapi";
 import {
   parseAreaCodes,
   parseContentTypeIds,
   parseBool,
   parseLatLng,
   parseDateYmd,
+  parseSigunguCodes,
 } from "@/lib/query";
+import { KOREA_SIGUNGU } from "@/lib/koreaMap";
 import type { ErrorResponse } from "@/types/tour";
+
+// 🔭 exclude 화이트리스트 — 통계청 시·군·구 code(§7.11). 서버 전용 라우트라 koreaMap import OK.
+//    query.ts 는 클라 번들이라 koreaMap 을 못 들이므로 valid 를 여기서 만들어 parseSigunguCodes 에 주입.
+const VALID_SIGUNGU: ReadonlySet<string> = new Set(KOREA_SIGUNGU.map((sg) => sg.code));
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
@@ -33,6 +39,20 @@ export async function GET(request: NextRequest) {
     }
     try {
       const result = await drawNearby(anchor);
+      return Response.json(result);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+
+  // 🔭 빈 곳에서 뽑기(M21) — emptySpot=1 이면 미방문 ∩ 한적 시·군·구 특수 경로.
+  //    near 처럼 areas/types/특수조건은 무시한다(§7.11). exclude 는 이 분기에서만 파싱
+  //    (emptySpot 미지정 → exclude 파싱조차 안 함 = 기존 뽑기와 완전 동일, 불변식).
+  if (parseBool(sp.get("emptySpot"))) {
+    const exclude = new Set(parseSigunguCodes(sp.get("exclude"), VALID_SIGUNGU));
+    const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined; // §6.8 축 대칭(1단계 UI 미배선)
+    try {
+      const result = await drawEmptySpot({ exclude, dateYmd, now });
       return Response.json(result);
     } catch (e) {
       return errorResponse(e);

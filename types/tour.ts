@@ -82,6 +82,8 @@ export interface PickedInfo {
   congestion?: CongestionBadge | null;
   /** 📍 주변에서 뽑기(M14)로 나왔을 때 앵커에서의 거리(m). 아니면 null/생략 */
   distanceM?: number | null;
+  /** 🔭 빈 곳에서 뽑기(M21)로 나왔을 때 참 — "지도에 없던 동네" 배지 트리거. 아니면 null/생략 (§7.11) */
+  emptySpot?: boolean | null;
   /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
   notice?: string | null;
 }

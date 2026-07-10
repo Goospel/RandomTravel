@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { RandomResponse } from "@/types/tour";
 import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
@@ -21,6 +22,7 @@ const BADGE: Record<string, string> = {
   weather: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
   congestion: "bg-lime-50 text-lime-700 dark:bg-lime-950 dark:text-lime-300",
   dist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  emptySpot: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300", // 🔭 (§7.11)
 };
 const pill =
   "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
@@ -202,6 +204,11 @@ export function ResultCard({
                 ` · ${Math.round(data.picked.weather.temp)}℃`}
             </span>
           )}
+          {/* 🔭 지도에 없던 동네(§7.11) — 🍃 앞에 둬 "🔭 지도에 없던 동네 (+ 🍃 …)" 순서.
+              방문 0 사용자에게도 참(전부 없던 곳) — data.picked.emptySpot 만으로 게이트. */}
+          {data.picked.emptySpot && (
+            <span className={`${pill} ${BADGE.emptySpot}`}>🔭 지도에 없던 동네</span>
+          )}
           {data.picked.congestion && (
             <span className={`${pill} ${BADGE.congestion}`}>
               {/* 예측 대상일 선두(정상 경로=선택일). baseYmd < targetYmd(배치 지연)에만 데이터일 병기(§6.8) */}
@@ -235,6 +242,16 @@ export function ResultCard({
           <p className="line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             {place.overview}
           </p>
+        )}
+        {/* 🔭 홈 히어로는 시·도 타일이라 이미 칠한 시·도 안의 빈 동네가 뽑혀도 모순 아님 —
+            시·군·구 단위 확인은 /map 정복 지도에서(§7.11). */}
+        {data.picked.emptySpot && (
+          <Link
+            href="/map"
+            className="text-xs font-semibold text-indigo-700/80 hover:text-indigo-800 dark:text-indigo-300/80 dark:hover:text-indigo-200"
+          >
+            🗺️ 내 지도에서 확인 →
+          </Link>
         )}
 
         {/* 📍 주변에서 뽑기(M14) — 전국 랜덤 재추첨과 다른 별개 동작이라 카드에 유지.

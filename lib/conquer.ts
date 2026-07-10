@@ -134,18 +134,10 @@ export function conqueredSigunguCodes(visited: SavedPlace[]): Set<string> {
   return set;
 }
 
-/**
- * 발 들인 시·도 code 집합(M16) — areaCode 기준 직접 집계.
- * 시·군·구 정복(좌표 판정)과 달리 **좌표 없는 방문도 포함**한다. 홈 히어로 17타일·
- * 헤더 정복 pill·지도 '발 들인 시·도'가 공유하는 단일 출처(숫자 일관성).
- */
-export function visitedAreaCodes(visited: SavedPlace[]): Set<number> {
-  const set = new Set<number>();
-  for (const p of visited) {
-    if (p.areaCode != null) set.add(p.areaCode);
-  }
-  return set;
-}
+// 🔭 visitedAreaCodes 는 lib/visitedAreas 로 이동(koreaMap 비의존 — 홈 번들 보호, §7.11).
+//    여기선 하위호환 재-export 만 유지(기존 conquer 소비처·conquer.test 무변). 단 홈(page.tsx)·
+//    MapHero 는 conquer 를 거치면 koreaMap 이 딸려오므로 반드시 @/lib/visitedAreas 를 직접 참조한다.
+export { visitedAreaCodes } from "@/lib/visitedAreas";
 
 export interface ConquerStats {
   /** 정복한 시·군·구 수 */

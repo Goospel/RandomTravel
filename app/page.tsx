@@ -23,8 +23,15 @@ import {
   type CourseState,
   type CourseAnchor,
 } from "@/components/CoursePanel";
-import { buildRandomQuery, buildNearbyQuery, buildCourseQuery } from "@/lib/query";
-import { visitedAreaCodes } from "@/lib/conquer";
+import {
+  buildRandomQuery,
+  buildNearbyQuery,
+  buildCourseQuery,
+  buildEmptySpotQuery,
+} from "@/lib/query";
+// 🔭 visitedAreaCodes 는 koreaMap 비의존 경량 모듈에서(§7.11). conqueredSigunguCodes 는 홈에
+//    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
+import { visitedAreaCodes } from "@/lib/visitedAreas";
 import { AREA_CODES } from "@/lib/constants";
 import { useTravelStore } from "@/hooks/useTravelStore";
 
@@ -65,6 +72,10 @@ export default function Home() {
   const courseTokenRef = useRef(0);
   // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
   const [filledArea, setFilledArea] = useState<number | null>(null);
+  // 🔭 빈 곳에서 뽑기(§7.11) — 클릭~runDraw 진입 전 창(동적 import·exclude 계산) 이중 클릭 차단.
+  const [emptySpotPending, setEmptySpotPending] = useState(false);
+  // 🔭 /map → ?emptySpot=1 신호 1회 소비 가드(StrictMode 이중 실행·새로고침 재발화 차단).
+  const emptySpotSignalRef = useRef(false);
   const store = useTravelStore();
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +84,19 @@ export default function Home() {
     const t = window.setTimeout(() => setFilledArea(null), 1700);
     return () => window.clearTimeout(t);
   }, [filledArea]);
+
+  // 🔭 /map "빈 곳" CTA → router.push("/?emptySpot=1") 신호를 홈이 1회 소비(§7.11).
+  //   store.ready 후라야 exclude 정확. ref 로 StrictMode 이중 실행·새로고침 재발화 차단 + 즉시 URL 제거.
+  useEffect(() => {
+    // synced 까지 기다렸다 소비 — 병합 전 소비하면 exclude 가 비어 이미 방문한 곳이 뽑힐 수 있음.
+    if (emptySpotSignalRef.current || !store.ready || !store.synced) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("emptySpot") !== "1") return;
+    emptySpotSignalRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void runEmptySpot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.ready, store.synced]);
 
   const toggleArea = (code: number) =>
     setAreas((prev) => {
@@ -161,6 +185,27 @@ export default function Home() {
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
     void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
+  }
+
+  // 🔭 빈 곳에서 뽑기(§7.11) — 미방문 ∩ 한적 시·군·구에서. store.ready 게이트(방문 로드 후라야
+  //   exclude 정확). conqueredSigunguCodes 는 koreaMap 의존이라 클릭 시에만 동적 로드(홈 번들 보호).
+  //   로컬 pending 으로 runDraw 진입 전 이중 클릭 창을 막고, import 실패는 기존 에러 상태로 커밋.
+  async function runEmptySpot() {
+    // store.synced: 로그인 사용자의 기기 간 방문(서버 병합)까지 반영돼야 exclude 가 정확(§7.11).
+    if (!store.ready || !store.synced || emptySpotPending) return;
+    setEmptySpotPending(true);
+    try {
+      const { conqueredSigunguCodes } = await import("@/lib/conquer");
+      const exclude = conqueredSigunguCodes(store.visited); // 정렬은 빌더가 담당(쿼리 결정성)
+      void runDraw(`/api/random?${buildEmptySpotQuery(exclude)}`, false, true);
+    } catch {
+      setStatus({
+        kind: "error",
+        error: { error: "빈 곳 정보를 불러오지 못했어요 — 다시 시도해 주세요." },
+      });
+    } finally {
+      setEmptySpotPending(false);
+    }
   }
 
   // 📍 결과 카드의 "주변에서 뽑기" — 현재 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
@@ -315,7 +360,10 @@ export default function Home() {
       <MapHero
         visited={store.visited}
         storeReady={store.ready}
+        storeSynced={store.synced}
         filledArea={filledArea}
+        onEmptySpot={runEmptySpot}
+        emptySpotPending={emptySpotPending}
       />
 
       <div className="mt-4 flex flex-wrap items-start gap-4">

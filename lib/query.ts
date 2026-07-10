@@ -193,3 +193,45 @@ export function buildRandomQuery(
   if (future) params.set("date", opts.dateYmd!);
   return params.toString();
 }
+
+// ─── 🔭 빈 곳에서 뽑기 (M21, §7.11) ─────────────────────────────────
+// buildRandomQuery 를 확장하지 않는 별도 빌더(buildNearbyQuery 전례) — pure 모드 "" 불변식 보존.
+//   emptySpot 은 areas/types/특수조건과 배타적인 특수 모드라 조건 조합 빌더에 얹지 않는다.
+
+/**
+ * 🔭 `/api/random?emptySpot=1&exclude=<정렬 CSV>` 쿼리스트링.
+ * exclude = 방문 정복한 시·군·구 통계청 code(들). 정렬 CSV 로 방출해 동일 방문집합→동일 URL
+ *   →Next fetch·count 1h 캐시 히트(쿼리 결정성). 빈 exclude(방문 0)면 emptySpot=1 만.
+ * date 는 1단계 UI 미배선(항상 오늘)이라 방출하지 않는다(§7.11 — 조건 패널 dateYmd 와
+ *   소리 없이 결합 차단). 서버는 date 를 수용하나(§6.8 축 대칭) 배선은 백로그.
+ */
+export function buildEmptySpotQuery(excluded: Iterable<string>): string {
+  const p = new URLSearchParams();
+  p.set("emptySpot", "1");
+  const ex = [...excluded].sort(); // 정렬 CSV = 쿼리 결정성(캐시 히트)
+  if (ex.length > 0) p.set("exclude", ex.join(","));
+  return p.toString();
+}
+
+/**
+ * 🔭 exclude 파싱 — 통계청 시·군·구 code(문자열) 화이트리스트.
+ * parseCodeList(숫자 기반)와 분리: 코드가 문자열이라 Number 강제·정수/양수 검사는 의미 파괴적.
+ *   게이트는 오직 valid.has(trim된 문자열). 중복은 첫 등장 순서 유지(parse* 관례).
+ * ⚠️ valid 는 파라미터로 받는다(라우트가 KOREA_SIGUNGU code 로 주입) — query.ts 가 koreaMap
+ *   (~200KB)을 정적 import 하면 홈 초기 번들에 새어 §7.11 번들 분리 목표와 충돌하기 때문.
+ */
+export function parseSigunguCodes(
+  raw: string | null,
+  valid: ReadonlySet<string>,
+): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const s = part.trim();
+    if (!valid.has(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+}
