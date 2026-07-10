@@ -58,6 +58,7 @@ import {
 } from "@/lib/congestion";
 import { getCongestionDay } from "@/db/congestion";
 import { sigunguAt } from "@/lib/conquer";
+import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
 
 const BASE = "https://apis.data.go.kr/B551011/KorService2";
 
@@ -161,12 +162,15 @@ interface Query {
   areaCode?: number;
   /** 🌊 바다 소분류(cat3). 있으면 areaBasedList2 에 cat3 파라미터로 얹는다. */
   cat3?: string;
+  /** 🔭 TourAPI sigunguCode(§7.11). areaCode 와 함께 얹어 시·군·구 셀로 좁힌다(URL 캐시 자동 분리). */
+  sigunguCode?: string;
 }
 
 function queryParams(q: Query): Record<string, string | number> {
   const p: Record<string, string | number> = { contentTypeId: q.contentTypeId };
   if (q.areaCode) p.areaCode = q.areaCode;
   if (q.cat3) p.cat3 = q.cat3;
+  if (q.sigunguCode) p.sigunguCode = q.sigunguCode;
   return p;
 }
 
@@ -384,6 +388,7 @@ export interface DrawResult {
 
 const COMBO_BUDGET = 34; // 상류 getTotalCount 호출 상한 (대부분 24h 캐시)
 const MAX_INDEX_TRIES = 3;
+const EMPTY_SPOT_CELL_TRIES = 3; // 🔭 셀 순회 상한(§7.11) — 워스트 3셀×(count 5+item 3)+overview
 const RESTAURANT_TYPE = 39; // 🍽️ 음식점 contentTypeId — 🦀 제철과 조합 시 품목-맛집 키워드 매칭 대상
 
 /** count 가중 랜덤 인덱스 — 큰 풀일수록 뽑힐 확률↑ (개수 적은 분류로의 쏠림 방지, §6.3) */
@@ -404,18 +409,23 @@ export function weightedIndex(
 /**
  * 결정된 조합에서 항목 1건 뽑기(인덱스 최대 MAX_INDEX_TRIES 재시도). 실패 시 null.
  * exclude(contentId) 에 든 항목이 뽑히면 같은 루프 안에서 인덱스 재추첨(🧭 코스 중복 제외, §7.10).
+ * accept(선택) 가 false 를 주면(🔭 좌표 검증 실패, §7.11) 같은 루프로 재추첨 — 빈 응답·exclude·
+ *   accept 거부를 하나의 재시도 예산(MAX_INDEX_TRIES)으로 통합한다.
  */
 async function pickItemFrom(
   endpoint: string,
   params: ListParams,
   totalCount: number,
   exclude?: Set<string>,
+  accept?: (item: TourApiItem) => boolean,
 ): Promise<TourApiItem | null> {
   for (let t = 0; t < MAX_INDEX_TRIES; t++) {
     const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
     const item = await getItemAt(endpoint, params, index);
-    // stale count 로 빈 결과이거나 exclude 항목(앵커·기존 스텝)이면 인덱스 재추첨
-    if (item && !(exclude && exclude.has(item.contentid))) return item;
+    if (!item) continue; // stale count 로 빈 결과 → 재추첨
+    if (exclude && exclude.has(item.contentid)) continue; // 앵커·기존 스텝 → 재추첨
+    if (accept && !accept(item)) continue; // 🔭 좌표가 sigunguSet 밖 → 재추첨
+    return item;
   }
   return null;
 }
@@ -816,6 +826,126 @@ export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
     "주변에 추천할 여행지를 찾지 못했어요. '다시 뽑기'로 다른 곳을 받아보세요.",
     "EMPTY_POOL",
   );
+}
+
+// ─── 🔭 빈 곳에서 뽑기 (M21, §7.11) ─────────────────────────────────
+
+/**
+ * 🔭 그날 congestion 조회 → ranks·baseYmd(뽑기·count 공용, 1h 캐시 재사용).
+ * 실패(throw)·stale(48h)은 예외를 위로 던지지 않고 { ranks:null }(성능저하 모드)로 폴백 —
+ *   drawEmptySpot 은 미방문 전체로 축소 뽑기(문구③), countEmptySpot 은 dynamic.
+ */
+async function emptySpotDay(
+  targetYmd: string,
+  nowMs: number,
+): Promise<{ ranks: Map<string, number> | null; baseYmd: string | null }> {
+  let day: Awaited<ReturnType<typeof getCongestionDay>> = null;
+  try {
+    day = await getCongestionDay(targetYmd);
+  } catch {
+    day = null;
+  }
+  if (!day || congestionStale(day.maxFetchedAt, nowMs)) return { ranks: null, baseYmd: null };
+  return { ranks: rankDaily(day.ranks), baseYmd: day.baseYmd };
+}
+
+export interface EmptySpotParams {
+  /** 방문 정복한 시·군·구 통계청 code — 미방문 = 전체 − 이것(conqueredSigunguCodes 산출). */
+  exclude: Set<string>;
+  /** 📅 기준일 YYYYMMDD(§6.8 축 대칭). 1단계 UI 미배선 — 라우트가 오늘을 넘김. */
+  dateYmd?: string;
+  now?: Date;
+}
+
+/**
+ * 🔭 빈 곳에서 뽑기(M21) — 미방문 ∩ 한적 시·군·구 셀에서 랜덤 1건 + 좌표 검증.
+ *  - 풀(sigunguSet·eligibleCells)은 순수 lib/emptySpot 이 계산(getCongestionDay 1h 캐시).
+ *  - 셀 선택은 균등 셔플(교집합 자체가 분산 산물 — 이중 가중 불필요, §6.9 독립).
+ *  - (셀,타입) areaBasedList2 count → pickItemFrom accept 로 뽑은 좌표가 sigunguSet 소속인지 검증.
+ *  - 🍃 배지 배선 명시: BadgeCtx 를 직접 구성해야 배지가 뜬다(현행은 quiet=1일 때만 채워짐).
+ *  - EMPTY_POOL 두 원인 구분: ④-a 빈 풀 / ④-b 시도 소진('정복 완료' 오귀속 금지).
+ */
+export async function drawEmptySpot(params: EmptySpotParams): Promise<DrawResult> {
+  const now = params.now ?? new Date();
+  const targetYmd = params.dateYmd ?? kstYmd(now);
+  const { ranks, baseYmd } = await emptySpotDay(targetYmd, now.getTime());
+
+  const sigunguSet = emptySpotSigunguSet(params.exclude, ranks);
+  if (sigunguSet.size === 0) {
+    // ④-a: 빈 풀(한적한 미방문 동네가 지금 없음).
+    throw new TourApiError(
+      "지도의 빈 곳 중 한적할 것으로 예측되는 동네가 지금은 없어요.",
+      "EMPTY_POOL",
+    );
+  }
+
+  // 🍃 성능저하 모드(ranks=null)는 sigunguRanks 를 채우지 않아 congestionBadgeFor 가 자연 억제(문구③).
+  const degraded = ranks === null;
+  const ctx: BadgeCtx = {
+    month: 0,
+    seasonal: false,
+    festivalMap: null,
+    festivalBaseYmd: null,
+    weatherObs: null,
+    sigunguRanks: ranks,
+    congestionBaseYmd: baseYmd,
+    congestionTargetYmd: targetYmd,
+  };
+  const notice = degraded
+    ? "혼잡도 데이터를 못 불러와 이번엔 '지도에 없는 곳' 기준으로만 뽑았어요."
+    : null;
+
+  const cells = shuffle(eligibleCells(sigunguSet)).slice(0, EMPTY_SPOT_CELL_TRIES);
+  for (const cell of cells) {
+    for (const contentTypeId of shuffle([...RANDOM_DEFAULT_TYPES])) {
+      const listParams = queryParams({
+        contentTypeId,
+        areaCode: cell.area,
+        sigunguCode: cell.sigunguCode,
+      });
+      const totalCount = await getTotalCount("areaBasedList2", listParams);
+      if (totalCount <= 0) continue; // 이 (셀,타입)은 0건 → 다음 타입
+
+      // 좌표 검증 — 뽑힌 곳이 sigunguSet(미방문∩한적) 소속인지(스냅·경계 포함, §7.4).
+      const item = await pickItemFrom("areaBasedList2", listParams, totalCount, undefined, (it) => {
+        const lat = toNum(it.mapy); // ⚠️ mapy=위도, mapx=경도
+        const lng = toNum(it.mapx);
+        if (lat == null || lng == null) return false;
+        const sg = sigunguAt(lat, lng);
+        return !!sg && sigunguSet.has(sg.code);
+      });
+      if (!item) continue;
+
+      const overview = await getOverview(item.contentid);
+      const place = normalizePlace(item, overview);
+      const areaCode = item.areacode ? Number(item.areacode) : cell.area;
+      const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
+      return {
+        place,
+        picked: { areaCode, contentTypeId, totalCount, emptySpot: true, ...badges, notice },
+      };
+    }
+  }
+
+  // ④-b: 시도 소진 — '정복 완료'가 아니라 이번 시도가 못 찾은 것(오귀속 금지).
+  throw new TourApiError("이번엔 못 찾았어요 — 한 번 더 뽑아보세요.", "EMPTY_POOL");
+}
+
+/**
+ * 🔢 🔭 빈 곳 후보 수 — |미방문 ∩ 한적 시·군·구|(단위: 시·군·구). TourAPI 0콜(1h 캐시 + 순수).
+ *  - congestion 실패/stale → dynamic('정복 완료'로 오독되는 0 반환 금지, 문구①).
+ *  - /map CTA 캡션 전용(useEmptySpotCount) — 기존 CandidateBadge 와 단위·경로 분리.
+ */
+export async function countEmptySpot(
+  exclude: Set<string>,
+  opts: { now?: Date; dateYmd?: string } = {},
+): Promise<CountResponse> {
+  const now = opts.now ?? new Date();
+  const targetYmd = opts.dateYmd ?? kstYmd(now);
+  const { ranks } = await emptySpotDay(targetYmd, now.getTime());
+  if (ranks === null) return { dynamic: true }; // 혼잡도 확인 불가
+  const sigunguSet = emptySpotSigunguSet(exclude, ranks);
+  return { totalCount: sigunguSet.size, approx: false };
 }
 
 /**

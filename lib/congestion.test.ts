@@ -8,10 +8,12 @@ import {
   quietAreaCodes,
   narrowByQuiet,
   congestionBadge,
+  sigunguPctRank,
   congestionStale,
   visitorProbeDates,
   retentionCutoff,
   CONGESTION_STALE_MS,
+  QUIET_SIGUNGU_CUT,
   type CongestionSpotRow,
   type SigunguRank,
 } from "@/lib/congestion";
@@ -235,6 +237,42 @@ describe("congestionBadge — 뽑힌 시군구 배지(pctRank ≤ 0.5일 때만)
     expect(congestionBadge(1, "없는구", ranks, "20260710")).toBeNull();
     expect(congestionBadge(1, "종로구", new Map(), "20260710")).toBeNull();
     expect(congestionBadge(null, null, ranks, "20260710")).toBeNull();
+  });
+});
+
+describe("sigunguPctRank — 배지·🔭 emptySpot 공유 한적 정의(§7.11)", () => {
+  it("QUIET_SIGUNGU_CUT = 0.5(시·군·구 배지 컷 — 시·도 0.4와 별개)", () => {
+    expect(QUIET_SIGUNGU_CUT).toBe(0.5);
+  });
+
+  it("(area+이름) → 법정동 pctRank 중앙값 반환", () => {
+    const ranks = new Map<string, number>([["11110", 0.12]]);
+    expect(sigunguPctRank(1, "종로구", ranks)).toBe(0.12);
+  });
+
+  it("부천 다코드는 중앙값(0.1·0.2·0.3 → 0.2)", () => {
+    const bc = new Map<string, number>([
+      ["41192", 0.1],
+      ["41194", 0.2],
+      ["41196", 0.3],
+    ]);
+    expect(sigunguPctRank(31, "부천시", bc)).toBeCloseTo(0.2);
+  });
+
+  it("매핑 없음·랭크 전부 결측·area/name null → null(보수적 제외, NaN 아님)", () => {
+    const ranks = new Map<string, number>([["11110", 0.12]]);
+    expect(sigunguPctRank(1, "없는구", ranks)).toBeNull(); // 매핑 없음
+    expect(sigunguPctRank(1, "종로구", new Map())).toBeNull(); // 랭크 결측
+    expect(sigunguPctRank(null, "종로구", ranks)).toBeNull();
+    expect(sigunguPctRank(1, null, ranks)).toBeNull();
+  });
+
+  it("congestionBadge 는 sigunguPctRank ≤ 컷 게이트와 일치(경계 0.5 포함)", () => {
+    const edge = new Map<string, number>([["11110", 0.5]]); // 정확히 컷
+    expect(sigunguPctRank(1, "종로구", edge)).toBe(0.5);
+    expect(congestionBadge(1, "종로구", edge, "20260710")).not.toBeNull(); // ≤ 컷이라 배지
+    const over = new Map<string, number>([["11110", 0.5001]]);
+    expect(congestionBadge(1, "종로구", over, "20260710")).toBeNull(); // 컷 초과라 없음
   });
 });
 

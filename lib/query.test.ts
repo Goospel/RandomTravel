@@ -9,6 +9,8 @@ import {
   parseDateYmd,
   parseContentIds,
   buildCourseQuery,
+  buildEmptySpotQuery,
+  parseSigunguCodes,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -397,5 +399,70 @@ describe("buildRandomQuery — 📅 date 방출/오늘 생략/date≠오늘 시 
         todayYmd: TODAY,
       }),
     ).toBe("");
+  });
+
+  // 🔭 §7.11 회귀 불변식 — buildRandomQuery 에 emptySpot/exclude 가 절대 새지 않는다.
+  //   (🔭 버튼은 기본 pure 모드에서 눌리므로 여기 새면 조용히 일반 뽑기로 강등되는 무성 실패.)
+  it("buildRandomQuery 출력에 emptySpot·exclude 미포함(회귀 가드)", () => {
+    const filtered = buildRandomQuery("filtered", new Set([1]), new Set([12]), {
+      quiet: true,
+      seaside: true,
+    });
+    expect(filtered).not.toContain("emptySpot");
+    expect(filtered).not.toContain("exclude");
+    // pure 모드는 여전히 "" (조건 0개 = 완전 랜덤 불변식)
+    expect(buildRandomQuery("pure", new Set([1]), new Set([12]))).toBe("");
+  });
+});
+
+describe("buildEmptySpotQuery — 🔭 emptySpot=1 + 정렬 exclude CSV(§7.11)", () => {
+  it("빈 exclude 면 emptySpot=1 만(방문 0 사용자)", () => {
+    expect(buildEmptySpotQuery([])).toBe("emptySpot=1");
+  });
+
+  it("exclude 는 정렬 CSV — 입력 순서 무관 동일 출력(쿼리 결정성=캐시 히트)", () => {
+    const a = buildEmptySpotQuery(["39", "1", "32010"]);
+    const b = buildEmptySpotQuery(["32010", "39", "1"]);
+    expect(a).toBe(b);
+    const p = new URLSearchParams(a);
+    expect(p.get("emptySpot")).toBe("1");
+    expect(p.get("exclude")).toBe("1,32010,39"); // 문자열 sort(동일 길이 아님 주의: '1'<'32010'<'39')
+  });
+
+  it("Set 입력도 정렬돼 결정적", () => {
+    const q = buildEmptySpotQuery(new Set(["11010", "11020", "11005"]));
+    expect(new URLSearchParams(q).get("exclude")).toBe("11005,11010,11020");
+  });
+
+  it("왕복: build → parseSigunguCodes 가 코드를 보존", () => {
+    const valid = new Set(["11010", "11020", "26110"]);
+    const q = buildEmptySpotQuery(["26110", "11010"]);
+    const parsed = parseSigunguCodes(new URLSearchParams(q).get("exclude"), valid);
+    expect(new Set(parsed)).toEqual(new Set(["11010", "26110"]));
+  });
+});
+
+describe("parseSigunguCodes — 문자열 화이트리스트(통계청 code, §7.11)", () => {
+  const valid = new Set(["11010", "11020", "26110", "42750"]);
+
+  it("화이트리스트 안 코드만 통과(밖은 조용히 제거)", () => {
+    expect(parseSigunguCodes("11010,99999,26110", valid)).toEqual(["11010", "26110"]);
+  });
+
+  it("중복 제거(첫 등장 순서 유지)", () => {
+    expect(parseSigunguCodes("26110,11010,26110", valid)).toEqual(["26110", "11010"]);
+  });
+
+  it("공백 허용·null/빈 문자열 → []", () => {
+    expect(parseSigunguCodes(" 11010 , 26110 ", valid)).toEqual(["11010", "26110"]);
+    expect(parseSigunguCodes(null, valid)).toEqual([]);
+    expect(parseSigunguCodes("", valid)).toEqual([]);
+  });
+
+  it("문자열 축 — 숫자 변환 안 함(선행 0·비정규 숫자 문자열도 화이트리스트 정확 매칭만)", () => {
+    // '011010'(선행 0)은 '11010'과 다른 문자열 → 화이트리스트 불일치로 제거.
+    expect(parseSigunguCodes("011010", valid)).toEqual([]);
+    // 화이트리스트에 없는 순수 숫자도 제거(parseCodeList 처럼 임의 통과 아님).
+    expect(parseSigunguCodes("12345", valid)).toEqual([]);
   });
 });

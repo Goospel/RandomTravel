@@ -129,6 +129,12 @@ function loadEvents(): TravelEvent[] {
 
 export interface UseTravelStore {
   ready: boolean;
+  /**
+   * 방문 목록이 '최종'인가 — 비로그인은 항상 true, 로그인은 서버 병합 완료 후 true.
+   * ready 는 localStorage 하이드레이션만 보장하므로, 기기 간 방문(서버 전용)이 필요한
+   * 🔭 빈 곳 뽑기(§7.11 미방문 판정)는 ready 가 아니라 이 synced 를 게이트로 써야 한다.
+   */
+  synced: boolean;
   saved: SavedPlace[];
   visited: SavedPlace[];
   recent: SavedPlace[];
@@ -151,6 +157,8 @@ export interface UseTravelStore {
 
 export function useTravelStore(): UseTravelStore {
   const [ready, setReady] = useState(false);
+  // 🔭 방문 목록 최종 여부(§7.11) — 비로그인=true, 로그인=서버 병합 완료 후 true.
+  const [synced, setSynced] = useState(false);
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [visited, setVisited] = useState<SavedPlace[]>([]);
   const [recent, setRecent] = useState<SavedPlace[]>([]);
@@ -211,11 +219,16 @@ export function useTravelStore(): UseTravelStore {
         }
       }
       mergedForUser = null; // 재로그인 시 다시 병합 허용
+      setSynced(true); // 🔭 비로그인은 서버 데이터가 없으니 로컬만으로 최종(§7.11)
       return;
     }
 
-    if (status !== "authenticated" || !userId) return;
-    if (mergedForUser === userId) return;
+    if (status !== "authenticated" || !userId) return; // 세션 loading — synced 는 false 유지(대기)
+    if (mergedForUser === userId) {
+      // 다른 인스턴스(예: /map)가 이미 병합·localStorage 반영 → 이 인스턴스는 그걸 하이드레이트함.
+      setSynced(true);
+      return;
+    }
     mergedForUser = userId; // 진행 중 pin(동시 인스턴스 중복 병합 방지)
 
     let cancelled = false;
@@ -242,6 +255,7 @@ export function useTravelStore(): UseTravelStore {
         const mergedVisited = mergePlaces(localVisited, serverVisited);
         setSaved(mergedSaved);
         setVisited(mergedVisited);
+        setSynced(true); // 🔭 병합된 방문이 상태에 반영됨 → exclude 정확(업로드 델타는 무관, §7.11)
         persist(K_SAVED, mergedSaved);
         persist(K_VISITED, mergedVisited);
         try {
@@ -395,6 +409,7 @@ export function useTravelStore(): UseTravelStore {
 
   return {
     ready,
+    synced,
     saved,
     visited,
     recent,
