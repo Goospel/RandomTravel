@@ -41,6 +41,17 @@ import {
   weatherBadge,
   type WeatherObs,
 } from "@/lib/weather";
+import {
+  rankDaily,
+  quietAreaCodes,
+  narrowByQuiet,
+  congestionBadge,
+  congestionStale,
+  kstYmd,
+  QUIET_AREA_CUT,
+} from "@/lib/congestion";
+import { getCongestionDay } from "@/db/congestion";
+import { sigunguAt } from "@/lib/conquer";
 
 const BASE = "https://apis.data.go.kr/B551011/KorService2";
 
@@ -289,6 +300,8 @@ export interface DrawParams {
   festivalOnly?: boolean;
   /** ☔ 날씨: 지역 풀을 지금 비 안 오는 지역으로 교집합 (§6.1) */
   noRain?: boolean;
+  /** 🍃 한적: 성수기 예측 시·도를 풀에서 제거 (배치 DB 조회, §6.7) */
+  quiet?: boolean;
   /** 제철 기준 월(1-12). 미지정 시 현재 월 — 테스트·일관성 주입용 */
   month?: number;
   /** 축제 기준 날짜 YYYYMMDD. 미지정 시 오늘(KST) — 테스트·일관성 주입용 */
@@ -297,23 +310,44 @@ export interface DrawParams {
   now?: Date;
 }
 
-/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제·날씨 맵. */
+/** 배지 계산에 필요한 문맥 — 어느 조건이 켜졌는지 + 조회된 축제·날씨·혼잡도. */
 interface BadgeCtx {
   month: number;
   seasonal: boolean;
   festivalMap: Map<number, Festival[]> | null;
   weatherObs: Map<number, WeatherObs> | null;
+  /** 🍃 조회된 그날 전국 시군구 pctRank(법정동cd→pctRank). null = 필터 꺼짐/스킵 → 배지 없음 */
+  sigunguRanks: Map<string, number> | null;
+  /** 🍃 데이터 기준일 YYYYMMDD(배지 문구용). */
+  congestionBaseYmd: string | null;
 }
 
-/** 뽑힌 지역에 대한 배지들(제철·축제·날씨)을 한 번에 계산. */
+/** 🍃 뽑힌 좌표 → 시군구 → 법정동 → pctRank 로 한적 배지(pctRank ≤ 0.5일 때만). 데이터 없으면 null. */
+function congestionBadgeFor(
+  ctx: BadgeCtx,
+  lat: number | null,
+  lng: number | null,
+): PickedInfo["congestion"] {
+  if (!ctx.sigunguRanks || !ctx.congestionBaseYmd || lat == null || lng == null) {
+    return null;
+  }
+  const sg = sigunguAt(lat, lng); // §7.4 점-다각형 + 최근접 스냅
+  if (!sg) return null;
+  return congestionBadge(sg.area, sg.name, ctx.sigunguRanks, ctx.congestionBaseYmd);
+}
+
+/** 뽑힌 지역에 대한 배지들(제철·축제·날씨·한적)을 한 번에 계산. lat/lng 는 🍃 배지용(뽑힌 좌표). */
 function buildBadges(
   areaCode: number | null,
   ctx: BadgeCtx,
-): Pick<PickedInfo, "seasonal" | "festival" | "weather"> {
+  lat: number | null = null,
+  lng: number | null = null,
+): Pick<PickedInfo, "seasonal" | "festival" | "weather" | "congestion"> {
   return {
     seasonal: ctx.seasonal ? seasonalBadge(areaCode, ctx.month) : null,
     festival: ctx.festivalMap ? festivalBadge(ctx.festivalMap, areaCode) : null,
     weather: ctx.weatherObs ? weatherBadge(ctx.weatherObs, areaCode) : null,
+    congestion: congestionBadgeFor(ctx, lat, lng),
   };
 }
 
@@ -485,14 +519,42 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     areaPool = narrowed;
   }
 
+  // 5) 🍃 한적: 성수기 예측 시·도를 풀에서 제거(§6.7). 배치 DB 조회만(외부 API 0콜).
+  //    ☔ 날씨 단계 동형 — 조회 실패·stale 이면 필터·배지 모두 건너뛰고 notice(soft-skip).
+  let sigunguRanks: Map<string, number> | null = null;
+  let congestionBaseYmd: string | null = null;
+  if (params.quiet) {
+    let day: Awaited<ReturnType<typeof getCongestionDay>> = null;
+    try {
+      day = await getCongestionDay(kstYmd(params.now));
+    } catch {
+      day = null;
+    }
+    const nowMs = (params.now ?? new Date()).getTime();
+    if (!day || congestionStale(day.maxFetchedAt, nowMs)) {
+      notices.push("혼잡도 데이터를 못 불러와 🍃 조건은 건너뛰었어요.");
+    } else {
+      const ranked = rankDaily(day.ranks);
+      const narrowed = narrowByQuiet(areaPool, quietAreaCodes(ranked, QUIET_AREA_CUT));
+      if (narrowed.length === 0) {
+        emptyPool("지금 한적할 것으로 예측되는 지역 중 고른 곳이 없어요. 지역 조건을 넓혀보세요.");
+      }
+      areaPool = narrowed;
+      sigunguRanks = ranked;
+      congestionBaseYmd = day.baseYmd;
+    }
+  }
+
   const ctx: BadgeCtx = {
     month,
     seasonal: !!params.seasonal,
     festivalMap,
     weatherObs,
+    sigunguRanks,
+    congestionBaseYmd,
   };
 
-  // 5) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 6) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
     : await drawByType(params, areaPool, ctx);
@@ -537,14 +599,15 @@ async function drawByType(
       const linked = await pickSeasonalRestaurant(q.areaCode, ctx.month);
       if (linked) {
         const overview = await getOverview(linked.item.contentid);
+        const place = normalizePlace(linked.item, overview);
         const areaCode = linked.item.areacode
           ? Number(linked.item.areacode)
           : q.areaCode;
-        const badges = buildBadges(areaCode, ctx);
+        const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
         // 배지는 지역 전체가 아니라 **매칭된 그 품목만** — 뽑힌 맛집과 정확히 일치.
         badges.seasonal = { items: [linked.matched] };
         return {
-          place: normalizePlace(linked.item, overview),
+          place,
           picked: {
             areaCode,
             contentTypeId: RESTAURANT_TYPE,
@@ -564,13 +627,14 @@ async function drawByType(
     if (!item) continue;
 
     const overview = await getOverview(item.contentid);
+    const place = normalizePlace(item, overview);
     const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
-    const badges = buildBadges(areaCode, ctx);
+    const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
     // 제철 음식점인데 품목 매칭에 실패해 여기로 왔으면, 랜덤 식당에 "이 집=제철" 오해를 줄
     // 제철 배지는 숨긴다(수박 배지 + 무관한 횟집 방지). 다른 타입·매칭 성공 경로는 그대로.
     if (ctx.seasonal && q.contentTypeId === RESTAURANT_TYPE) badges.seasonal = null;
     return {
-      place: normalizePlace(item, overview),
+      place,
       picked: {
         areaCode,
         contentTypeId: q.contentTypeId,
@@ -634,16 +698,17 @@ async function drawSeaside(
     if (!item) continue;
 
     const overview = await getOverview(item.contentid);
+    const place = normalizePlace(item, overview);
     const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
     const sea = SEA_CAT3.find((s) => s.cat3 === q.cat3);
     return {
-      place: normalizePlace(item, overview),
+      place,
       picked: {
         areaCode,
         contentTypeId: 12,
         totalCount: count,
         seaside: sea ? { category: sea.name, emoji: sea.emoji } : null,
-        ...buildBadges(areaCode, ctx),
+        ...buildBadges(areaCode, ctx, place.lat, place.lng),
       },
     };
   }
@@ -720,8 +785,24 @@ export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
 export async function countCandidates(
   params: CountParams,
   month: number = currentMonth(),
+  now: Date = new Date(),
 ): Promise<CountResponse> {
-  const plan = planCandidateCount(params, month);
+  // 🍃 한적은 배치 DB 조회라 정확 집계 가능(☔·🎪 dynamic과 달리). 한적 시·도 집합을 계산해 주입.
+  //    조회 실패·stale 은 예외가 아니라 정상 경로로 quietSet=null → planCandidateCount 가 dynamic.
+  let quietSet: Set<number> | null | undefined;
+  if (params.quiet) {
+    try {
+      const day = await getCongestionDay(kstYmd(now));
+      quietSet =
+        day && !congestionStale(day.maxFetchedAt, now.getTime())
+          ? quietAreaCodes(rankDaily(day.ranks), QUIET_AREA_CUT)
+          : null;
+    } catch {
+      quietSet = null;
+    }
+  }
+
+  const plan = planCandidateCount(params, month, quietSet);
   if (plan.kind === "dynamic") return { dynamic: true };
   if (plan.kind === "empty") return { totalCount: 0, approx: false };
 

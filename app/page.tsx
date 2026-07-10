@@ -33,6 +33,7 @@ export default function Home() {
   const [seasonal, setSeasonal] = useState(false); // 🦀 제철 (§6.4)
   const [festival, setFestival] = useState(false); // 🎪 축제 (§6.2)
   const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
+  const [quiet, setQuiet] = useState(false); // 🍃 한적 (§6.7)
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // 뽑기마다 증가 → ResultCard 의 key 로 써서 매번 등장 애니메이션이 재생되게
   const [seq, setSeq] = useState(0);
@@ -70,6 +71,7 @@ export default function Home() {
     setSeasonal(false);
     setFestival(false);
     setNoRain(false);
+    setQuiet(false);
   };
 
   // 공통 뽑기 실행 — URL 을 받아 상태·기록을 처리. updateAnchor=true 면 결과를 앵커로 잡는다.
@@ -112,6 +114,7 @@ export default function Home() {
       seasonal,
       festival,
       noRain,
+      quiet,
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
     void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
@@ -149,7 +152,13 @@ export default function Home() {
   const canDrawNearby = !!anchor && (mode === "pure" || currentIsNearby);
 
   const hasCondition =
-    areas.size > 0 || types.size > 0 || seaside || seasonal || festival || noRain;
+    areas.size > 0 ||
+    types.size > 0 ||
+    seaside ||
+    seasonal ||
+    festival ||
+    noRain ||
+    quiet;
 
   // 🧩 발 들인 시·도 정복 pill(헤더) — 홈 히어로 타일과 같은 출처(areaCode 기준).
   const conqueredAreas = visitedAreaCodes(store.visited).size;
@@ -203,12 +212,14 @@ export default function Home() {
                 seasonal={seasonal}
                 festival={festival}
                 noRain={noRain}
+                quiet={quiet}
                 onToggleArea={toggleArea}
                 onToggleType={toggleType}
                 onToggleSeaside={() => setSeaside((v) => !v)}
                 onToggleSeasonal={() => setSeasonal((v) => !v)}
                 onToggleFestival={() => setFestival((v) => !v)}
                 onToggleNoRain={() => setNoRain((v) => !v)}
+                onToggleQuiet={() => setQuiet((v) => !v)}
                 onClear={clearFilters}
               />
             </div>

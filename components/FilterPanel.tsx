@@ -101,12 +101,14 @@ export function FilterPanel({
   seasonal,
   festival,
   noRain,
+  quiet,
   onToggleArea,
   onToggleType,
   onToggleSeaside,
   onToggleSeasonal,
   onToggleFestival,
   onToggleNoRain,
+  onToggleQuiet,
   onClear,
 }: {
   selectedAreas: Set<number>;
@@ -115,12 +117,14 @@ export function FilterPanel({
   seasonal: boolean;
   festival: boolean;
   noRain: boolean;
+  quiet: boolean;
   onToggleArea: (code: number) => void;
   onToggleType: (code: number) => void;
   onToggleSeaside: () => void;
   onToggleSeasonal: () => void;
   onToggleFestival: () => void;
   onToggleNoRain: () => void;
+  onToggleQuiet: () => void;
   onClear: () => void;
 }) {
   const hasAny =
@@ -129,7 +133,8 @@ export function FilterPanel({
     seaside ||
     seasonal ||
     festival ||
-    noRain;
+    noRain ||
+    quiet;
 
   // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
   const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
@@ -137,6 +142,7 @@ export function FilterPanel({
     seasonal,
     festival,
     noRain,
+    quiet,
   });
 
   return (
@@ -240,6 +246,13 @@ export function FilterPanel({
             emoji="☔"
             label="비 안 오는 곳"
             desc="지금 비 안 오는 지역"
+          />
+          <ExtraToggle
+            on={quiet}
+            onToggle={onToggleQuiet}
+            emoji="🍃"
+            label="한적한 곳"
+            desc="안 붐빌 것으로 예측되는 곳"
           />
         </div>
       </section>

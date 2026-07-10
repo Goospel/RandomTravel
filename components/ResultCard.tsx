@@ -18,10 +18,17 @@ const BADGE: Record<string, string> = {
   seasonal: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   festival: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
   weather: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
+  congestion: "bg-lime-50 text-lime-700 dark:bg-lime-950 dark:text-lime-300",
   dist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
 };
 const pill =
   "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
+
+/** YYYYMMDD → "M/D"(앞 0 제거). 형식 이상 시 원문 그대로. */
+function fmtYmd(ymd: string): string {
+  if (!/^\d{8}$/.test(ymd)) return ymd;
+  return `${Number(ymd.slice(4, 6))}/${Number(ymd.slice(6, 8))}`;
+}
 
 export function ResultCard({
   data,
@@ -188,6 +195,12 @@ export function ResultCard({
               ☀️ 지금 비 안 와요
               {data.picked.weather.temp != null &&
                 ` · ${Math.round(data.picked.weather.temp)}℃`}
+            </span>
+          )}
+          {data.picked.congestion && (
+            <span className={`${pill} ${BADGE.congestion}`}>
+              🍃 집중률 하위 {data.picked.congestion.pctBelow}% · 한적 예측 (
+              {fmtYmd(data.picked.congestion.baseYmd)} 기준)
             </span>
           )}
           {distanceM != null && (

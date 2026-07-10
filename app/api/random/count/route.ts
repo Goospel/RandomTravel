@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     seasonal: parseBool(sp.get("seasonal")),
     festivalOnly: parseBool(sp.get("festivalOnly")),
     noRain: parseBool(sp.get("noRain")),
+    quiet: parseBool(sp.get("quiet")),
   };
 
   try {

@@ -53,6 +53,13 @@ export interface WeatherBadge {
   temp: number | null; // 현재 기온(℃). 관측 없으면 null
 }
 
+/** 🍃 한적 예측 배지(M17, §6.7) — 뽑힌 시·군·구 집중률 백분위. pctRank ≤ 0.5일 때만 노출 */
+export interface CongestionBadge {
+  sigunguName: string; // 뽑힌 시·군·구명
+  pctBelow: number; // round(pctRank×100) — "집중률 하위 N%"
+  baseYmd: string; // 데이터 기준일 YYYYMMDD(실시간 아님·'예측' 표기용)
+}
+
 /** 이번 뽑기가 어떤 지역·타입·조건에서 나왔는지(디버그·배지 표시용) */
 export interface PickedInfo {
   areaCode: number | null;
@@ -66,6 +73,8 @@ export interface PickedInfo {
   festival?: FestivalBadge | null;
   /** ☔ 날씨 필터로 뽑혔을 때 그 지역 현재 날씨(비 안 옴+기온). 아니면 null/생략 */
   weather?: WeatherBadge | null;
+  /** 🍃 한적 필터로 뽑혔고 그 시군구 집중률 하위(pctRank ≤ 0.5)일 때만. 아니면 null/생략 (§6.7) */
+  congestion?: CongestionBadge | null;
   /** 📍 주변에서 뽑기(M14)로 나왔을 때 앵커에서의 거리(m). 아니면 null/생략 */
   distanceM?: number | null;
   /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */

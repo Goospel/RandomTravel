@@ -41,7 +41,7 @@ main 머지 시 **Vercel 자동 재배포** → https://travelanywhere-kr.vercel
 
 ## 시크릿·env
 
-**채팅에 값 절대 금지** — `.env.local`(로컬) + Vercel 대시보드(프로덕션)에만. 키: `TOUR_API_KEY`·`WEATHER_API_KEY`·`NEXT_PUBLIC_KAKAO_MAP_KEY`·`AUTH_SECRET`·`DATABASE_URL`·`AUTH_{GOOGLE,KAKAO}_{ID,SECRET}`. 상세·발급 경로는 `.env.local.example`. `DATABASE_URL` = **Neon(로컬·프로덕션 공용 DB)**.
+**채팅에 값 절대 금지** — `.env.local`(로컬) + Vercel 대시보드(프로덕션)에만. 키: `TOUR_API_KEY`·`WEATHER_API_KEY`·`NEXT_PUBLIC_KAKAO_MAP_KEY`·`AUTH_SECRET`·`DATABASE_URL`·`AUTH_{GOOGLE,KAKAO}_{ID,SECRET}`·`CRON_SECRET`(M17 🍃 혼잡도 배치 크론 인증). 상세·발급 경로는 `.env.local.example`. `DATABASE_URL` = **Neon(로컬·프로덕션 공용 DB)**.
 
 ## DB 마이그레이션 (Drizzle)
 
