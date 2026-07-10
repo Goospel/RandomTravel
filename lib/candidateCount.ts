@@ -7,6 +7,7 @@
 
 import { RANDOM_DEFAULT_TYPES, SEA_CAT3 } from "@/lib/constants";
 import { narrowBySeasonal } from "@/lib/season";
+import { narrowByQuiet } from "@/lib/congestion";
 
 /** getTotalCount 호출 상한 — drawRandom 의 COMBO_BUDGET(34)과 같은 예산. */
 export const COUNT_COMBO_BUDGET = 34;
@@ -18,6 +19,7 @@ export interface CountParams {
   seasonal: boolean;
   festivalOnly: boolean;
   noRain: boolean;
+  quiet: boolean;
 }
 
 /** 조회할 한 조합 — areaBasedList2 파라미터로 매핑된다. */
@@ -37,15 +39,30 @@ export type CountPlan =
 
 /**
  * 조건 → 카운트 계획. month 는 제철 기준 월(호출부에서 주입, 테스트 결정성).
+ * quietSet 은 🍃 한적 시·도 집합(호출부 countCandidates 가 DB에서 계산해 주입 — 제철 calendar 주입 동형).
+ *   quiet 켜짐 + quietSet 미주입/null = 데이터 없음/stale → dynamic(정확 집계 불가로 폴백).
+ *   ⚠️ 라우트에서 지역 풀을 사전 교집합하지 말 것 — CountParams의 "빈 배열=전국"과 충돌해
+ *   전멸이 전국으로 뒤집힌다. 교집합은 여기서(narrowByQuiet) 하고 0이면 empty.
  */
-export function planCandidateCount(p: CountParams, month: number): CountPlan {
+export function planCandidateCount(
+  p: CountParams,
+  month: number,
+  quietSet?: Set<number> | null,
+): CountPlan {
   // 동적 조건이 하나라도 켜지면 정확 집계 불가 → dynamic
   if (p.festivalOnly || p.noRain) return { kind: "dynamic" };
+  // 🍃 한적 켜졌는데 배치 데이터가 없거나 stale → dynamic(countCandidates가 null 주입)
+  if (p.quiet && quietSet == null) return { kind: "dynamic" };
 
   // 지역 풀 — 비면 전국(null). 🦀 제철이면 이번 달 산지로 교집합.
   let areaPool: number[] | null = p.areaCodes.length > 0 ? [...p.areaCodes] : null;
   if (p.seasonal) {
     areaPool = narrowBySeasonal(areaPool, month);
+    if (areaPool.length === 0) return { kind: "empty" };
+  }
+  // 🍃 한적 — 성수기 예측 시·도 제거(narrowByQuiet). 교집합 0이면 empty(전멸).
+  if (p.quiet && quietSet) {
+    areaPool = narrowByQuiet(areaPool, quietSet);
     if (areaPool.length === 0) return { kind: "empty" };
   }
 

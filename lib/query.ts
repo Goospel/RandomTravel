@@ -68,12 +68,13 @@ export function buildNearbyQuery(lat: number, lng: number): string {
   return p.toString();
 }
 
-/** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨 같은 추가 조건 플래그 */
+/** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨·🍃 한적 같은 추가 조건 플래그 */
 export interface RandomQueryOptions {
   seaside?: boolean;
   seasonal?: boolean;
   festival?: boolean;
   noRain?: boolean;
+  quiet?: boolean;
 }
 
 /**
@@ -99,5 +100,6 @@ export function buildRandomQuery(
   if (opts.seasonal) params.set("seasonal", "1");
   if (opts.festival) params.set("festivalOnly", "1");
   if (opts.noRain) params.set("noRain", "1");
+  if (opts.quiet) params.set("quiet", "1");
   return params.toString();
 }

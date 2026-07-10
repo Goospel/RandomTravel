@@ -133,6 +133,8 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
         seaside: true,
         seasonal: true,
         festival: true,
+        noRain: true,
+        quiet: true,
       }),
     ).toBe("");
   });
@@ -154,6 +156,30 @@ describe("buildRandomQuery — 🌊 바다·🦀 제철 옵션", () => {
     );
     expect(p.get("areas")).toBe("32");
     expect(p.get("noRain")).toBe("1");
+  });
+  it("🍃 한적은 quiet=1 파라미터", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { quiet: true }),
+    );
+    expect(p.get("quiet")).toBe("1");
+  });
+  it("🍃 만 켜도 완전 랜덤 아님(quiet=1)", () => {
+    expect(
+      buildRandomQuery("filtered", new Set(), new Set(), { quiet: true }),
+    ).toBe("quiet=1");
+  });
+  it("🍃 는 지역과 조합 가능(지역+quiet 둘 다 실림)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set(), { quiet: true }),
+    );
+    expect(p.get("areas")).toBe("32");
+    expect(p.get("quiet")).toBe("1");
+  });
+  it("quiet 미지정이면 quiet 파라미터 없음(불변식)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([1]), new Set()),
+    );
+    expect(p.has("quiet")).toBe(false);
   });
 });
 

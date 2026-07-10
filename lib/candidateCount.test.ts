@@ -18,6 +18,7 @@ function params(over: Partial<CountParams> = {}): CountParams {
     seasonal: false,
     festivalOnly: false,
     noRain: false,
+    quiet: false,
     ...over,
   };
 }
@@ -81,6 +82,40 @@ describe("planCandidateCount", () => {
     if (plan.kind !== "combos") return;
     const julyAreas = new Set([32, 33, 34, 35, 36, 38]);
     expect(plan.combos.every((c) => julyAreas.has(c.areaCode!))).toBe(true);
+  });
+
+  it("🍃 한적: quietSet 로 지역 풀을 좁힌다(교집합, 정확 집계)", () => {
+    const plan = planCandidateCount(
+      params({ quiet: true, areaCodes: [32, 1] }),
+      7,
+      new Set([32]),
+    );
+    expect(plan.kind).toBe("combos");
+    if (plan.kind !== "combos") return;
+    expect(plan.combos.every((c) => c.areaCode === 32)).toBe(true);
+  });
+
+  it("🍃 한적: quietSet 교집합이 0이면 empty(전멸 — 라우트 사전 교집합 금지)", () => {
+    const plan = planCandidateCount(
+      params({ quiet: true, areaCodes: [1] }),
+      7,
+      new Set([32]),
+    );
+    expect(plan.kind).toBe("empty");
+  });
+
+  it("🍃 한적: 데이터 없음(quietSet null/미주입)이면 dynamic(stale 폴백)", () => {
+    expect(planCandidateCount(params({ quiet: true }), 7, null).kind).toBe(
+      "dynamic",
+    );
+    expect(planCandidateCount(params({ quiet: true }), 7).kind).toBe("dynamic");
+  });
+
+  it("🍃 quiet 꺼짐이면 quietSet 있어도 무시(불변식)", () => {
+    const plan = planCandidateCount(params({ areaCodes: [1] }), 7, new Set([32]));
+    expect(plan.kind).toBe("combos"); // 서울(1) 그대로 — 좁혀지지 않음
+    if (plan.kind !== "combos") return;
+    expect(plan.combos.every((c) => c.areaCode === 1)).toBe(true);
   });
 
   it("조합이 예산을 넘으면 상한까지 자르고 capped 표시", () => {

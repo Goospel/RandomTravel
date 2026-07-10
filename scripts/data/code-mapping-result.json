@@ -1,0 +1,3268 @@
+{
+ "matched": [
+  {
+   "app": {
+    "code": "11010",
+    "name": "종로구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11110",
+    "sigunguNm": "종로구"
+   }
+  },
+  {
+   "app": {
+    "code": "11020",
+    "name": "중구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11140",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "11030",
+    "name": "용산구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11170",
+    "sigunguNm": "용산구"
+   }
+  },
+  {
+   "app": {
+    "code": "11040",
+    "name": "성동구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11200",
+    "sigunguNm": "성동구"
+   }
+  },
+  {
+   "app": {
+    "code": "11050",
+    "name": "광진구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11215",
+    "sigunguNm": "광진구"
+   }
+  },
+  {
+   "app": {
+    "code": "11060",
+    "name": "동대문구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11230",
+    "sigunguNm": "동대문구"
+   }
+  },
+  {
+   "app": {
+    "code": "11070",
+    "name": "중랑구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11260",
+    "sigunguNm": "중랑구"
+   }
+  },
+  {
+   "app": {
+    "code": "11080",
+    "name": "성북구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11290",
+    "sigunguNm": "성북구"
+   }
+  },
+  {
+   "app": {
+    "code": "11090",
+    "name": "강북구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11305",
+    "sigunguNm": "강북구"
+   }
+  },
+  {
+   "app": {
+    "code": "11100",
+    "name": "도봉구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11320",
+    "sigunguNm": "도봉구"
+   }
+  },
+  {
+   "app": {
+    "code": "11110",
+    "name": "노원구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11350",
+    "sigunguNm": "노원구"
+   }
+  },
+  {
+   "app": {
+    "code": "11120",
+    "name": "은평구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11380",
+    "sigunguNm": "은평구"
+   }
+  },
+  {
+   "app": {
+    "code": "11130",
+    "name": "서대문구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11410",
+    "sigunguNm": "서대문구"
+   }
+  },
+  {
+   "app": {
+    "code": "11140",
+    "name": "마포구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11440",
+    "sigunguNm": "마포구"
+   }
+  },
+  {
+   "app": {
+    "code": "11150",
+    "name": "양천구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11470",
+    "sigunguNm": "양천구"
+   }
+  },
+  {
+   "app": {
+    "code": "11160",
+    "name": "강서구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11500",
+    "sigunguNm": "강서구"
+   }
+  },
+  {
+   "app": {
+    "code": "11170",
+    "name": "구로구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11530",
+    "sigunguNm": "구로구"
+   }
+  },
+  {
+   "app": {
+    "code": "11180",
+    "name": "금천구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11545",
+    "sigunguNm": "금천구"
+   }
+  },
+  {
+   "app": {
+    "code": "11190",
+    "name": "영등포구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11560",
+    "sigunguNm": "영등포구"
+   }
+  },
+  {
+   "app": {
+    "code": "11200",
+    "name": "동작구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11590",
+    "sigunguNm": "동작구"
+   }
+  },
+  {
+   "app": {
+    "code": "11210",
+    "name": "관악구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11620",
+    "sigunguNm": "관악구"
+   }
+  },
+  {
+   "app": {
+    "code": "11220",
+    "name": "서초구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11650",
+    "sigunguNm": "서초구"
+   }
+  },
+  {
+   "app": {
+    "code": "11230",
+    "name": "강남구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11680",
+    "sigunguNm": "강남구"
+   }
+  },
+  {
+   "app": {
+    "code": "11240",
+    "name": "송파구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11710",
+    "sigunguNm": "송파구"
+   }
+  },
+  {
+   "app": {
+    "code": "11250",
+    "name": "강동구",
+    "area": 1
+   },
+   "book": {
+    "areaCd": "11",
+    "areaNm": "서울특별시",
+    "sigunguCd": "11740",
+    "sigunguNm": "강동구"
+   }
+  },
+  {
+   "app": {
+    "code": "21010",
+    "name": "중구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26110",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "21020",
+    "name": "서구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26140",
+    "sigunguNm": "서구"
+   }
+  },
+  {
+   "app": {
+    "code": "21030",
+    "name": "동구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26170",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "21040",
+    "name": "영도구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26200",
+    "sigunguNm": "영도구"
+   }
+  },
+  {
+   "app": {
+    "code": "21050",
+    "name": "부산진구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26230",
+    "sigunguNm": "부산진구"
+   }
+  },
+  {
+   "app": {
+    "code": "21060",
+    "name": "동래구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26260",
+    "sigunguNm": "동래구"
+   }
+  },
+  {
+   "app": {
+    "code": "21070",
+    "name": "남구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26290",
+    "sigunguNm": "남구"
+   }
+  },
+  {
+   "app": {
+    "code": "21080",
+    "name": "북구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26320",
+    "sigunguNm": "북구"
+   }
+  },
+  {
+   "app": {
+    "code": "21090",
+    "name": "해운대구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26350",
+    "sigunguNm": "해운대구"
+   }
+  },
+  {
+   "app": {
+    "code": "21100",
+    "name": "사하구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26380",
+    "sigunguNm": "사하구"
+   }
+  },
+  {
+   "app": {
+    "code": "21110",
+    "name": "금정구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26410",
+    "sigunguNm": "금정구"
+   }
+  },
+  {
+   "app": {
+    "code": "21120",
+    "name": "강서구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26440",
+    "sigunguNm": "강서구"
+   }
+  },
+  {
+   "app": {
+    "code": "21130",
+    "name": "연제구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26470",
+    "sigunguNm": "연제구"
+   }
+  },
+  {
+   "app": {
+    "code": "21140",
+    "name": "수영구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26500",
+    "sigunguNm": "수영구"
+   }
+  },
+  {
+   "app": {
+    "code": "21150",
+    "name": "사상구",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26530",
+    "sigunguNm": "사상구"
+   }
+  },
+  {
+   "app": {
+    "code": "21310",
+    "name": "기장군",
+    "area": 6
+   },
+   "book": {
+    "areaCd": "26",
+    "areaNm": "부산광역시",
+    "sigunguCd": "26710",
+    "sigunguNm": "기장군"
+   }
+  },
+  {
+   "app": {
+    "code": "22010",
+    "name": "중구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27110",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "22020",
+    "name": "동구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27140",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "22030",
+    "name": "서구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27170",
+    "sigunguNm": "서구"
+   }
+  },
+  {
+   "app": {
+    "code": "22040",
+    "name": "남구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27200",
+    "sigunguNm": "남구"
+   }
+  },
+  {
+   "app": {
+    "code": "22050",
+    "name": "북구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27230",
+    "sigunguNm": "북구"
+   }
+  },
+  {
+   "app": {
+    "code": "22060",
+    "name": "수성구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27260",
+    "sigunguNm": "수성구"
+   }
+  },
+  {
+   "app": {
+    "code": "22070",
+    "name": "달서구",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27290",
+    "sigunguNm": "달서구"
+   }
+  },
+  {
+   "app": {
+    "code": "22310",
+    "name": "달성군",
+    "area": 4
+   },
+   "book": {
+    "areaCd": "27",
+    "areaNm": "대구광역시",
+    "sigunguCd": "27710",
+    "sigunguNm": "달성군"
+   }
+  },
+  {
+   "app": {
+    "code": "23010",
+    "name": "중구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28110",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "23020",
+    "name": "동구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28140",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "23040",
+    "name": "연수구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28185",
+    "sigunguNm": "연수구"
+   }
+  },
+  {
+   "app": {
+    "code": "23050",
+    "name": "남동구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28200",
+    "sigunguNm": "남동구"
+   }
+  },
+  {
+   "app": {
+    "code": "23060",
+    "name": "부평구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28237",
+    "sigunguNm": "부평구"
+   }
+  },
+  {
+   "app": {
+    "code": "23070",
+    "name": "계양구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28245",
+    "sigunguNm": "계양구"
+   }
+  },
+  {
+   "app": {
+    "code": "23080",
+    "name": "서구",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28260",
+    "sigunguNm": "서구"
+   }
+  },
+  {
+   "app": {
+    "code": "23310",
+    "name": "강화군",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28710",
+    "sigunguNm": "강화군"
+   }
+  },
+  {
+   "app": {
+    "code": "23320",
+    "name": "옹진군",
+    "area": 2
+   },
+   "book": {
+    "areaCd": "28",
+    "areaNm": "인천광역시",
+    "sigunguCd": "28720",
+    "sigunguNm": "옹진군"
+   }
+  },
+  {
+   "app": {
+    "code": "24010",
+    "name": "동구",
+    "area": 5
+   },
+   "book": {
+    "areaCd": "29",
+    "areaNm": "광주광역시",
+    "sigunguCd": "29110",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "24020",
+    "name": "서구",
+    "area": 5
+   },
+   "book": {
+    "areaCd": "29",
+    "areaNm": "광주광역시",
+    "sigunguCd": "29140",
+    "sigunguNm": "서구"
+   }
+  },
+  {
+   "app": {
+    "code": "24030",
+    "name": "남구",
+    "area": 5
+   },
+   "book": {
+    "areaCd": "29",
+    "areaNm": "광주광역시",
+    "sigunguCd": "29155",
+    "sigunguNm": "남구"
+   }
+  },
+  {
+   "app": {
+    "code": "24040",
+    "name": "북구",
+    "area": 5
+   },
+   "book": {
+    "areaCd": "29",
+    "areaNm": "광주광역시",
+    "sigunguCd": "29170",
+    "sigunguNm": "북구"
+   }
+  },
+  {
+   "app": {
+    "code": "24050",
+    "name": "광산구",
+    "area": 5
+   },
+   "book": {
+    "areaCd": "29",
+    "areaNm": "광주광역시",
+    "sigunguCd": "29200",
+    "sigunguNm": "광산구"
+   }
+  },
+  {
+   "app": {
+    "code": "25010",
+    "name": "동구",
+    "area": 3
+   },
+   "book": {
+    "areaCd": "30",
+    "areaNm": "대전광역시",
+    "sigunguCd": "30110",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "25020",
+    "name": "중구",
+    "area": 3
+   },
+   "book": {
+    "areaCd": "30",
+    "areaNm": "대전광역시",
+    "sigunguCd": "30140",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "25030",
+    "name": "서구",
+    "area": 3
+   },
+   "book": {
+    "areaCd": "30",
+    "areaNm": "대전광역시",
+    "sigunguCd": "30170",
+    "sigunguNm": "서구"
+   }
+  },
+  {
+   "app": {
+    "code": "25040",
+    "name": "유성구",
+    "area": 3
+   },
+   "book": {
+    "areaCd": "30",
+    "areaNm": "대전광역시",
+    "sigunguCd": "30200",
+    "sigunguNm": "유성구"
+   }
+  },
+  {
+   "app": {
+    "code": "25050",
+    "name": "대덕구",
+    "area": 3
+   },
+   "book": {
+    "areaCd": "30",
+    "areaNm": "대전광역시",
+    "sigunguCd": "30230",
+    "sigunguNm": "대덕구"
+   }
+  },
+  {
+   "app": {
+    "code": "26010",
+    "name": "중구",
+    "area": 7
+   },
+   "book": {
+    "areaCd": "31",
+    "areaNm": "울산광역시",
+    "sigunguCd": "31110",
+    "sigunguNm": "중구"
+   }
+  },
+  {
+   "app": {
+    "code": "26020",
+    "name": "남구",
+    "area": 7
+   },
+   "book": {
+    "areaCd": "31",
+    "areaNm": "울산광역시",
+    "sigunguCd": "31140",
+    "sigunguNm": "남구"
+   }
+  },
+  {
+   "app": {
+    "code": "26030",
+    "name": "동구",
+    "area": 7
+   },
+   "book": {
+    "areaCd": "31",
+    "areaNm": "울산광역시",
+    "sigunguCd": "31170",
+    "sigunguNm": "동구"
+   }
+  },
+  {
+   "app": {
+    "code": "26040",
+    "name": "북구",
+    "area": 7
+   },
+   "book": {
+    "areaCd": "31",
+    "areaNm": "울산광역시",
+    "sigunguCd": "31200",
+    "sigunguNm": "북구"
+   }
+  },
+  {
+   "app": {
+    "code": "26310",
+    "name": "울주군",
+    "area": 7
+   },
+   "book": {
+    "areaCd": "31",
+    "areaNm": "울산광역시",
+    "sigunguCd": "31710",
+    "sigunguNm": "울주군"
+   }
+  },
+  {
+   "app": {
+    "code": "31011",
+    "name": "수원시장안구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41111",
+    "sigunguNm": "수원시 장안구"
+   }
+  },
+  {
+   "app": {
+    "code": "31012",
+    "name": "수원시권선구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41113",
+    "sigunguNm": "수원시 권선구"
+   }
+  },
+  {
+   "app": {
+    "code": "31013",
+    "name": "수원시팔달구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41115",
+    "sigunguNm": "수원시 팔달구"
+   }
+  },
+  {
+   "app": {
+    "code": "31014",
+    "name": "수원시영통구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41117",
+    "sigunguNm": "수원시 영통구"
+   }
+  },
+  {
+   "app": {
+    "code": "31021",
+    "name": "성남시수정구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41131",
+    "sigunguNm": "성남시 수정구"
+   }
+  },
+  {
+   "app": {
+    "code": "31022",
+    "name": "성남시중원구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41133",
+    "sigunguNm": "성남시 중원구"
+   }
+  },
+  {
+   "app": {
+    "code": "31023",
+    "name": "성남시분당구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41135",
+    "sigunguNm": "성남시 분당구"
+   }
+  },
+  {
+   "app": {
+    "code": "31030",
+    "name": "의정부시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41150",
+    "sigunguNm": "의정부시"
+   }
+  },
+  {
+   "app": {
+    "code": "31041",
+    "name": "안양시만안구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41171",
+    "sigunguNm": "안양시 만안구"
+   }
+  },
+  {
+   "app": {
+    "code": "31042",
+    "name": "안양시동안구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41173",
+    "sigunguNm": "안양시 동안구"
+   }
+  },
+  {
+   "app": {
+    "code": "31060",
+    "name": "광명시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41210",
+    "sigunguNm": "광명시"
+   }
+  },
+  {
+   "app": {
+    "code": "31070",
+    "name": "평택시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41220",
+    "sigunguNm": "평택시"
+   }
+  },
+  {
+   "app": {
+    "code": "31080",
+    "name": "동두천시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41250",
+    "sigunguNm": "동두천시"
+   }
+  },
+  {
+   "app": {
+    "code": "31091",
+    "name": "안산시상록구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41271",
+    "sigunguNm": "안산시 상록구"
+   }
+  },
+  {
+   "app": {
+    "code": "31092",
+    "name": "안산시단원구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41273",
+    "sigunguNm": "안산시 단원구"
+   }
+  },
+  {
+   "app": {
+    "code": "31101",
+    "name": "고양시덕양구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41281",
+    "sigunguNm": "고양시 덕양구"
+   }
+  },
+  {
+   "app": {
+    "code": "31103",
+    "name": "고양시일산동구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41285",
+    "sigunguNm": "고양시 일산동구"
+   }
+  },
+  {
+   "app": {
+    "code": "31104",
+    "name": "고양시일산서구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41287",
+    "sigunguNm": "고양시 일산서구"
+   }
+  },
+  {
+   "app": {
+    "code": "31110",
+    "name": "과천시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41290",
+    "sigunguNm": "과천시"
+   }
+  },
+  {
+   "app": {
+    "code": "31120",
+    "name": "구리시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41310",
+    "sigunguNm": "구리시"
+   }
+  },
+  {
+   "app": {
+    "code": "31130",
+    "name": "남양주시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41360",
+    "sigunguNm": "남양주시"
+   }
+  },
+  {
+   "app": {
+    "code": "31140",
+    "name": "오산시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41370",
+    "sigunguNm": "오산시"
+   }
+  },
+  {
+   "app": {
+    "code": "31150",
+    "name": "시흥시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41390",
+    "sigunguNm": "시흥시"
+   }
+  },
+  {
+   "app": {
+    "code": "31160",
+    "name": "군포시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41410",
+    "sigunguNm": "군포시"
+   }
+  },
+  {
+   "app": {
+    "code": "31170",
+    "name": "의왕시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41430",
+    "sigunguNm": "의왕시"
+   }
+  },
+  {
+   "app": {
+    "code": "31180",
+    "name": "하남시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41450",
+    "sigunguNm": "하남시"
+   }
+  },
+  {
+   "app": {
+    "code": "31191",
+    "name": "용인시처인구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41461",
+    "sigunguNm": "용인시 처인구"
+   }
+  },
+  {
+   "app": {
+    "code": "31192",
+    "name": "용인시기흥구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41463",
+    "sigunguNm": "용인시 기흥구"
+   }
+  },
+  {
+   "app": {
+    "code": "31193",
+    "name": "용인시수지구",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41465",
+    "sigunguNm": "용인시 수지구"
+   }
+  },
+  {
+   "app": {
+    "code": "31200",
+    "name": "파주시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41480",
+    "sigunguNm": "파주시"
+   }
+  },
+  {
+   "app": {
+    "code": "31210",
+    "name": "이천시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41500",
+    "sigunguNm": "이천시"
+   }
+  },
+  {
+   "app": {
+    "code": "31220",
+    "name": "안성시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41550",
+    "sigunguNm": "안성시"
+   }
+  },
+  {
+   "app": {
+    "code": "31230",
+    "name": "김포시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41570",
+    "sigunguNm": "김포시"
+   }
+  },
+  {
+   "app": {
+    "code": "31240",
+    "name": "화성시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41590",
+    "sigunguNm": "화성시"
+   }
+  },
+  {
+   "app": {
+    "code": "31250",
+    "name": "광주시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41610",
+    "sigunguNm": "광주시"
+   }
+  },
+  {
+   "app": {
+    "code": "31260",
+    "name": "양주시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41630",
+    "sigunguNm": "양주시"
+   }
+  },
+  {
+   "app": {
+    "code": "31270",
+    "name": "포천시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41650",
+    "sigunguNm": "포천시"
+   }
+  },
+  {
+   "app": {
+    "code": "31280",
+    "name": "여주시",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41670",
+    "sigunguNm": "여주시"
+   }
+  },
+  {
+   "app": {
+    "code": "31350",
+    "name": "연천군",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41800",
+    "sigunguNm": "연천군"
+   }
+  },
+  {
+   "app": {
+    "code": "31370",
+    "name": "가평군",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41820",
+    "sigunguNm": "가평군"
+   }
+  },
+  {
+   "app": {
+    "code": "31380",
+    "name": "양평군",
+    "area": 31
+   },
+   "book": {
+    "areaCd": "41",
+    "areaNm": "경기도",
+    "sigunguCd": "41830",
+    "sigunguNm": "양평군"
+   }
+  },
+  {
+   "app": {
+    "code": "33041",
+    "name": "청주시상당구",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43111",
+    "sigunguNm": "청주시 상당구"
+   }
+  },
+  {
+   "app": {
+    "code": "33042",
+    "name": "청주시서원구",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43112",
+    "sigunguNm": "청주시 서원구"
+   }
+  },
+  {
+   "app": {
+    "code": "33043",
+    "name": "청주시흥덕구",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43113",
+    "sigunguNm": "청주시 흥덕구"
+   }
+  },
+  {
+   "app": {
+    "code": "33044",
+    "name": "청주시청원구",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43114",
+    "sigunguNm": "청주시 청원구"
+   }
+  },
+  {
+   "app": {
+    "code": "33020",
+    "name": "충주시",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43130",
+    "sigunguNm": "충주시"
+   }
+  },
+  {
+   "app": {
+    "code": "33030",
+    "name": "제천시",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43150",
+    "sigunguNm": "제천시"
+   }
+  },
+  {
+   "app": {
+    "code": "33320",
+    "name": "보은군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43720",
+    "sigunguNm": "보은군"
+   }
+  },
+  {
+   "app": {
+    "code": "33330",
+    "name": "옥천군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43730",
+    "sigunguNm": "옥천군"
+   }
+  },
+  {
+   "app": {
+    "code": "33340",
+    "name": "영동군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43740",
+    "sigunguNm": "영동군"
+   }
+  },
+  {
+   "app": {
+    "code": "33390",
+    "name": "증평군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43745",
+    "sigunguNm": "증평군"
+   }
+  },
+  {
+   "app": {
+    "code": "33350",
+    "name": "진천군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43750",
+    "sigunguNm": "진천군"
+   }
+  },
+  {
+   "app": {
+    "code": "33360",
+    "name": "괴산군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43760",
+    "sigunguNm": "괴산군"
+   }
+  },
+  {
+   "app": {
+    "code": "33370",
+    "name": "음성군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43770",
+    "sigunguNm": "음성군"
+   }
+  },
+  {
+   "app": {
+    "code": "33380",
+    "name": "단양군",
+    "area": 33
+   },
+   "book": {
+    "areaCd": "43",
+    "areaNm": "충청북도",
+    "sigunguCd": "43800",
+    "sigunguNm": "단양군"
+   }
+  },
+  {
+   "app": {
+    "code": "34011",
+    "name": "천안시동남구",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44131",
+    "sigunguNm": "천안시 동남구"
+   }
+  },
+  {
+   "app": {
+    "code": "34012",
+    "name": "천안시서북구",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44133",
+    "sigunguNm": "천안시 서북구"
+   }
+  },
+  {
+   "app": {
+    "code": "34020",
+    "name": "공주시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44150",
+    "sigunguNm": "공주시"
+   }
+  },
+  {
+   "app": {
+    "code": "34030",
+    "name": "보령시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44180",
+    "sigunguNm": "보령시"
+   }
+  },
+  {
+   "app": {
+    "code": "34040",
+    "name": "아산시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44200",
+    "sigunguNm": "아산시"
+   }
+  },
+  {
+   "app": {
+    "code": "34050",
+    "name": "서산시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44210",
+    "sigunguNm": "서산시"
+   }
+  },
+  {
+   "app": {
+    "code": "34060",
+    "name": "논산시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44230",
+    "sigunguNm": "논산시"
+   }
+  },
+  {
+   "app": {
+    "code": "34070",
+    "name": "계룡시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44250",
+    "sigunguNm": "계룡시"
+   }
+  },
+  {
+   "app": {
+    "code": "34080",
+    "name": "당진시",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44270",
+    "sigunguNm": "당진시"
+   }
+  },
+  {
+   "app": {
+    "code": "34310",
+    "name": "금산군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44710",
+    "sigunguNm": "금산군"
+   }
+  },
+  {
+   "app": {
+    "code": "34330",
+    "name": "부여군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44760",
+    "sigunguNm": "부여군"
+   }
+  },
+  {
+   "app": {
+    "code": "34340",
+    "name": "서천군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44770",
+    "sigunguNm": "서천군"
+   }
+  },
+  {
+   "app": {
+    "code": "34350",
+    "name": "청양군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44790",
+    "sigunguNm": "청양군"
+   }
+  },
+  {
+   "app": {
+    "code": "34360",
+    "name": "홍성군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44800",
+    "sigunguNm": "홍성군"
+   }
+  },
+  {
+   "app": {
+    "code": "34370",
+    "name": "예산군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44810",
+    "sigunguNm": "예산군"
+   }
+  },
+  {
+   "app": {
+    "code": "34380",
+    "name": "태안군",
+    "area": 34
+   },
+   "book": {
+    "areaCd": "44",
+    "areaNm": "충청남도",
+    "sigunguCd": "44825",
+    "sigunguNm": "태안군"
+   }
+  },
+  {
+   "app": {
+    "code": "36010",
+    "name": "목포시",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46110",
+    "sigunguNm": "목포시"
+   }
+  },
+  {
+   "app": {
+    "code": "36020",
+    "name": "여수시",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46130",
+    "sigunguNm": "여수시"
+   }
+  },
+  {
+   "app": {
+    "code": "36030",
+    "name": "순천시",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46150",
+    "sigunguNm": "순천시"
+   }
+  },
+  {
+   "app": {
+    "code": "36040",
+    "name": "나주시",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46170",
+    "sigunguNm": "나주시"
+   }
+  },
+  {
+   "app": {
+    "code": "36060",
+    "name": "광양시",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46230",
+    "sigunguNm": "광양시"
+   }
+  },
+  {
+   "app": {
+    "code": "36310",
+    "name": "담양군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46710",
+    "sigunguNm": "담양군"
+   }
+  },
+  {
+   "app": {
+    "code": "36320",
+    "name": "곡성군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46720",
+    "sigunguNm": "곡성군"
+   }
+  },
+  {
+   "app": {
+    "code": "36330",
+    "name": "구례군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46730",
+    "sigunguNm": "구례군"
+   }
+  },
+  {
+   "app": {
+    "code": "36350",
+    "name": "고흥군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46770",
+    "sigunguNm": "고흥군"
+   }
+  },
+  {
+   "app": {
+    "code": "36360",
+    "name": "보성군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46780",
+    "sigunguNm": "보성군"
+   }
+  },
+  {
+   "app": {
+    "code": "36370",
+    "name": "화순군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46790",
+    "sigunguNm": "화순군"
+   }
+  },
+  {
+   "app": {
+    "code": "36380",
+    "name": "장흥군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46800",
+    "sigunguNm": "장흥군"
+   }
+  },
+  {
+   "app": {
+    "code": "36390",
+    "name": "강진군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46810",
+    "sigunguNm": "강진군"
+   }
+  },
+  {
+   "app": {
+    "code": "36400",
+    "name": "해남군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46820",
+    "sigunguNm": "해남군"
+   }
+  },
+  {
+   "app": {
+    "code": "36410",
+    "name": "영암군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46830",
+    "sigunguNm": "영암군"
+   }
+  },
+  {
+   "app": {
+    "code": "36420",
+    "name": "무안군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46840",
+    "sigunguNm": "무안군"
+   }
+  },
+  {
+   "app": {
+    "code": "36430",
+    "name": "함평군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46860",
+    "sigunguNm": "함평군"
+   }
+  },
+  {
+   "app": {
+    "code": "36440",
+    "name": "영광군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46870",
+    "sigunguNm": "영광군"
+   }
+  },
+  {
+   "app": {
+    "code": "36450",
+    "name": "장성군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46880",
+    "sigunguNm": "장성군"
+   }
+  },
+  {
+   "app": {
+    "code": "36460",
+    "name": "완도군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46890",
+    "sigunguNm": "완도군"
+   }
+  },
+  {
+   "app": {
+    "code": "36470",
+    "name": "진도군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46900",
+    "sigunguNm": "진도군"
+   }
+  },
+  {
+   "app": {
+    "code": "36480",
+    "name": "신안군",
+    "area": 38
+   },
+   "book": {
+    "areaCd": "46",
+    "areaNm": "전라남도",
+    "sigunguCd": "46910",
+    "sigunguNm": "신안군"
+   }
+  },
+  {
+   "app": {
+    "code": "37011",
+    "name": "포항시남구",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47111",
+    "sigunguNm": "포항시 남구"
+   }
+  },
+  {
+   "app": {
+    "code": "37012",
+    "name": "포항시북구",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47113",
+    "sigunguNm": "포항시 북구"
+   }
+  },
+  {
+   "app": {
+    "code": "37020",
+    "name": "경주시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47130",
+    "sigunguNm": "경주시"
+   }
+  },
+  {
+   "app": {
+    "code": "37030",
+    "name": "김천시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47150",
+    "sigunguNm": "김천시"
+   }
+  },
+  {
+   "app": {
+    "code": "37040",
+    "name": "안동시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47170",
+    "sigunguNm": "안동시"
+   }
+  },
+  {
+   "app": {
+    "code": "37050",
+    "name": "구미시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47190",
+    "sigunguNm": "구미시"
+   }
+  },
+  {
+   "app": {
+    "code": "37060",
+    "name": "영주시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47210",
+    "sigunguNm": "영주시"
+   }
+  },
+  {
+   "app": {
+    "code": "37070",
+    "name": "영천시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47230",
+    "sigunguNm": "영천시"
+   }
+  },
+  {
+   "app": {
+    "code": "37080",
+    "name": "상주시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47250",
+    "sigunguNm": "상주시"
+   }
+  },
+  {
+   "app": {
+    "code": "37090",
+    "name": "문경시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47280",
+    "sigunguNm": "문경시"
+   }
+  },
+  {
+   "app": {
+    "code": "37100",
+    "name": "경산시",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47290",
+    "sigunguNm": "경산시"
+   }
+  },
+  {
+   "app": {
+    "code": "37320",
+    "name": "의성군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47730",
+    "sigunguNm": "의성군"
+   }
+  },
+  {
+   "app": {
+    "code": "37330",
+    "name": "청송군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47750",
+    "sigunguNm": "청송군"
+   }
+  },
+  {
+   "app": {
+    "code": "37340",
+    "name": "영양군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47760",
+    "sigunguNm": "영양군"
+   }
+  },
+  {
+   "app": {
+    "code": "37350",
+    "name": "영덕군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47770",
+    "sigunguNm": "영덕군"
+   }
+  },
+  {
+   "app": {
+    "code": "37360",
+    "name": "청도군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47820",
+    "sigunguNm": "청도군"
+   }
+  },
+  {
+   "app": {
+    "code": "37370",
+    "name": "고령군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47830",
+    "sigunguNm": "고령군"
+   }
+  },
+  {
+   "app": {
+    "code": "37380",
+    "name": "성주군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47840",
+    "sigunguNm": "성주군"
+   }
+  },
+  {
+   "app": {
+    "code": "37390",
+    "name": "칠곡군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47850",
+    "sigunguNm": "칠곡군"
+   }
+  },
+  {
+   "app": {
+    "code": "37400",
+    "name": "예천군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47900",
+    "sigunguNm": "예천군"
+   }
+  },
+  {
+   "app": {
+    "code": "37410",
+    "name": "봉화군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47920",
+    "sigunguNm": "봉화군"
+   }
+  },
+  {
+   "app": {
+    "code": "37420",
+    "name": "울진군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47930",
+    "sigunguNm": "울진군"
+   }
+  },
+  {
+   "app": {
+    "code": "37430",
+    "name": "울릉군",
+    "area": 35
+   },
+   "book": {
+    "areaCd": "47",
+    "areaNm": "경상북도",
+    "sigunguCd": "47940",
+    "sigunguNm": "울릉군"
+   }
+  },
+  {
+   "app": {
+    "code": "38111",
+    "name": "창원시의창구",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48121",
+    "sigunguNm": "창원시 의창구"
+   }
+  },
+  {
+   "app": {
+    "code": "38112",
+    "name": "창원시성산구",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48123",
+    "sigunguNm": "창원시 성산구"
+   }
+  },
+  {
+   "app": {
+    "code": "38113",
+    "name": "창원시마산합포구",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48125",
+    "sigunguNm": "창원시 마산합포구"
+   }
+  },
+  {
+   "app": {
+    "code": "38114",
+    "name": "창원시마산회원구",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48127",
+    "sigunguNm": "창원시 마산회원구"
+   }
+  },
+  {
+   "app": {
+    "code": "38115",
+    "name": "창원시진해구",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48129",
+    "sigunguNm": "창원시 진해구"
+   }
+  },
+  {
+   "app": {
+    "code": "38030",
+    "name": "진주시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48170",
+    "sigunguNm": "진주시"
+   }
+  },
+  {
+   "app": {
+    "code": "38050",
+    "name": "통영시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48220",
+    "sigunguNm": "통영시"
+   }
+  },
+  {
+   "app": {
+    "code": "38060",
+    "name": "사천시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48240",
+    "sigunguNm": "사천시"
+   }
+  },
+  {
+   "app": {
+    "code": "38070",
+    "name": "김해시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48250",
+    "sigunguNm": "김해시"
+   }
+  },
+  {
+   "app": {
+    "code": "38080",
+    "name": "밀양시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48270",
+    "sigunguNm": "밀양시"
+   }
+  },
+  {
+   "app": {
+    "code": "38090",
+    "name": "거제시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48310",
+    "sigunguNm": "거제시"
+   }
+  },
+  {
+   "app": {
+    "code": "38100",
+    "name": "양산시",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48330",
+    "sigunguNm": "양산시"
+   }
+  },
+  {
+   "app": {
+    "code": "38310",
+    "name": "의령군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48720",
+    "sigunguNm": "의령군"
+   }
+  },
+  {
+   "app": {
+    "code": "38320",
+    "name": "함안군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48730",
+    "sigunguNm": "함안군"
+   }
+  },
+  {
+   "app": {
+    "code": "38330",
+    "name": "창녕군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48740",
+    "sigunguNm": "창녕군"
+   }
+  },
+  {
+   "app": {
+    "code": "38340",
+    "name": "고성군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48820",
+    "sigunguNm": "고성군"
+   }
+  },
+  {
+   "app": {
+    "code": "38350",
+    "name": "남해군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48840",
+    "sigunguNm": "남해군"
+   }
+  },
+  {
+   "app": {
+    "code": "38360",
+    "name": "하동군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48850",
+    "sigunguNm": "하동군"
+   }
+  },
+  {
+   "app": {
+    "code": "38370",
+    "name": "산청군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48860",
+    "sigunguNm": "산청군"
+   }
+  },
+  {
+   "app": {
+    "code": "38380",
+    "name": "함양군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48870",
+    "sigunguNm": "함양군"
+   }
+  },
+  {
+   "app": {
+    "code": "38390",
+    "name": "거창군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48880",
+    "sigunguNm": "거창군"
+   }
+  },
+  {
+   "app": {
+    "code": "38400",
+    "name": "합천군",
+    "area": 36
+   },
+   "book": {
+    "areaCd": "48",
+    "areaNm": "경상남도",
+    "sigunguCd": "48890",
+    "sigunguNm": "합천군"
+   }
+  },
+  {
+   "app": {
+    "code": "39010",
+    "name": "제주시",
+    "area": 39
+   },
+   "book": {
+    "areaCd": "50",
+    "areaNm": "제주특별자치도",
+    "sigunguCd": "50110",
+    "sigunguNm": "제주시"
+   }
+  },
+  {
+   "app": {
+    "code": "39020",
+    "name": "서귀포시",
+    "area": 39
+   },
+   "book": {
+    "areaCd": "50",
+    "areaNm": "제주특별자치도",
+    "sigunguCd": "50130",
+    "sigunguNm": "서귀포시"
+   }
+  },
+  {
+   "app": {
+    "code": "32010",
+    "name": "춘천시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51110",
+    "sigunguNm": "춘천시"
+   }
+  },
+  {
+   "app": {
+    "code": "32020",
+    "name": "원주시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51130",
+    "sigunguNm": "원주시"
+   }
+  },
+  {
+   "app": {
+    "code": "32030",
+    "name": "강릉시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51150",
+    "sigunguNm": "강릉시"
+   }
+  },
+  {
+   "app": {
+    "code": "32040",
+    "name": "동해시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51170",
+    "sigunguNm": "동해시"
+   }
+  },
+  {
+   "app": {
+    "code": "32050",
+    "name": "태백시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51190",
+    "sigunguNm": "태백시"
+   }
+  },
+  {
+   "app": {
+    "code": "32060",
+    "name": "속초시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51210",
+    "sigunguNm": "속초시"
+   }
+  },
+  {
+   "app": {
+    "code": "32070",
+    "name": "삼척시",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51230",
+    "sigunguNm": "삼척시"
+   }
+  },
+  {
+   "app": {
+    "code": "32310",
+    "name": "홍천군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51720",
+    "sigunguNm": "홍천군"
+   }
+  },
+  {
+   "app": {
+    "code": "32320",
+    "name": "횡성군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51730",
+    "sigunguNm": "횡성군"
+   }
+  },
+  {
+   "app": {
+    "code": "32330",
+    "name": "영월군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51750",
+    "sigunguNm": "영월군"
+   }
+  },
+  {
+   "app": {
+    "code": "32340",
+    "name": "평창군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51760",
+    "sigunguNm": "평창군"
+   }
+  },
+  {
+   "app": {
+    "code": "32350",
+    "name": "정선군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51770",
+    "sigunguNm": "정선군"
+   }
+  },
+  {
+   "app": {
+    "code": "32360",
+    "name": "철원군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51780",
+    "sigunguNm": "철원군"
+   }
+  },
+  {
+   "app": {
+    "code": "32370",
+    "name": "화천군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51790",
+    "sigunguNm": "화천군"
+   }
+  },
+  {
+   "app": {
+    "code": "32380",
+    "name": "양구군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51800",
+    "sigunguNm": "양구군"
+   }
+  },
+  {
+   "app": {
+    "code": "32390",
+    "name": "인제군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51810",
+    "sigunguNm": "인제군"
+   }
+  },
+  {
+   "app": {
+    "code": "32400",
+    "name": "고성군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51820",
+    "sigunguNm": "고성군"
+   }
+  },
+  {
+   "app": {
+    "code": "32410",
+    "name": "양양군",
+    "area": 32
+   },
+   "book": {
+    "areaCd": "51",
+    "areaNm": "강원특별자치도",
+    "sigunguCd": "51830",
+    "sigunguNm": "양양군"
+   }
+  },
+  {
+   "app": {
+    "code": "35011",
+    "name": "전주시완산구",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52111",
+    "sigunguNm": "전주시 완산구"
+   }
+  },
+  {
+   "app": {
+    "code": "35012",
+    "name": "전주시덕진구",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52113",
+    "sigunguNm": "전주시 덕진구"
+   }
+  },
+  {
+   "app": {
+    "code": "35020",
+    "name": "군산시",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52130",
+    "sigunguNm": "군산시"
+   }
+  },
+  {
+   "app": {
+    "code": "35030",
+    "name": "익산시",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52140",
+    "sigunguNm": "익산시"
+   }
+  },
+  {
+   "app": {
+    "code": "35040",
+    "name": "정읍시",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52180",
+    "sigunguNm": "정읍시"
+   }
+  },
+  {
+   "app": {
+    "code": "35050",
+    "name": "남원시",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52190",
+    "sigunguNm": "남원시"
+   }
+  },
+  {
+   "app": {
+    "code": "35060",
+    "name": "김제시",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52210",
+    "sigunguNm": "김제시"
+   }
+  },
+  {
+   "app": {
+    "code": "35310",
+    "name": "완주군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52710",
+    "sigunguNm": "완주군"
+   }
+  },
+  {
+   "app": {
+    "code": "35320",
+    "name": "진안군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52720",
+    "sigunguNm": "진안군"
+   }
+  },
+  {
+   "app": {
+    "code": "35330",
+    "name": "무주군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52730",
+    "sigunguNm": "무주군"
+   }
+  },
+  {
+   "app": {
+    "code": "35340",
+    "name": "장수군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52740",
+    "sigunguNm": "장수군"
+   }
+  },
+  {
+   "app": {
+    "code": "35350",
+    "name": "임실군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52750",
+    "sigunguNm": "임실군"
+   }
+  },
+  {
+   "app": {
+    "code": "35360",
+    "name": "순창군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52770",
+    "sigunguNm": "순창군"
+   }
+  },
+  {
+   "app": {
+    "code": "35370",
+    "name": "고창군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52790",
+    "sigunguNm": "고창군"
+   }
+  },
+  {
+   "app": {
+    "code": "35380",
+    "name": "부안군",
+    "area": 37
+   },
+   "book": {
+    "areaCd": "52",
+    "areaNm": "전북특별자치도",
+    "sigunguCd": "52800",
+    "sigunguNm": "부안군"
+   }
+  }
+ ],
+ "unmatchedBook": [
+  {
+   "areaCd": "27",
+   "areaNm": "대구광역시",
+   "sigunguCd": "27720",
+   "sigunguNm": "군위군",
+   "area": 4
+  },
+  {
+   "areaCd": "28",
+   "areaNm": "인천광역시",
+   "sigunguCd": "28177",
+   "sigunguNm": "미추홀구",
+   "area": 2
+  },
+  {
+   "areaCd": "36",
+   "areaNm": "세종특별자치시",
+   "sigunguCd": "36110",
+   "sigunguNm": "세종특별자치시",
+   "area": 8
+  },
+  {
+   "areaCd": "41",
+   "areaNm": "경기도",
+   "sigunguCd": "41192",
+   "sigunguNm": "부천시 원미구",
+   "area": 31
+  },
+  {
+   "areaCd": "41",
+   "areaNm": "경기도",
+   "sigunguCd": "41194",
+   "sigunguNm": "부천시 소사구",
+   "area": 31
+  },
+  {
+   "areaCd": "41",
+   "areaNm": "경기도",
+   "sigunguCd": "41196",
+   "sigunguNm": "부천시 오정구",
+   "area": 31
+  }
+ ],
+ "unmatchedApp": [
+  {
+   "code": "23030",
+   "name": "남구",
+   "area": 2
+  },
+  {
+   "code": "29010",
+   "name": "세종시",
+   "area": 8
+  },
+  {
+   "code": "31050",
+   "name": "부천시",
+   "area": 31
+  },
+  {
+   "code": "37310",
+   "name": "군위군",
+   "area": 35
+  }
+ ]
+}

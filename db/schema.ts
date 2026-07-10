@@ -94,3 +94,34 @@ export const userPlaces = pgTable(
   },
   (t) => [unique().on(t.userId, t.list, t.contentId)],
 );
+
+// ─── 🍃 한적 필터 혼잡도 데이터(M17, plan.md §6.7) ───────────────────────────
+// 일 1회 Vercel Cron 배치가 적재하고, 뽑기·후보 수 요청은 DB 조회만(외부 API 0콜).
+// ⚠️ 시군구 코드 컬럼은 두 테이블 모두 sigungu_cd 로 통일한다 — API 원어가
+//   집중률=signguCd / 방문자수=signguCode 로 서로 달라 오히려 혼동이라 흡수. 값은 법정동 5자리.
+
+// 집중률: 시군구×날짜 집계(관광지 스팟들의 중앙값). PK (sigungu_cd, base_ymd).
+export const congestionDaily = pgTable(
+  "congestion_daily",
+  {
+    sigunguCd: text("sigungu_cd").notNull(), // 법정동 signguCd
+    baseYmd: text("base_ymd").notNull(), // YYYYMMDD(응답 기준일 그대로 — 날짜 가정 금지)
+    spotCount: integer("spot_count").notNull(),
+    medianRate: doublePrecision("median_rate").notNull(),
+    crowdedShare: doublePrecision("crowded_share").notNull(),
+    fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(), // epoch ms — 신선도 축
+  },
+  (t) => [primaryKey({ columns: [t.sigunguCd, t.baseYmd] })],
+);
+
+// 방문자수: 시군구×날짜×관광객구분(a현지인/b외지인/c외국인). M17은 적재만(활용은 후속).
+export const visitorDaily = pgTable(
+  "visitor_daily",
+  {
+    sigunguCd: text("sigungu_cd").notNull(), // 법정동 signguCode
+    baseYmd: text("base_ymd").notNull(),
+    touDivCd: text("tou_div_cd").notNull(), // 관광객 구분 a/b/c
+    touNum: doublePrecision("tou_num").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sigunguCd, t.baseYmd, t.touDivCd] })],
+);
