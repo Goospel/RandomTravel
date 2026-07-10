@@ -5,6 +5,7 @@
 
 import { SEASONAL_CALENDAR, ALL_AREA_CODES } from "@/lib/constants";
 import type { SeasonalItem } from "@/lib/constants";
+import { monthOf } from "@/lib/kst";
 
 /**
  * 현재 월(1-12) — 항상 **한국 표준시(KST)** 기준.
@@ -21,6 +22,21 @@ export function currentMonth(now: Date = new Date()): number {
     month: "numeric",
   }).format(now);
   return Number(kst);
+}
+
+/**
+ * 📅 제철 기준 월 파생(M19 §6.8) — 우선순위: 명시 month > dateYmd 파생 > 현재 월(now).
+ * drawRandom·countCandidates 가 같은 규칙을 쓰도록 한곳에 모은다(테스트·호출부 동시 주입에도 결정적).
+ * 월말에 다음 달 주말 기준일이 들어오면 그 달로 자연 전환된다.
+ */
+export function resolveMonth(p: {
+  month?: number;
+  dateYmd?: string | null;
+  now?: Date;
+}): number {
+  if (p.month != null) return p.month;
+  if (p.dateYmd) return monthOf(p.dateYmd);
+  return currentMonth(p.now);
 }
 
 /** 이번 달 제철 품목들 */

@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "어디든 — 랜덤 국내 여행지 추천",
-  description: "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱.",
+  description:
+    "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱 — 유명세 대신 전국 어디든 같은 출발선.",
   applicationName: "어디든",
   // Next 가 app/manifest.ts 를 감지해 <link rel="manifest"> 를 자동 주입한다.
   appleWebApp: { capable: true, title: "어디든", statusBarStyle: "default" },

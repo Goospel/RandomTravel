@@ -2,6 +2,8 @@
 
 import { AREA_CODES, CONTENT_TYPES } from "@/lib/constants";
 import { buildRandomQuery } from "@/lib/query";
+import { dateChips } from "@/lib/tripDate";
+import { kstYmd } from "@/lib/kst";
 import { useCandidateCount } from "@/hooks/useCandidateCount";
 
 // 🎯 조건 패널(M16 탐험 로그) — emerald pill 칩 + 실시간 후보 수 배지 + 바다 잠금 인라인 설명.
@@ -61,20 +63,36 @@ function CandidateBadge({ query }: { query: string }) {
   );
 }
 
-/** 추가 조건 토글 1개 (🌊·🦀·🎪·☔) */
+/** 추가 조건 토글 1개 (🌊·🦀·🎪·☔·🍃). locked=미래 기준일이라 잠긴 상태(☔ 오늘 전용, §6.8) */
 function ExtraToggle({
   on,
   onToggle,
   emoji,
   label,
   desc,
+  locked = false,
 }: {
   on: boolean;
   onToggle: () => void;
   emoji: string;
   label: string;
   desc: string;
+  locked?: boolean;
 }) {
+  if (locked) {
+    // 잠긴 토글은 눌리지 않은 것으로 취급(🌊 관례) — 선택 state 는 상위에서 보존, 오늘 복귀 시 복원.
+    return (
+      <div
+        aria-disabled
+        className="flex cursor-not-allowed flex-col items-start gap-0.5 rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-2.5 text-left opacity-70 dark:border-zinc-700 dark:bg-zinc-800"
+      >
+        <span className="text-sm font-bold text-zinc-400 dark:text-zinc-500">
+          {emoji} {label} 🔒
+        </span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">{desc}</span>
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -102,6 +120,7 @@ export function FilterPanel({
   festival,
   noRain,
   quiet,
+  dateYmd,
   onToggleArea,
   onToggleType,
   onToggleSeaside,
@@ -109,6 +128,7 @@ export function FilterPanel({
   onToggleFestival,
   onToggleNoRain,
   onToggleQuiet,
+  onSelectDate,
   onClear,
 }: {
   selectedAreas: Set<number>;
@@ -118,6 +138,8 @@ export function FilterPanel({
   festival: boolean;
   noRain: boolean;
   quiet: boolean;
+  /** 📅 선택 기준일 YYYYMMDD(§6.8). null = 오늘(기본) */
+  dateYmd: string | null;
   onToggleArea: (code: number) => void;
   onToggleType: (code: number) => void;
   onToggleSeaside: () => void;
@@ -125,6 +147,7 @@ export function FilterPanel({
   onToggleFestival: () => void;
   onToggleNoRain: () => void;
   onToggleQuiet: () => void;
+  onSelectDate: (ymd: string | null) => void;
   onClear: () => void;
 }) {
   const hasAny =
@@ -136,13 +159,27 @@ export function FilterPanel({
     noRain ||
     quiet;
 
+  // 📅 방문 시점 칩(§6.8) — 조건 모드 진입은 마운트 후(pure 기본)라 렌더 시 new Date() 안전(SSR 아님).
+  //    선택 ymd 가 현재 칩에 없으면(자정 통과·과거화) '오늘'로 간주 — 소리 없는 날짜 변경 방지.
+  const now = new Date();
+  const chips = dateChips(now);
+  const todayYmd = kstYmd(now);
+  const activeYmd =
+    dateYmd && dateYmd !== todayYmd && chips.some((c) => c.ymd === dateYmd)
+      ? dateYmd
+      : null;
+  const rainLocked = activeYmd != null; // 미래 기준일 → ☔ 오늘 전용 잠금
+
   // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
+  //   activeYmd(stale 정리분)를 넘겨 count 경로도 date 방출/noRain 미방출을 뽑기와 일치시킨다.
   const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
     seaside,
     seasonal,
     festival,
     noRain,
     quiet,
+    dateYmd: activeYmd,
+    todayYmd,
   });
 
   return (
@@ -215,6 +252,41 @@ export function FilterPanel({
       </section>
 
       <section className="flex flex-col gap-2">
+        <h3
+          id="filter-date-label"
+          className="text-xs font-bold text-zinc-500 dark:text-zinc-400"
+        >
+          📅 언제 가요?
+        </h3>
+        <div
+          role="group"
+          aria-labelledby="filter-date-label"
+          className="flex flex-wrap gap-1.5"
+        >
+          {chips.map((c) => {
+            // '오늘' 칩은 null 로 저장(기준일=오늘과 동일 → 파라미터 생략). 미래 칩만 그 ymd 저장.
+            const active =
+              c.ymd === activeYmd || (activeYmd === null && c.key === "today");
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => onSelectDate(c.key === "today" ? null : c.ymd)}
+                aria-pressed={active}
+                className={chip(active)}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* 상시 마이크로카피 — '날짜는 필터인가요?' 오해 선제 답변 + 칩 하이라이트/완전 랜덤 시각 모순 해소 */}
+        <p className="text-[11px] leading-relaxed text-zinc-400">
+          날짜는 조건을 판정할 <b>기준일</b>이에요 — 날짜만으론 후보가 줄지 않아요.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
           추가 조건
         </h3>
@@ -246,13 +318,14 @@ export function FilterPanel({
             emoji="☔"
             label="비 안 오는 곳"
             desc="지금 비 안 오는 지역"
+            locked={rainLocked}
           />
           <ExtraToggle
             on={quiet}
             onToggle={onToggleQuiet}
             emoji="🍃"
             label="한적한 곳"
-            desc="안 붐빌 것으로 예측되는 곳"
+            desc="한국관광공사 집중률 예측 기반, 안 붐빌 곳"
           />
         </div>
       </section>
@@ -267,8 +340,19 @@ export function FilterPanel({
         </div>
       )}
 
+      {rainLocked && (
+        <div className="flex gap-1.5 rounded-xl bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+          <span aria-hidden>🔒</span>
+          <span>
+            ☔ <b>&lsquo;비 안 오는 곳&rsquo;</b>은 지금 날씨만 알 수 있어요 —
+            그래서 오늘 뽑기에서만 켤 수 있어요.
+          </span>
+        </div>
+      )}
+
       <div className="text-xs text-zinc-400">
-        {hasAny ? (
+        {/* 날짜만 골라도(hasAny=false) 초기화 대상은 있으므로 버튼 노출 — dateYmd 도 게이트(§6.8) */}
+        {hasAny || dateYmd != null ? (
           <button
             type="button"
             onClick={onClear}

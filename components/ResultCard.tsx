@@ -80,6 +80,7 @@ export function ResultCard({
       appUrl: origin,
       mapUrl: mapHref,
       fallbackImage: `${origin}/icon-512.png`,
+      congestion: data.picked.congestion, // 🍃 분산 서사(§7.9) — 공유 카드에 근거 1줄
     });
     if (result === "copied") flash("링크가 복사됐어요 ✓");
     else if (result === "failed") flash("공유를 열 수 없었어요.");
@@ -88,7 +89,7 @@ export function ResultCard({
 
   // 🔗 링크 복사 — 클립보드 우선, 안 되면 Web Share(모바일)로 폴백.
   async function onCopyLink() {
-    const text = shareText(place, window.location.origin);
+    const text = shareText(place, window.location.origin, data.picked.congestion);
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(text);
@@ -188,6 +189,9 @@ export function ResultCard({
             >
               🎪 {data.picked.festival.name}
               {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
+              {/* 📅 오늘 아닌 기준일이면 명시 — 시작 전 축제가 '진행 중'처럼 보이는 오해 방지(§6.8) */}
+              {data.picked.festival.baseYmd &&
+                ` (${fmtYmd(data.picked.festival.baseYmd)} 기준)`}
             </span>
           )}
           {data.picked.weather && (
@@ -199,8 +203,11 @@ export function ResultCard({
           )}
           {data.picked.congestion && (
             <span className={`${pill} ${BADGE.congestion}`}>
-              🍃 집중률 하위 {data.picked.congestion.pctBelow}% · 한적 예측 (
-              {fmtYmd(data.picked.congestion.baseYmd)} 기준)
+              {/* 예측 대상일 선두(정상 경로=선택일). baseYmd < targetYmd(배치 지연)에만 데이터일 병기(§6.8) */}
+              🍃 {fmtYmd(data.picked.congestion.targetYmd)} 한적 예측 · 집중률 하위{" "}
+              {data.picked.congestion.pctBelow}%
+              {data.picked.congestion.baseYmd < data.picked.congestion.targetYmd &&
+                ` (${fmtYmd(data.picked.congestion.baseYmd)} 데이터)`}
             </span>
           )}
           {distanceM != null && (

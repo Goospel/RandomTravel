@@ -6,7 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "어디든 — 랜덤 국내 여행지 추천",
     short_name: "어디든",
-    description: "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱.",
+    description:
+      "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱 — 유명세 대신 전국 어디든 같은 출발선.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

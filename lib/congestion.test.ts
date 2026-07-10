@@ -9,7 +9,6 @@ import {
   narrowByQuiet,
   congestionBadge,
   congestionStale,
-  kstYmd,
   visitorProbeDates,
   retentionCutoff,
   CONGESTION_STALE_MS,
@@ -200,11 +199,21 @@ describe("narrowByQuiet — base ∩ 한적 시·도(narrowByWeather 동형)", (
 describe("congestionBadge — 뽑힌 시군구 배지(pctRank ≤ 0.5일 때만)", () => {
   const ranks = new Map<string, number>([["11110", 0.12]]);
 
-  it("pctRank ≤ 0.5 면 배지(하위 % 반올림 + 기준일)", () => {
+  it("pctRank ≤ 0.5 면 배지(하위 % 반올림 + 기준일). targetYmd 기본=baseYmd", () => {
     expect(congestionBadge(1, "종로구", ranks, "20260710")).toEqual({
       sigunguName: "종로구",
       pctBelow: 12,
       baseYmd: "20260710",
+      targetYmd: "20260710",
+    });
+  });
+
+  it("targetYmd(예측 대상일) 주입 — 배치 지연이면 baseYmd < targetYmd 로 실림", () => {
+    expect(congestionBadge(1, "종로구", ranks, "20260710", "20260712")).toEqual({
+      sigunguName: "종로구",
+      pctBelow: 12,
+      baseYmd: "20260710", // 데이터 기준일
+      targetYmd: "20260712", // 예측 대상일(선택일)
     });
   });
 
@@ -239,17 +248,7 @@ describe("congestionStale — fetched_at 신선도(48h 초과 = stale)", () => {
   });
 });
 
-describe("KST 날짜 헬퍼 — 서버 UTC 무관 Asia/Seoul 고정", () => {
-  it("kstYmd: UTC 자정 직전은 KST 로 이미 다음날", () => {
-    // 2026-07-10 15:30 UTC = 2026-07-11 00:30 KST
-    expect(kstYmd(new Date("2026-07-10T15:30:00Z"))).toBe("20260711");
-  });
-
-  it("kstYmd: 월말·연초 경계", () => {
-    // 2025-12-31 16:00 UTC = 2026-01-01 01:00 KST
-    expect(kstYmd(new Date("2025-12-31T16:00:00Z"))).toBe("20260101");
-  });
-
+describe("congestion 날짜 헬퍼 — 프로브·보존 컷(KST 산술은 kst.test.ts)", () => {
   it("visitorProbeDates: 오늘-28일부터 과거로 13일치(YYYYMMDD)", () => {
     const dates = visitorProbeDates(new Date("2026-07-10T03:00:00Z")); // KST 7/10 정오
     expect(dates.length).toBe(13);

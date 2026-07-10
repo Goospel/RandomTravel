@@ -6,6 +6,7 @@ import {
   narrowBySeasonal,
   seasonalItemsForArea,
   dishSeasonalItemsForArea,
+  resolveMonth,
 } from "@/lib/season";
 import { SEASONAL_CALENDAR, type SeasonalItem } from "@/lib/constants";
 
@@ -30,6 +31,23 @@ describe("currentMonth — 항상 KST 기준(서버 UTC 월경계 방어)", () =
   });
   it("연말 경계: 2027-01-01 08:00 KST = 2026-12-31 23:00 UTC → 1월", () => {
     expect(currentMonth(new Date(Date.UTC(2026, 11, 31, 23, 0)))).toBe(1);
+  });
+});
+
+describe("resolveMonth — 날짜 파생 월 우선순위(M19 §6.8)", () => {
+  const NOW = new Date("2026-07-10T03:00:00Z"); // KST 7월
+  it("명시 month 가 최우선(dateYmd·now 무시)", () => {
+    expect(resolveMonth({ month: 3, dateYmd: "20260812", now: NOW })).toBe(3);
+  });
+  it("month 없으면 dateYmd 파생(월말→다음 달 주말 케이스)", () => {
+    // 7/31 기준일에 8월 주말 → 8월로 파생
+    expect(resolveMonth({ dateYmd: "20260801", now: NOW })).toBe(8);
+  });
+  it("month·dateYmd 둘 다 없으면 현재 월(now)", () => {
+    expect(resolveMonth({ now: NOW })).toBe(7);
+  });
+  it("상충 주입(month 3 + dateYmd 8월) → month 승리(결정적)", () => {
+    expect(resolveMonth({ month: 3, dateYmd: "20260815" })).toBe(3);
   });
 });
 

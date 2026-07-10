@@ -118,3 +118,50 @@ describe("shareText — 폴백(Web Share/클립보드) 평문", () => {
     expect(t).not.toMatch(/\n\n/); // 빈 줄 안 생김
   });
 });
+
+// 🍃 분산 서사(M18, plan.md §7.9 원칙 2) — 외부 노출면(공유)에 한적 근거 1줄.
+//   "이해 가능한 단어 선행" + 기준일 필수 어순: "🍃 한적 예측 · 집중률 하위 N% (M/D 기준)".
+const CONGESTION = {
+  sigunguName: "양양군",
+  pctBelow: 12,
+  baseYmd: "20260710",
+  targetYmd: "20260710",
+};
+
+describe("buildShareFeed — 🍃 한적 근거 줄(congestion)", () => {
+  it("congestion 있으면 설명에 주소 선행 + 한적 예측 줄 후행", () => {
+    const d = buildShareFeed(place(), { ...CTX, congestion: CONGESTION }).content
+      .description;
+    // 주소(실용 정보)가 앞줄
+    expect(d.startsWith("강원특별자치도 양양군 강현면")).toBe(true);
+    // '이해 가능한 단어'(한적 예측)가 '집중률 하위'보다 앞
+    expect(d).toContain("🍃 한적 예측 · 집중률 하위 12% (7/10 기준)");
+    expect(d.indexOf("한적 예측")).toBeLessThan(d.indexOf("집중률 하위"));
+  });
+
+  it("congestion 없으면 설명 무변(주소만)", () => {
+    expect(
+      buildShareFeed(place(), { ...CTX, congestion: null }).content.description,
+    ).toBe("강원특별자치도 양양군 강현면");
+    // congestion 필드 자체가 없어도(하위호환) 무변
+    expect(buildShareFeed(place(), CTX).content.description).toBe(
+      "강원특별자치도 양양군 강현면",
+    );
+  });
+});
+
+describe("shareText — 🍃 한적 근거 줄(congestion)", () => {
+  it("congestion 있으면 주소 다음·앱URL 앞에 한적 예측 줄", () => {
+    const t = shareText(place(), CTX.appUrl, CONGESTION);
+    expect(t).toContain("🍃 한적 예측 · 집중률 하위 12% (7/10 기준)");
+    // 순서: 주소 < 한적 줄 < 앱URL
+    expect(t.indexOf("강현면")).toBeLessThan(t.indexOf("한적 예측"));
+    expect(t.indexOf("한적 예측")).toBeLessThan(t.indexOf(CTX.appUrl));
+  });
+
+  it("congestion 없으면 평문 무변(빈 줄 없음)", () => {
+    const t = shareText(place(), CTX.appUrl, null);
+    expect(t).not.toContain("한적 예측");
+    expect(t).not.toMatch(/\n\n/);
+  });
+});

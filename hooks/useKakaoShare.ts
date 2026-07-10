@@ -105,7 +105,8 @@ export function useKakaoShare(): {
           }
         }
         // 2) Web Share(모바일 공유시트 — 카톡 포함). 취소/실패는 조용히 종료.
-        const text = shareText(place, ctx.appUrl);
+        //    🍃 근거를 ctx 로 통과(§7.9 — 카카오/Web Share·복사 3경로 서사 일치).
+        const text = shareText(place, ctx.appUrl, ctx.congestion);
         if (typeof navigator !== "undefined" && navigator.share) {
           try {
             await navigator.share({ text });

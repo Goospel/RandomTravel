@@ -156,7 +156,7 @@ export function MapHero({
 
       {storeReady && filledArea != null && (
         <div className="animate-fade-up absolute right-3.5 top-3.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_6px_16px_-6px_rgba(5,150,105,0.7)]">
-          🎉 {AREA_NAME[filledArea]} 정복!
+          🎉 {AREA_NAME[filledArea]} 정복! · 내 지도 +1
         </div>
       )}
     </section>
