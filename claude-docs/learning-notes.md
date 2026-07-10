@@ -10,6 +10,7 @@
 3. [정적 큐레이션 테이블은 '등재 자격'을 테스트 가드로 박아 검수 회귀를 막는다](#3-정적-큐레이션-테이블은-등재-자격을-테스트-가드로-박아-검수-회귀를-막는다)
 4. [필터가 좁히는 축(지역)과 사용자가 기대하는 약속(품목)의 granularity 갭 — 좁은 축 + 보강 축](#4-필터가-좁히는-축지역과-사용자가-기대하는-약속품목의-granularity-갭--좁은-축--보강-축)
 5. [effect 내 동기 setState 대신 useSyncExternalStore — 마운트 시 브라우저 환경값 읽기의 정석](#5-effect-내-동기-setstate-대신-usesyncexternalstore--마운트-시-브라우저-환경값-읽기의-정석)
+6. [같은 set-state-in-effect라도 처방이 다르다 — prop 변화에 내부 상태 리셋은 '이전 렌더 값 저장' 렌더-시점 패턴](#6-같은-set-state-in-effect라도-처방이-다르다--prop-변화에-내부-상태-리셋은-이전-렌더-값-저장-렌더-시점-패턴)
 
 ---
 
@@ -266,7 +267,65 @@ const ios = useSyncExternalStore(() => () => {}, getIsIOS, () => false);
 
 ### 관련 노트
 
+- [6. 같은 set-state-in-effect라도 처방이 다르다](#6-같은-set-state-in-effect라도-처방이-다르다--prop-변화에-내부-상태-리셋은-이전-렌더-값-저장-렌더-시점-패턴) — 같은 lint 규칙, **다른 처방**: #5는 외부 시스템 값(브라우저)→store 구독, #6은 React prop 변화→렌더-시점 리셋.
 - (추후 "hydration mismatch", "React 동시성 렌더의 tearing", "부작용 vs 파생 상태" 노트 생기면 링크)
+
+---
+
+## 6. 같은 set-state-in-effect라도 처방이 다르다 — prop 변화에 내부 상태 리셋은 '이전 렌더 값 저장' 렌더-시점 패턴
+
+**한 줄 요약**: 노트 5와 **같은 lint 규칙**(`react-hooks/set-state-in-effect`)에 또 걸렸지만 **처방이 다르다**. 5는 "외부 시스템(브라우저) 값을 렌더에 반영"이라 `useSyncExternalStore`가 답이었고, 이번은 "**prop이 바뀌면 그 컴포넌트의 내부 상태를 리셋**(+1회성 통지)"이다 — 이건 React 공식 패턴 **"이전 렌더 정보 저장(storing information from previous renders)"**, 즉 **렌더 도중** `prev` 값과 현재 prop을 비교해 조건부로 `setState`하는 것이다. `useEffect`가 아니라 **렌더 본문**에서 하기 때문에 규칙에 안 걸리고, effect 특유의 "한 프레임 늦은 리셋(깜빡임)"도 없다.
+
+### 문제 / 배경
+
+M20 반나절 코스의 `CoursePanel`은 상위(page)가 소유한 `state`(생성 lifecycle: `idle`→`loading`→`ok`/`error`)를 prop으로 받는다. **새 코스가 준비되면**(`ok` 전환) sr-only live region에 "반나절 코스가 준비됐어요"를 통지하고, 이전 코스의 **행별 재뽑기 상태(busy·행 에러)를 리셋**해야 한다. 반사적으로 쓴 게:
+
+```tsx
+useEffect(() => {
+  setBusy(null); setRowErr(null);
+  if (state.kind === "ok") setLive("반나절 코스가 준비됐어요.");
+}, [state.kind]);
+```
+
+그리고 노트 5와 **똑같은 에러**가 떴다: `Calling setState synchronously within an effect can trigger cascading renders (react-hooks/set-state-in-effect)`.
+
+### 왜 5의 해법(useSyncExternalStore)이 여기선 안 맞나
+
+5는 변화의 **출처가 React 밖**(matchMedia·navigator)이었다 → 외부 스토어를 구독하는 게 맞다. 그런데 여기서 변화의 출처는 **React prop(`state.kind`) 자체**다. prop은 이미 React가 렌더로 흘려주는 값이라 "구독"할 외부 스토어가 없다. 이건 전형적인 **"prop이 바뀌면 파생/리셋 상태를 조정"** 문제고, React 문서가 이걸 위해 안내하는 건 store가 아니라 **렌더 중 setState**다.
+
+### 해법 — 렌더 도중 prev와 비교 (key 리마운트의 경량 대안)
+
+```tsx
+const [prevKind, setPrevKind] = useState(state.kind);
+if (prevKind !== state.kind) {   // 렌더 본문 — effect 아님
+  setPrevKind(state.kind);
+  setBusy(null);
+  setRowErr(null);
+  setLive(state.kind === "ok" ? "반나절 코스가 준비됐어요."
+        : state.kind === "error" ? state.message : "");
+}
+```
+
+- **왜 렌더 중 setState가 합법인가**: 조건(`prevKind !== state.kind`)이 **다음 렌더엔 거짓**이 되므로 무한루프가 아니다. React는 이 setState를 보면 **커밋·페인트 전에** 곧바로 그 컴포넌트만 재렌더한다(자식 effect·DOM 안 건드림) — effect처럼 "그린 다음 고쳐 다시 그리는" 연쇄가 아니다. 그래서 **깜빡임 없고** lint도 통과한다.
+- **재뽑기는 안 걸린다**: 스텝 재뽑기는 `state.kind`가 `ok`로 **불변**이라 이 블록이 안 돈다 → 재뽑기 중 busy·행 에러가 리셋으로 날아가지 않는다. "리셋 트리거"를 `kind` 전환으로 못 박은 게 정확히 이래서다.
+- **key 리마운트와의 트레이드오프**: `<CoursePanel key={anchorId}>`로 통째 리마운트해도 리셋은 되지만, DOM을 버리고 다시 만들며 **1회성 통지(live)를 태우기 어렵다**. prev-비교는 **상태만 골라 리셋**하고 통지도 같은 자리에서 얹는다.
+
+### 일반화 포인트 (면접용)
+
+- **같은 lint, 다른 처방 — 변화의 출처를 봐라**: `set-state-in-effect`를 만나면 "외부 시스템發인가(→ `useSyncExternalStore`) vs React prop發인가(→ 렌더 중 prev 비교)"로 가른다. 규칙 하나에 정답 하나가 아니다.
+- **"이전 렌더 정보 저장"은 1급 패턴이다**: `getDerivedStateFromProps`의 함수형 컴포넌트판. prop 변화에 상태를 맞추는 표준 도구이고, `useEffect`+`setState`는 그 **깜빡이는 하위호환**이다(effect는 페인트 후라 stale 프레임이 샌다).
+- **렌더 중 setState = 무한루프? 아니다**: 조건이 수렴하면(다음 렌더에 거짓) 안전하다. React가 커밋 전에 흡수한다. "렌더는 순수해야"의 예외가 아니라, **동기적 자기 보정**으로 문서가 허용한 범위다.
+- **리셋 트리거를 좁게 못 박아라**: `[state.kind]`로 트리거를 잡아 "새 코스"만 리셋하고 "같은 코스 내 재뽑기"는 건드리지 않았다 — 트리거 축을 잘못 넓히면(예: `[state]` 전체) 재뽑기마다 상태가 날아간다.
+
+### 코드 위치
+
+- `components/CoursePanel.tsx` — `prevKind` 렌더-시점 리셋 블록(`busy`·`rowErr`·`live` 통지)
+- 대조: `components/InstallButton.tsx`(노트 5 — 외부값은 `useSyncExternalStore`)
+- PR #31, 설계 맥락 `plan.md` §7.10(M20 코스)
+
+### 관련 노트
+
+- [5. effect 내 동기 setState 대신 useSyncExternalStore](#5-effect-내-동기-setstate-대신-usesyncexternalstore--마운트-시-브라우저-환경값-읽기의-정석) — 같은 규칙의 **다른 절반**(외부 시스템發 변화).
 
 ---
 
@@ -279,3 +338,4 @@ const ios = useSyncExternalStore(() => () => {}, getIsIOS, () => false);
 | 2026-07-06 | 3. 정적 큐레이션 테이블의 등재 자격을 denylist 테스트 가드로 박기 (제철 달력 마늘 제외) |
 | 2026-07-06 | 4. granularity 갭(지역↔품목) — 좁은 축(지역)+보강 축(키워드 검색)+정직한 폴백 (제철+음식점 매칭) |
 | 2026-07-06 | 5. effect 내 동기 setState 대신 useSyncExternalStore — 마운트 시 브라우저 환경값 읽기·SSR 안전 (PWA 설치 버튼) |
+| 2026-07-10 | 6. 같은 set-state-in-effect라도 처방이 다르다 — prop 변화 리셋은 '이전 렌더 값 저장' 렌더-시점 패턴 (M20 코스 패널) |
