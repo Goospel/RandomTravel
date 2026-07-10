@@ -3,6 +3,7 @@
 // SDK 를 못 쓰는 환경(데스크톱·비카톡)용 폴백 평문도 만든다. 실제 전송/로드는 hooks/useKakaoShare.
 
 import type { Place, CongestionBadge } from "@/types/tour";
+import { fmtYmd } from "@/lib/kst";
 
 /** 카카오 feed 템플릿의 링크(웹·모바일웹 동일하게 채운다) */
 export interface FeedLink {
@@ -39,18 +40,13 @@ export interface ShareContext {
 const DEFAULT_DESC = "🎲 어디든 — 유명세 대신 전국 어디든 같은 출발선에서 뽑은 여행지";
 const DESC_MAX = 80;
 
-/** YYYYMMDD → "M/D"(앞 0 제거). 형식 이상 시 원문 그대로. */
-function mdOf(ymd: string): string {
-  if (!/^\d{8}$/.test(ymd)) return ymd;
-  return `${Number(ymd.slice(4, 6))}/${Number(ymd.slice(6, 8))}`;
-}
-
 /**
  * 🍃 한적 근거 1줄(외부 노출면 전용, §7.9 원칙 2) — '이해 가능한 단어(한적 예측)' 선행 +
  * 기준일 필수. 무맥락 수신자가 '집중률 하위'를 '순위 낮은 별로인 곳'으로 오독하는 것을 막는다.
+ * 날짜 포맷터는 lib/kst 의 fmtYmd 공용(구 mdOf 통합 — 문자 단위 동일, M20 §7.10).
  */
 export function congestionShareLine(c: CongestionBadge): string {
-  return `🍃 한적 예측 · 집중률 하위 ${c.pctBelow}% (${mdOf(c.baseYmd)} 기준)`;
+  return `🍃 한적 예측 · 집중률 하위 ${c.pctBelow}% (${fmtYmd(c.baseYmd)} 기준)`;
 }
 
 /** 카톡 피드 imageUrl 은 https 를 요구 — http 는 앞부분만 업그레이드. 빈값이면 undefined. */

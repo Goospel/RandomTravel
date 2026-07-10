@@ -12,13 +12,20 @@ import type {
   TourApiItem,
   PickedInfo,
   CountResponse,
+  CourseStep,
 } from "@/types/tour";
 import {
   RANDOM_DEFAULT_TYPES,
   SEA_CAT3,
   ALL_AREA_CODES,
   NEARBY_RADIUS_M,
+  COURSE_RADII,
 } from "@/lib/constants";
+import {
+  COURSE_SLOTS,
+  type CourseSlot,
+  type CourseSlotDef,
+} from "@/lib/course";
 import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
 import {
   narrowBySeasonal,
@@ -394,16 +401,21 @@ export function weightedIndex(
   return weights.length - 1;
 }
 
-/** 결정된 조합에서 항목 1건 뽑기(인덱스 최대 MAX_INDEX_TRIES 재시도). 실패 시 null. */
+/**
+ * 결정된 조합에서 항목 1건 뽑기(인덱스 최대 MAX_INDEX_TRIES 재시도). 실패 시 null.
+ * exclude(contentId) 에 든 항목이 뽑히면 같은 루프 안에서 인덱스 재추첨(🧭 코스 중복 제외, §7.10).
+ */
 async function pickItemFrom(
   endpoint: string,
   params: ListParams,
   totalCount: number,
+  exclude?: Set<string>,
 ): Promise<TourApiItem | null> {
   for (let t = 0; t < MAX_INDEX_TRIES; t++) {
     const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
     const item = await getItemAt(endpoint, params, index);
-    if (item) return item; // stale count 등으로 빈 결과면 인덱스 재추첨
+    // stale count 로 빈 결과이거나 exclude 항목(앵커·기존 스텝)이면 인덱스 재추첨
+    if (item && !(exclude && exclude.has(item.contentid))) return item;
   }
   return null;
 }
@@ -847,4 +859,136 @@ export async function countCandidates(
     total += await getTotalCount("areaBasedList2", queryParams(combo));
   }
   return { totalCount: total, approx: plan.capped };
+}
+
+// ─── 🧭 반나절 코스 (M20, §7.10) ────────────────────────────────────
+
+/**
+ * 🍚 식사 슬롯 전용 — pickItemFrom 을 최대 3회 재호출하되 카페·클럽 cat3 는 거부하고 그
+ * contentId 를 로컬 exclude 사본에 누적(같은 카페 재뽑힘 방지). 3회째도 거부 cat3면 그대로 수용
+ * (완벽주의 금지 — cat3별 다중 count 콜 없이 1콜 유지). 아예 못 뽑으면(인덱스 소진) null → 반경 확대.
+ */
+async function pickMealItem(
+  endpoint: string,
+  params: ListParams,
+  totalCount: number,
+  baseExclude: Set<string>,
+  rejectCat3: readonly string[],
+): Promise<TourApiItem | null> {
+  const local = new Set(baseExclude);
+  let last: TourApiItem | null = null;
+  for (let t = 0; t < 3; t++) {
+    const item = await pickItemFrom(endpoint, params, totalCount, local);
+    if (!item) break; // 인덱스 소진 — 지금까지 후보(있으면)라도, 없으면 null
+    last = item;
+    if (!rejectCat3.includes(item.cat3 ?? "")) return item; // 밥집 확정
+    local.add(item.contentid); // 카페·클럽 거부 → 재추첨(같은 곳 방지)
+  }
+  return last; // 3회째도 거부 cat3면 수용, 첫 시도부터 못 뽑았으면 null
+}
+
+/**
+ * 한 슬롯 1건 뽑기 — 반경이 바깥 루프(COURSE_RADII: 5→10→20km, 가까운 곳 우선). 각 반경에서
+ * 슬롯 타입들을 셔플 순회, 전부 0건(또는 exclude·stale 로 못 뽑음)일 때만 다음 반경으로 확대.
+ * 슬롯별 독립 확대(식당은 5km에 있는데 카페만 없으면 카페만 넓힘). 끝까지 실패면 null.
+ */
+async function drawCourseSlot(
+  def: CourseSlotDef,
+  lat: number,
+  lng: number,
+  exclude: Set<string>,
+): Promise<TourApiItem | null> {
+  for (const radius of COURSE_RADII) {
+    const types = shuffle([...def.contentTypeIds]);
+    for (const contentTypeId of types) {
+      const params: ListParams = {
+        mapX: lng, // ⚠️ mapX=경도, mapY=위도
+        mapY: lat,
+        radius,
+        contentTypeId,
+        arrange: "E",
+      };
+      if (def.cat3) params.cat3 = def.cat3; // ☕ 카페 직접 필터
+      const totalCount = await getTotalCount("locationBasedList2", params);
+      if (totalCount <= 0) continue; // 이 타입·이 반경 0건 → 다음 타입
+      const item = def.rejectCat3
+        ? await pickMealItem(
+            "locationBasedList2",
+            params,
+            totalCount,
+            exclude,
+            def.rejectCat3,
+          )
+        : await pickItemFrom("locationBasedList2", params, totalCount, exclude);
+      if (item) return item;
+      // null(exclude·stale) → 다음 타입, 모두 실패면 다음 반경
+    }
+  }
+  return null;
+}
+
+const slotDef = (slot: CourseSlot): CourseSlotDef =>
+  COURSE_SLOTS.find((s) => s.slot === slot)!;
+
+/**
+ * 🧭 반나절 코스 전체 — 앵커 좌표 반경 내 볼거리→식사→카페 3스텝.
+ *  - Promise.all([ 볼거리, (식사→카페 순차) ]): 볼거리(12·14·28)는 39와 타입이 안 겹쳐 병렬 안전.
+ *    카페는 식사 확정 후 exclude 에 식사 contentId 를 넣고 뽑아 식사↔카페 충돌쌍을 구조로 차단.
+ *  - 슬롯 실패는 그 스텝 생략 + notice(1스텝 이상이면 코스 성립), 전 슬롯 실패는 EMPTY_POOL(404).
+ *  - 개요(detailCommon2)는 생략(§5.6). ⚠️ 날짜 계열 파라미터 없음 — "date는 코스 구성 무변"을 구조로 보장.
+ */
+export async function drawCourse(
+  lat: number,
+  lng: number,
+  exclude: Set<string>,
+): Promise<{ steps: CourseStep[]; notices: string[] }> {
+  const [sightItem, meal] = await Promise.all([
+    drawCourseSlot(slotDef("sight"), lat, lng, exclude),
+    (async () => {
+      const mealItem = await drawCourseSlot(slotDef("meal"), lat, lng, exclude);
+      const cafeExclude = new Set(exclude);
+      if (mealItem) cafeExclude.add(mealItem.contentid); // 식사↔카페 충돌 차단
+      const cafeItem = await drawCourseSlot(slotDef("cafe"), lat, lng, cafeExclude);
+      return { mealItem, cafeItem };
+    })(),
+  ]);
+
+  const steps: CourseStep[] = [];
+  const notices: string[] = [];
+  const collect = (slot: CourseSlot, item: TourApiItem | null, miss: string) => {
+    if (item) steps.push({ slot, place: normalizePlace(item, null) });
+    else notices.push(miss);
+  };
+  // 의미 고정 순서로 조립(뽑기 완료 순서와 무관, §7.10)
+  collect("sight", sightItem, "주변에서 볼거리를 찾지 못해 첫 스텝은 뺐어요.");
+  collect("meal", meal.mealItem, "주변에서 식사할 곳을 찾지 못해 식사 스텝은 뺐어요.");
+  collect("cafe", meal.cafeItem, "주변에서 카페를 찾지 못해 마무리 스텝은 뺐어요.");
+
+  if (steps.length === 0) {
+    throw new TourApiError(
+      "주변에서 코스를 만들 만한 곳을 찾지 못했어요. 다른 여행지를 뽑아 다시 시도해 보세요.",
+      "EMPTY_POOL",
+    );
+  }
+  return { steps, notices };
+}
+
+/**
+ * 🧭 코스 스텝 1개 재뽑기 — 앵커·현재 전 스텝을 exclude 로 받아 같은 슬롯을 다시 뽑는다.
+ * 못 뽑으면 EMPTY_POOL(클라가 스텝 유지 + 그 행 안내) — 재뽑기는 코스를 죽이지 않는다.
+ */
+export async function drawCourseStep(
+  lat: number,
+  lng: number,
+  slot: CourseSlot,
+  exclude: Set<string>,
+): Promise<CourseStep> {
+  const item = await drawCourseSlot(slotDef(slot), lat, lng, exclude);
+  if (!item) {
+    throw new TourApiError(
+      "주변에서 새로 보여드릴 곳을 찾지 못했어요.",
+      "EMPTY_POOL",
+    );
+  }
+  return { slot, place: normalizePlace(item, null) };
 }

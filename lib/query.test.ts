@@ -7,6 +7,8 @@ import {
   parseLatLng,
   buildNearbyQuery,
   parseDateYmd,
+  parseContentIds,
+  buildCourseQuery,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -247,6 +249,80 @@ describe("parseDateYmd — 8자리·실존·범위(오늘 ≤ date ≤ 오늘+29
   it("null·빈값은 null", () => {
     expect(parseDateYmd(null, NOW)).toBeNull();
     expect(parseDateYmd("", NOW)).toBeNull();
+  });
+});
+
+// ─── 🧭 반나절 코스(M20, §7.10) ─────────────────────────────────────
+describe("parseContentIds — 코스 exclude(contentId 숫자 문자열·중복제거·상한)", () => {
+  it("숫자 문자열만 통과(순서 유지)", () => {
+    expect(parseContentIds("126508,2733967")).toEqual(["126508", "2733967"]);
+  });
+  it("공백 허용", () => {
+    expect(parseContentIds(" 126508 , 2733967 ")).toEqual(["126508", "2733967"]);
+  });
+  it("숫자 아닌 토큰 제거(음수·소수·문자·빈칸)", () => {
+    expect(parseContentIds("-5,3.5,abc,126508")).toEqual(["126508"]);
+    expect(parseContentIds("12a,34")).toEqual(["34"]);
+  });
+  it("중복 제거(첫 등장 순서)", () => {
+    expect(parseContentIds("12,12,34,12")).toEqual(["12", "34"]);
+  });
+  it("상한 초과분은 자름(기본 12)", () => {
+    const raw = Array.from({ length: 20 }, (_, i) => String(i + 1)).join(",");
+    expect(parseContentIds(raw)).toHaveLength(12);
+    expect(parseContentIds("1,2,3,4,5", 2)).toEqual(["1", "2"]);
+  });
+  it("null·빈값 → 빈 배열", () => {
+    expect(parseContentIds(null)).toEqual([]);
+    expect(parseContentIds("")).toEqual([]);
+    expect(parseContentIds(" , ,")).toEqual([]);
+  });
+});
+
+describe("buildCourseQuery — near 필수 + slot/exclude/date(미래만)", () => {
+  const LAT = 37.5665;
+  const LNG = 126.978;
+  const TODAY = "20260710";
+  it("near 는 항상 실린다(좌표만)", () => {
+    const p = new URLSearchParams(buildCourseQuery(LAT, LNG));
+    expect(p.get("near")).toBe("37.5665,126.978");
+    expect(p.has("slot")).toBe(false);
+    expect(p.has("exclude")).toBe(false);
+  });
+  it("slot 지정 시 재뽑기 경로(slot 실림)", () => {
+    const p = new URLSearchParams(buildCourseQuery(LAT, LNG, { slot: "cafe" }));
+    expect(p.get("slot")).toBe("cafe");
+  });
+  it("exclude 를 콤마로 join", () => {
+    const p = new URLSearchParams(
+      buildCourseQuery(LAT, LNG, { exclude: ["126508", "2733967"] }),
+    );
+    expect(p.get("exclude")).toBe("126508,2733967");
+  });
+  it("exclude 비면 파라미터 없음", () => {
+    const p = new URLSearchParams(buildCourseQuery(LAT, LNG, { exclude: [] }));
+    expect(p.has("exclude")).toBe(false);
+  });
+  it("미래 기준일만 date 방출(buildRandomQuery 동형)", () => {
+    const future = new URLSearchParams(
+      buildCourseQuery(LAT, LNG, { dateYmd: "20260712", todayYmd: TODAY }),
+    );
+    expect(future.get("date")).toBe("20260712");
+    const today = new URLSearchParams(
+      buildCourseQuery(LAT, LNG, { dateYmd: TODAY, todayYmd: TODAY }),
+    );
+    expect(today.has("date")).toBe(false); // 오늘 = 무변 → 생략
+    const past = new URLSearchParams(
+      buildCourseQuery(LAT, LNG, { dateYmd: "20260709", todayYmd: TODAY }),
+    );
+    expect(past.has("date")).toBe(false);
+  });
+  it("왕복: near → parseLatLng, exclude → parseContentIds 보존", () => {
+    const p = new URLSearchParams(
+      buildCourseQuery(35.1796, 129.0756, { exclude: ["1", "2"] }),
+    );
+    expect(parseLatLng(p.get("near"))).toEqual({ lat: 35.1796, lng: 129.0756 });
+    expect(parseContentIds(p.get("exclude"))).toEqual(["1", "2"]);
   });
 });
 

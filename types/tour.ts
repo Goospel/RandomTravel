@@ -13,6 +13,7 @@ export interface TourApiItem {
   mapx?: string; // 경도 longitude
   mapy?: string; // 위도 latitude
   areacode?: string;
+  cat3?: string; // 🧭 소분류 코드 — 코스 식사 슬롯의 카페·클럽 거부 판정용(M20)
   tel?: string;
   overview?: string; // detailCommon 보강 시
   dist?: string; // 📍 locationBasedList2 응답 — 기준점에서의 거리(m, M14)
@@ -106,3 +107,26 @@ export interface ErrorResponse {
 export type CountResponse =
   | { dynamic: true }
   | { totalCount: number; approx: boolean };
+
+// ─── 🧭 반나절 코스 (M20, §7.10) ────────────────────────────────────
+
+/** 🧭 코스 한 스텝 — 슬롯(볼거리·식사·카페) + 그 장소(개요는 생략). */
+export interface CourseStep {
+  slot: "sight" | "meal" | "cafe";
+  place: Place;
+}
+
+/** 🧭 /api/course 전체 응답 — 3스텝 타임라인 + 🍃 헤더 배지 + 슬롯 생략 안내. */
+export interface CourseResponse {
+  steps: CourseStep[];
+  /** 🍃 앵커 시·군·구 한적 예측 배지(pctRank≤0.5·비stale·매핑 존재일 때만, 아니면 null). */
+  congestion: CongestionBadge | null;
+  /** 슬롯 생략 등 안내(없으면 null). */
+  notice: string | null;
+}
+
+/** 🧭 /api/course?slot=… 스텝 재뽑기 응답. */
+export interface CourseStepResponse {
+  step: CourseStep;
+  notice: string | null;
+}

@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { RandomResponse, ErrorResponse, Place } from "@/types/tour";
+import type {
+  RandomResponse,
+  ErrorResponse,
+  Place,
+  CourseResponse,
+  CourseStepResponse,
+} from "@/types/tour";
 import type { SavedPlace } from "@/lib/travelStore";
 import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
@@ -12,7 +18,12 @@ import { MapHero } from "@/components/MapHero";
 import { StoryBanner } from "@/components/StoryBanner";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
-import { buildRandomQuery, buildNearbyQuery } from "@/lib/query";
+import {
+  CoursePanel,
+  type CourseState,
+  type CourseAnchor,
+} from "@/components/CoursePanel";
+import { buildRandomQuery, buildNearbyQuery, buildCourseQuery } from "@/lib/query";
 import { visitedAreaCodes } from "@/lib/conquer";
 import { AREA_CODES } from "@/lib/constants";
 import { useTravelStore } from "@/hooks/useTravelStore";
@@ -49,6 +60,9 @@ export default function Home() {
   const drawTokenRef = useRef(0);
   // 📍 주변에서 뽑기 거점 — 전국 랜덤 결과 또는 기록(찜·최근·다녀옴)에서 잡는다.
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  // 🧭 반나절 코스(M20) — 별도 fetch 흐름. courseTokenRef 로 코스↔뽑기 교차 경합 차단(drawTokenRef 동형).
+  const [course, setCourse] = useState<CourseState>({ kind: "idle" });
+  const courseTokenRef = useRef(0);
   // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
   const [filledArea, setFilledArea] = useState<number | null>(null);
   const store = useTravelStore();
@@ -92,6 +106,9 @@ export default function Home() {
     const token = ++drawTokenRef.current; // 이 뽑기의 순번 — 커밋 직전 최신인지 확인
     setStatus({ kind: "loading" });
     setSeq((s) => s + 1);
+    // 🧭 새 뽑기가 시작되면 진행 중 코스 fetch 를 무효화하고 옛 코스를 즉시 감춘다(§7.10).
+    courseTokenRef.current++;
+    setCourse({ kind: "idle" });
 
     const work = (async (): Promise<() => void> => {
       try {
@@ -160,6 +177,83 @@ export default function Home() {
     const url = `/api/random?${buildNearbyQuery(place.lat, place.lng)}`;
     void runDraw(url, true, false);
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // 🧭 반나절 코스 만들기(M20) — 현재 결과 place 를 앵커로 전체 코스 생성. 재클릭 = 전체 재생성.
+  function openCourse() {
+    if (status.kind !== "ok") return;
+    const p = status.data.place;
+    if (p.lat == null || p.lng == null) return; // 좌표 없으면 애초에 버튼 미렌더(가드 중복)
+    void runCourse({ title: p.title, lat: p.lat, lng: p.lng, contentId: p.contentId });
+  }
+
+  // 코스 fetch — courseTokenRef 로 최신만 커밋(뽑기 시작·연타 시 옛 코스 무효화).
+  async function runCourse(anchor: CourseAnchor) {
+    const token = ++courseTokenRef.current;
+    setCourse({ kind: "loading", anchor });
+    const qs = buildCourseQuery(anchor.lat, anchor.lng, {
+      exclude: [anchor.contentId], // 앵커 자신 재등장 방지(위치 조회는 기준점도 반환)
+      dateYmd, // 📅 미래 기준일이면 date — 🍃 헤더 배지 기준일만, 코스 구성 무변(§6.8)
+    });
+    try {
+      const res = await fetch(`/api/course?${qs}`, { cache: "no-store" });
+      if (token !== courseTokenRef.current) return;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({
+          error: "코스를 불러오지 못했어요.",
+        }))) as ErrorResponse;
+        if (token !== courseTokenRef.current) return;
+        setCourse({ kind: "error", message: err.error });
+        return;
+      }
+      const data = (await res.json()) as CourseResponse;
+      if (token !== courseTokenRef.current) return;
+      setCourse({ kind: "ok", anchor, data });
+    } catch {
+      if (token !== courseTokenRef.current) return;
+      setCourse({
+        kind: "error",
+        message: "네트워크 오류 — 연결을 확인하고 다시 시도해 주세요.",
+      });
+    }
+  }
+
+  // 🧭 스텝 재뽑기 — 앵커∪현재 전 스텝 exclude 로 그 슬롯만 다시 뽑아 교체. 실패는 throw(패널이 행 에러).
+  async function redrawCourseStep(index: number) {
+    if (course.kind !== "ok") return;
+    const { anchor, data } = course;
+    const token = courseTokenRef.current; // 이 재뽑기 시작 시점의 코스 순번(runCourse 토큰 가드와 대칭)
+    const slot = data.steps[index].slot;
+    const excludeIds = [
+      anchor.contentId,
+      ...data.steps.map((s) => s.place.contentId),
+    ];
+    const qs = buildCourseQuery(anchor.lat, anchor.lng, {
+      slot,
+      exclude: excludeIds,
+    });
+    const res = await fetch(`/api/course?${qs}`, { cache: "no-store" });
+    if (!res.ok) {
+      // 서버 확정 문구(§7.10 "주변에서 새로 보여드릴 곳을…")를 그대로 패널로 — 전체 코스 에러 경로와 대칭.
+      const err = (await res.json().catch(() => ({
+        error: "주변에서 새로 보여드릴 곳을 찾지 못했어요.",
+      }))) as ErrorResponse;
+      throw new Error(err.error);
+    }
+    const { step } = (await res.json()) as CourseStepResponse;
+    // 그 사이 새 뽑기·전체 재생성으로 코스가 바뀌었으면 stale 스텝 병합 금지(kind==="ok" 만으론 C1→C2 를 못 막음).
+    if (token !== courseTokenRef.current) return;
+    setCourse((prev) =>
+      prev.kind === "ok"
+        ? {
+            ...prev,
+            data: {
+              ...prev.data,
+              steps: prev.data.steps.map((s, i) => (i === index ? step : s)),
+            },
+          }
+        : prev,
+    );
   }
 
   // ✔ 다녀왔어요 — 새 시·도를 처음 채우면 🎉 토스트를 띄운다(정복 지도 즉시 반영 연출).
@@ -279,6 +373,13 @@ export default function Home() {
                 data={status.data}
                 onDrawNearby={canDrawNearby ? drawNearby : null}
                 anchorTitle={anchor?.title ?? null}
+                onOpenCourse={
+                  status.data.place.lat != null &&
+                  status.data.place.lng != null
+                    ? openCourse
+                    : null
+                }
+                courseLoading={course.kind === "loading"}
                 saved={store.isSaved(status.data.place.contentId)}
                 visited={store.isVisited(status.data.place.contentId)}
                 onToggleSave={() => store.toggleSave(status.data.place)}
@@ -302,6 +403,15 @@ export default function Home() {
               </p>
             )}
           </div>
+
+          {/* 🧭 반나절 코스(M20) — 결과 aria-live 컨테이너 밖(중첩·통째 낭독 방지), 결과 있을 때만 */}
+          {status.kind === "ok" && course.kind !== "idle" && (
+            <CoursePanel
+              state={course}
+              onRedrawStep={redrawCourseStep}
+              onRetry={openCourse}
+            />
+          )}
         </section>
 
         <aside className="min-w-[280px] flex-[1_1_300px]">

@@ -69,6 +69,56 @@ export function buildNearbyQuery(lat: number, lng: number): string {
   return p.toString();
 }
 
+// ─── 🧭 반나절 코스 (M20, §7.10) ────────────────────────────────────
+
+/**
+ * 콤마 문자열 → contentId(숫자 문자열) 배열. 숫자 문자열만·중복 제거(첫 등장 순서)·상한 limit.
+ * areaCode 처럼 화이트리스트가 없어(TourAPI contentId 는 임의 큰 정수) 형식(숫자)만 검증한다.
+ * 코스 exclude 용 — 실요구 최대 4(앵커+3스텝)에 다슬롯 확장(§11.1) 여유로 기본 상한 12.
+ */
+export function parseContentIds(raw: string | null, limit = 12): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const s = part.trim();
+    if (!/^\d+$/.test(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** 🧭 코스 요청 옵션 — slot(있으면 재뽑기)·exclude(앵커∪스텝)·📅 방문 시점. */
+export interface CourseQueryOptions {
+  slot?: "sight" | "meal" | "cafe";
+  exclude?: Iterable<string>;
+  /** 📅 선택된 기준일 YYYYMMDD. 미래만 방출(오늘/과거/null 은 생략, buildRandomQuery 동형). */
+  dateYmd?: string | null;
+  /** 비교 기준 오늘(YYYYMMDD). 기본 kstYmd() — 테스트·단일 시계 주입용. */
+  todayYmd?: string;
+}
+
+/**
+ * `/api/course` 쿼리스트링 — near(필수) + 선택 slot/exclude/date.
+ * date 는 미래만 방출(buildRandomQuery 동형): 🍃 코스 헤더 배지 기준일만 바꾸고 코스 구성은 무변.
+ */
+export function buildCourseQuery(
+  lat: number,
+  lng: number,
+  opts: CourseQueryOptions = {},
+): string {
+  const p = new URLSearchParams();
+  p.set("near", `${lat},${lng}`);
+  if (opts.slot) p.set("slot", opts.slot);
+  const ex = opts.exclude ? [...opts.exclude] : [];
+  if (ex.length > 0) p.set("exclude", ex.join(","));
+  const today = opts.todayYmd ?? kstYmd();
+  if (opts.dateYmd && opts.dateYmd > today) p.set("date", opts.dateYmd);
+  return p.toString();
+}
+
 /** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨·🍃 한적 같은 추가 조건 플래그 + 📅 방문 시점(§6.8) */
 export interface RandomQueryOptions {
   seaside?: boolean;

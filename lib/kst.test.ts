@@ -2,7 +2,7 @@
 //   서버 UTC 무관 Asia/Seoul 고정 날짜 산술 + YYYYMMDD→월 추출. 중립 모듈(클라 번들에도 안전).
 
 import { describe, it, expect } from "vitest";
-import { kstYmd, ymdOffset, kstDateParts, monthOf } from "@/lib/kst";
+import { kstYmd, ymdOffset, kstDateParts, monthOf, fmtYmd } from "@/lib/kst";
 
 describe("kstYmd — 오늘(KST) YYYYMMDD", () => {
   it("UTC 자정 직전은 KST 로 이미 다음날", () => {
@@ -51,5 +51,18 @@ describe("monthOf — YYYYMMDD → 월(1-12)", () => {
     expect(monthOf("20260712")).toBe(7);
     expect(monthOf("20260101")).toBe(1);
     expect(monthOf("20261231")).toBe(12);
+  });
+});
+
+describe("fmtYmd — YYYYMMDD → 'M/D'(앞 0 제거, 🧭 M20 공용)", () => {
+  it("앞 0 제거한 월/일", () => {
+    expect(fmtYmd("20260710")).toBe("7/10");
+    expect(fmtYmd("20260101")).toBe("1/1");
+    expect(fmtYmd("20261231")).toBe("12/31");
+  });
+  it("형식 이상은 원문 그대로", () => {
+    expect(fmtYmd("2026-07-10")).toBe("2026-07-10");
+    expect(fmtYmd("abc")).toBe("abc");
+    expect(fmtYmd("2026071")).toBe("2026071"); // 7자리
   });
 });
