@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatKm } from "@/lib/geo";
+import { formatKm, haversineM } from "@/lib/geo";
 
 describe("formatKm — 📍 주변 거리 표시(m→km, M14)", () => {
   it("소수 첫째 자리로 반올림", () => {
@@ -15,5 +15,28 @@ describe("formatKm — 📍 주변 거리 표시(m→km, M14)", () => {
   it("음수·비유한수는 하한으로 방어", () => {
     expect(formatKm(-5)).toBe("0.1km");
     expect(formatKm(Number.NaN)).toBe("0.1km");
+  });
+});
+
+describe("haversineM — 두 좌표 대권 직선거리(m, 🧭 M20)", () => {
+  const SEOUL = { lat: 37.5665, lng: 126.978 }; // 서울시청
+  const BUSAN = { lat: 35.1796, lng: 129.0756 }; // 부산시청
+  it("서울↔부산 ≈ 325km(±5km)", () => {
+    const d = haversineM(SEOUL.lat, SEOUL.lng, BUSAN.lat, BUSAN.lng);
+    expect(d).toBeGreaterThan(320_000);
+    expect(d).toBeLessThan(330_000);
+  });
+  it("동일 좌표는 0", () => {
+    expect(haversineM(SEOUL.lat, SEOUL.lng, SEOUL.lat, SEOUL.lng)).toBe(0);
+  });
+  it("대칭 — a→b 와 b→a 가 같다", () => {
+    const ab = haversineM(SEOUL.lat, SEOUL.lng, BUSAN.lat, BUSAN.lng);
+    const ba = haversineM(BUSAN.lat, BUSAN.lng, SEOUL.lat, SEOUL.lng);
+    expect(ab).toBeCloseTo(ba, 6);
+  });
+  it("짧은 거리(위도 0.01° ≈ 1.11km)도 하한 없이 실제 값", () => {
+    const d = haversineM(37.5, 127.0, 37.51, 127.0);
+    expect(d).toBeGreaterThan(1_000);
+    expect(d).toBeLessThan(1_200);
   });
 });

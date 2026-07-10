@@ -46,8 +46,23 @@ export type ContentTypeId = (typeof CONTENT_TYPES)[number]["code"];
  */
 export const RANDOM_DEFAULT_TYPES: ContentTypeId[] = [12, 14, 15, 25, 28];
 
-/** 📍 주변에서 뽑기(M14) 반경(m). TourAPI locationBasedList2 최대치 20km. */
+/** 📍 주변에서 뽑기(M14) 반경(m). 20km 는 상한이 아니라 선택값 — locationBasedList2 는
+ *  radius 30km 도 동작함(2026-07-10 실호출 확인, §7.10). 30km+ 확대는 §11.1 백로그. */
 export const NEARBY_RADIUS_M = 20000;
+
+// ─── 🧭 반나절 코스 (M20, plan.md §7.10) ────────────────────────────
+// 뽑힌 여행지를 앵커로 볼거리→식사→카페 3스텝을 반경 내에서 뽑는다. cat3 는 2026-07-10 실조회 확정:
+// 음식점(39) 하위 7종 중 카페·전통찻집 = A05020900, 클럽 = A05021000. locationBasedList2 가
+// cat3 필터를 존중함(서울시청 3km: 39 전체 156 vs cat3 카페 30 실측).
+
+/** ☕ 카페·전통찻집 cat3(음식점39 하위) — 카페 슬롯 직접 필터. */
+export const CAFE_CAT3 = "A05020900";
+/** 🍚 식사 슬롯이 거부할 cat3 — 카페·전통찻집·클럽(밥집이 아니라 놀러가는 곳). */
+export const MEAL_REJECT_CAT3: readonly string[] = ["A05020900", "A05021000"];
+/** 🧭 코스 슬롯 반경 확대 단계(m) — 가까운 곳 우선(반나절 감성), 슬롯별 독립 확대. */
+export const COURSE_RADII = [5000, 10000, 20000] as const;
+/** 🚗 총 이동거리가 이 값(m) 초과면 코스 헤더에 "차로 이동 기준" 병기. */
+export const COURSE_DRIVE_HINT_M = 10000;
 
 /**
  * 📊 재방문 의향 평가(M15) — 다녀온 곳의 3단계 만족·재방문 의향.

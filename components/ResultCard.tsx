@@ -7,6 +7,7 @@ import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 import { useKakaoShare } from "@/hooks/useKakaoShare";
 import { shareText } from "@/lib/kakaoShare";
 import { formatKm } from "@/lib/geo";
+import { fmtYmd } from "@/lib/kst";
 
 // 🎴 결과 카드(M16 탐험 로그) — 사진 위 오버레이 찜·다녀옴 토글 + 주요 2(다시뽑기·주변) /
 //   보조 4아이콘(지도·길찾기·공유·복사) 2단 계층. 데이터·공유 로직은 그대로 재사용.
@@ -24,16 +25,12 @@ const BADGE: Record<string, string> = {
 const pill =
   "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
 
-/** YYYYMMDD → "M/D"(앞 0 제거). 형식 이상 시 원문 그대로. */
-function fmtYmd(ymd: string): string {
-  if (!/^\d{8}$/.test(ymd)) return ymd;
-  return `${Number(ymd.slice(4, 6))}/${Number(ymd.slice(6, 8))}`;
-}
-
 export function ResultCard({
   data,
   onDrawNearby,
   anchorTitle,
+  onOpenCourse,
+  courseLoading,
   saved,
   visited,
   onToggleSave,
@@ -46,6 +43,10 @@ export function ResultCard({
   onDrawNearby: (() => void) | null;
   /** 주변 뽑기 기준점(첫 여행지) 이름 — 버튼·거리 배지 라벨용 */
   anchorTitle: string | null;
+  /** 🧭 반나절 코스 만들기(M20) — 현재 place 에 좌표가 있을 때만 전달, 없으면 null(미렌더). */
+  onOpenCourse: (() => void) | null;
+  /** 🧭 코스 생성 중이면 버튼 disabled(연타·중복 요청 방지). */
+  courseLoading: boolean;
   saved: boolean;
   visited: boolean;
   onToggleSave: () => void;
@@ -245,6 +246,18 @@ export function ResultCard({
             className="mt-2 w-full truncate rounded-xl border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
           >
             📍 {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
+          </button>
+        )}
+
+        {/* 🧭 반나절 코스 만들기(M20) — 좌표 있을 때만. 재클릭 = 전체 재생성, 생성 중 disabled. */}
+        {onOpenCourse && (
+          <button
+            type="button"
+            onClick={onOpenCourse}
+            disabled={courseLoading}
+            className="mt-2 w-full truncate rounded-xl border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
+          >
+            🕒 {courseLoading ? "코스를 짜는 중…" : "반나절 코스 만들기"}
           </button>
         )}
 

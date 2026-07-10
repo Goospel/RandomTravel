@@ -35,3 +35,12 @@ export function kstYmd(now: Date = new Date()): string {
 export function monthOf(ymd: string): number {
   return Number(ymd.slice(4, 6));
 }
+
+/**
+ * YYYYMMDD → "M/D"(앞 0 제거). 형식 이상 시 원문 그대로.
+ * ResultCard·CoursePanel·kakaoShare 공용 — M/D 포맷터 3중화 방지(M20 §7.10 승격).
+ */
+export function fmtYmd(ymd: string): string {
+  if (!/^\d{8}$/.test(ymd)) return ymd;
+  return `${Number(ymd.slice(4, 6))}/${Number(ymd.slice(6, 8))}`;
+}
