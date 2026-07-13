@@ -26,6 +26,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   session: { strategy: "jwt" },
   providers,
+  // Vercel Preview 배포는 도메인이 배포마다 달라(travelanywhere-kr-git-…-goospel.vercel.app)
+  // 구글 콘솔 "승인된 리디렉션 URI"에 미리 등록할 수 없다 → Preview에서 로그인하면
+  // redirect_uri 가 그 Preview 도메인으로 조립돼 구글이 400 redirect_uri_mismatch 를 낸다.
+  // AUTH_REDIRECT_PROXY_URL(프로덕션·Preview 양쪽 env 에 동일값 필요)이 있으면 Auth.js 가
+  // OAuth 콜백을 이 안정적인 프로덕션 URL 로 프록시하고(원래 Preview URL 은 state 에 보존),
+  // 프로덕션 콜백이 state 검증 후 원래 Preview 로 되돌린다 → 콘솔엔 프로덕션 콜백만 등록하면 된다.
+  // 값 미설정(로컬 등)이면 undefined → 프록시 비활성(기존 동작 그대로).
+  redirectProxyUrl: process.env.AUTH_REDIRECT_PROXY_URL,
   callbacks: {
     // JWT 전략이라 세션에 user.id 가 기본 노출 안 됨 — token.sub(=로그인 시 DB user.id)를
     // 세션에 실어 준다. API 라우트에서 소유자 판별에 쓴다.

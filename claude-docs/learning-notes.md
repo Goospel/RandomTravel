@@ -11,6 +11,8 @@
 4. [필터가 좁히는 축(지역)과 사용자가 기대하는 약속(품목)의 granularity 갭 — 좁은 축 + 보강 축](#4-필터가-좁히는-축지역과-사용자가-기대하는-약속품목의-granularity-갭--좁은-축--보강-축)
 5. [effect 내 동기 setState 대신 useSyncExternalStore — 마운트 시 브라우저 환경값 읽기의 정석](#5-effect-내-동기-setstate-대신-usesyncexternalstore--마운트-시-브라우저-환경값-읽기의-정석)
 6. [같은 set-state-in-effect라도 처방이 다르다 — prop 변화에 내부 상태 리셋은 '이전 렌더 값 저장' 렌더-시점 패턴](#6-같은-set-state-in-effect라도-처방이-다르다--prop-변화에-내부-상태-리셋은-이전-렌더-값-저장-렌더-시점-패턴)
+7. [Auth.js v5의 redirect_uri는 요청 host로 조립된다 — Vercel Preview마다 redirect_uri_mismatch, AUTH_REDIRECT_PROXY_URL로 봉쇄](#7-authjs-v5의-redirect_uri는-요청-host로-조립된다--vercel-preview마다-redirect_uri_mismatch-auth_redirect_proxy_url로-봉쇄)
+8. [구글 OAuth "액세스 차단됨"은 한 화면 여러 원인 — 상태코드·발생단계로 가른다](#8-구글-oauth-액세스-차단됨은-한-화면-여러-원인--상태코드발생단계로-가른다)
 
 ---
 
@@ -329,6 +331,93 @@ if (prevKind !== state.kind) {   // 렌더 본문 — effect 아님
 
 ---
 
+## 7. Auth.js v5의 redirect_uri는 요청 host로 조립된다 — Vercel Preview마다 redirect_uri_mismatch, AUTH_REDIRECT_PROXY_URL로 봉쇄
+
+**한 줄 요약**: Auth.js v5(next-auth v5)는 `AUTH_URL`/`redirectProxyUrl`이 없으면 OAuth `redirect_uri`를 **요청이 도착한 host**로 매번 조립한다(Vercel에선 `VERCEL=1`이라 `trustHost`가 자동 on → `x-forwarded-host`를 그대로 신뢰). 그래서 배포마다 도메인이 바뀌는 **Vercel Preview**에서 로그인하면 `redirect_uri`가 그 Preview 도메인이 되고, 구글/카카오 콘솔엔 그 도메인을 미리 등록할 수 없어 **`400 redirect_uri_mismatch`**가 난다. 해법은 `AUTH_REDIRECT_PROXY_URL`(프로덕션·Preview **양쪽** 동일값)로 콜백을 **안정적 프로덕션 URL에 프록시**하는 것 — 원래 Preview URL은 `state`에 담겨 검증 후 복귀한다.
+
+### 문제 / 배경
+
+운영(`travelanywhere-kr.vercel.app`)에선 구글 로그인이 잘 되는데, "왜 어떤 환경에선 로그인 중 400이 뜰 여지가 있나"를 조사했다. `auth.ts`의 `NextAuth({...})`엔 `AUTH_URL`·`trustHost`·`redirectProxyUrl`·`basePath`가 하나도 없고, `Google`을 인자 없이 `providers.push`한다(콜백 URL 커스텀 없음). 즉 **redirect_uri를 프로덕션으로 못 박는 장치가 코드·설정 어디에도 없다.**
+
+### 왜 나는가 — redirect_uri는 코드에 고정돼 있지 않다
+
+`@auth/core`는 `AUTH_URL`/`NEXTAUTH_URL`이 없으면 `createActionURL`에서 origin을 `x-forwarded-host ?? host`로 만든다. 그리고 `trustHost`는 `AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? …`로 결정되는데 Vercel은 `VERCEL=1`이 상시라 **자동 true** → forwarded-host를 검증 없이 신뢰한다. 결과적으로 `redirect_uri = https://{방문한 도메인}/api/auth/callback/google`이라, **어느 도메인으로 앱을 열었느냐에 따라 redirect_uri가 떠다닌다.** 운영 도메인은 콘솔에 등록돼 통과하지만, Preview 도메인(`…-git-<브랜치>-goospel.vercel.app`, `…-<해시>-goospel.vercel.app`)은 미등록이라 구글이 직접 400을 서빙한다(우리 앱 `?error=`가 아니라 **구글측** 400).
+
+### 왜 Preview는 콘솔 등록으로 못 막나
+
+Preview URL은 **브랜치·커밋마다 새로 생성**돼 값을 예측·고정할 수 없고, 구글 "승인된 리디렉션 URI"는 **와일드카드를 허용하지 않는다**(정확 문자열 매칭). 그래서 "Preview 도메인을 콘솔에 등록"은 비현실적이다.
+
+### 해법 — redirect proxy (한 곳으로 모아 되돌리기)
+
+`AUTH_REDIRECT_PROXY_URL`을 두면 Auth.js가 Preview에서 시작한 로그인의 `redirect_uri`를 **이 안정적 URL로 설정**하고, 원래 Preview URL은 `state`에 저장한다. 구글은 안정적(프로덕션) 콜백으로 돌아오고, 프로덕션이 `state`를 검증해 원래 Preview로 최종 리다이렉트한다. 요건(문서 실측):
+- **값 형식**: 프로덕션 URL + `/api/auth` **경로까지** 포함 → `https://travelanywhere-kr.vercel.app/api/auth`
+- **설정 위치**: Vercel Production·Preview **둘 다** 동일값(프로덕션에 없으면 프록시가 **아예 미작동** — 프로덕션이 콜백 수신자이므로). 로컬 `.env.local`엔 비워 둠(localhost 콜백 그대로).
+- **전제**: `AUTH_SECRET`이 Production·Preview 동일해야 `state` 서명 검증이 된다.
+- 콘솔엔 프로덕션 콜백만 있으면 됨(Preview 등록 불필요).
+
+코드는 `redirectProxyUrl: process.env.AUTH_REDIRECT_PROXY_URL` 한 줄(값 미설정 시 `undefined` → 프록시 비활성 = 기존 동작 그대로).
+
+### 일반화 포인트 (면접용)
+
+- **`trustHost`와 forwarded-host의 트레이드오프**: 리버스 프록시(Vercel) 뒤에선 클라이언트가 host 헤더를 위조할 수 있어 기본은 안 믿지만, 플랫폼을 감지하면 자동 신뢰한다. 그 대가로 **redirect_uri가 방문 도메인에 종속**된다. "편의(자동 host)"가 "OAuth 콜백 고정"과 충돌하는 지점.
+- **"환경은 여럿, 콜백은 하나"는 OAuth의 구조적 마찰**: preview/staging마다 도메인이 다른데 provider 콜백은 정확 매칭이라, **한 곳(프로덕션)으로 모아 되돌리는 프록시**가 표준 해법이다.
+- **"운영은 되는데 특정 환경만 깨진다"는 host 의존 신호**: 재현은 반드시 그 도메인에서 해야 하고, network로 실제 나가는 `redirect_uri`를 캡처하면 즉시 판별된다.
+
+### 코드 위치
+
+- `auth.ts` — `redirectProxyUrl: process.env.AUTH_REDIRECT_PROXY_URL` (+ 배경 주석)
+- `.env.local.example` — `AUTH_REDIRECT_PROXY_URL` 값 형식·설정 위치·전제
+- PR #33 (fix)
+
+### 관련 노트
+
+- [8. 구글 OAuth "액세스 차단됨"은 한 화면 여러 원인](#8-구글-oauth-액세스-차단됨은-한-화면-여러-원인--상태코드발생단계로-가른다) — 같은 조사에서 나온 이웃 원인(계정 후 403). 이 노트(7)는 그중 (a) 계정 전 400 경로의 봉쇄책.
+
+---
+
+## 8. 구글 OAuth "액세스 차단됨"은 한 화면 여러 원인 — 상태코드·발생단계로 가른다
+
+**한 줄 요약**: 구글 OAuth의 "액세스 차단됨(Access blocked)" 페이지는 **겉모습이 같아도 원인이 여럿**이라, "400번대 떴다"로 뭉뚱그리면 원인이 안 갈린다. 두 축으로 분해한다 — **HTTP 상태코드**와 **발생 단계**. (a) 계정 선택 **전** + `400 redirect_uri_mismatch`/`invalid_request` = 앱이 보낸 `redirect_uri`를 구글이 거부(주소·콘솔 설정). (b) 계정 선택 **후** + `403 access_denied` = 동의화면 **테스트 모드 + 미등록 테스트 사용자**, 또는 **관리형(조직) 계정** 정책 차단(`admin_policy_enforced`).
+
+### 배경
+
+"어제 구글 로그인 중 400번대 에러를 봤는데 오늘은 정상"이라는 간헐 증상을 진단했다. 사용자 증언이 흐릿했다 — 정확한 코드(401/403?), 계정 선택 전인지 후인지, 어느 계정을 골랐는지 모두 "가물가물". 이럴 때 추측을 쌓기보다 **판별 축**으로 분해해야 한다.
+
+### 두 진단 축
+
+1. **발생 단계(값싼 이분법)**: 구글은 `redirect_uri`·`client_id`를 **먼저** 검증한다 → 통과해야 **계정 선택 화면** → 계정을 골라야 **동의/차단** 단계. 따라서 "**계정 선택 화면을 봤는지**"가 핵심 분기다. 계정 화면 **전**에 막혔으면 redirect_uri 계열, **후**면 access_denied 계열.
+2. **상태코드**: `redirect_uri_mismatch`/`invalid_request` = **400**, `access_denied`/`admin_policy_enforced` = **403**. "정확히 400"과 "400번대(401/403)"는 다르다 — 사용자가 403을 "400번대"로 뭉뚱그리기 쉽다.
+
+### 원인별 처방
+
+| 상태코드 | 단계 | 원인 | 처방 |
+|---|---|---|---|
+| `400 redirect_uri_mismatch` | 계정 **전** | Preview/미등록 도메인에서 로그인 | redirect proxy (노트 7) |
+| `403 access_denied` | 계정 **후** | 동의화면 테스트 모드 + 미등록 테스트 사용자 | 테스트 사용자 등록, 또는 동의화면 "게시"(비민감 스코프면 검증 없이 즉시) |
+| `403 admin_policy_enforced` | 계정 **후** | 회사·학교(Workspace) 계정의 조직 정책 차단 | 개인 계정 사용 |
+
+### 실측으로 가르는 법
+
+기억이 흐릿할 때 결정타는 **재현/실측**이다. 운영 주소에서 로그인 흐름을 실제로 태워 **network로 나가는 `redirect_uri`를 캡처**했더니 `https://travelanywhere-kr.vercel.app/api/auth/callback/google`로 정확했고 **계정 선택 화면까지 도달**했다 → redirect_uri(전 단계)는 정상이라는 실증. 그러면 남는 건 계정 **후** 403뿐이고, "구글 로고 + 액세스 차단됨" 증언과 합쳐 **동의화면 테스트 모드 + 미등록 계정**으로 좁혀졌다.
+
+### 일반화 포인트 (면접용)
+
+- **같은 에러 화면, 다른 원인 — 사용자 증언은 부정확하다**: "400번대"는 401·403을 뭉뚱그린 것일 수 있다. **판별 축(상태코드·발생 단계)**으로 분해해야 원인이 하나로 수렴한다.
+- **OAuth는 다단계 핸드셰이크 — "어디서 끊겼나"가 원인의 절반**: redirect_uri 검증 → 계정 선택 → 동의/차단. "계정 화면을 봤나?"는 비용 0의 이분법이다.
+- **재현 > 기억**: 흐릿한 기억으로 가설을 늘리지 말고, 그 기기·도메인·계정으로 재현해 **그 순간의 URL·문구·상태코드**를 캡처한다. network 캡처는 증언을 대체하는 사실이다.
+- **코드 버그와 설정 이슈를 가른다**: (a)는 앱 설정(redirect_uri 고정)으로, (b)는 **Google Cloud Console**(동의화면 게시상태·테스트 사용자)로 해결한다 — 둘 다 `auth.ts` 로직 버그가 아니다.
+
+### 코드 위치
+
+- 진단 방법론 노트(코드 변경 없음). (a) 경로의 봉쇄책은 노트 7 / PR #33.
+- 조사 맥락: 구글 로그인 400번대 진단 세션(2026-07-13).
+
+### 관련 노트
+
+- [7. Auth.js v5의 redirect_uri는 요청 host로 조립된다](#7-authjs-v5의-redirect_uri는-요청-host로-조립된다--vercel-preview마다-redirect_uri_mismatch-auth_redirect_proxy_url로-봉쇄) — (a) 계정 전 400 경로의 원인·해법.
+
+---
+
 ## 🔄 누적 갱신
 
 | 일자 | 추가 항목 |
@@ -339,3 +428,5 @@ if (prevKind !== state.kind) {   // 렌더 본문 — effect 아님
 | 2026-07-06 | 4. granularity 갭(지역↔품목) — 좁은 축(지역)+보강 축(키워드 검색)+정직한 폴백 (제철+음식점 매칭) |
 | 2026-07-06 | 5. effect 내 동기 setState 대신 useSyncExternalStore — 마운트 시 브라우저 환경값 읽기·SSR 안전 (PWA 설치 버튼) |
 | 2026-07-10 | 6. 같은 set-state-in-effect라도 처방이 다르다 — prop 변화 리셋은 '이전 렌더 값 저장' 렌더-시점 패턴 (M20 코스 패널) |
+| 2026-07-13 | 7. Auth.js v5 redirect_uri는 요청 host로 조립 → Vercel Preview redirect_uri_mismatch, AUTH_REDIRECT_PROXY_URL로 봉쇄 (PR #33) |
+| 2026-07-13 | 8. 구글 OAuth "액세스 차단됨"은 한 화면 여러 원인 — 상태코드(400/403)·발생단계(계정 전/후)로 가른다 (진단 방법론) |

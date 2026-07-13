@@ -678,6 +678,8 @@ RandomTravel/
 | 🔭 date 배선·조건 존중·홈 수치 캡션 | 빈 곳 뽑기에 📅 기준일 UI 연동 + 지역·타입 조건 존중 + 홈 캡션에 N 표시 | M21 1단계는 오늘 고정·조건 무시·홈 무수치(§7.11) |
 | 한적 TOP5 히어로 리스트 | 홈 히어로에 오늘 한적 예측 상위 시·군·구 리스트 | 공모전 화면 후보 — 수요 확인 후 |
 | ⚖️ 기본 ON 재검토 | 분산 모드 기본값 반전(조건 모드 진입 시 기본 분산) | M22는 기본 OFF 확정(2026-07-10 사용자 결정, §6.9) — 사용 데이터 보고 |
+| 🔐 OAuth 동의화면 게시 | 구글 OAuth 동의화면을 "테스트 → 프로덕션(게시)"로 전환 — 미등록 테스트 사용자 `403 access_denied` 근본 해결(아무 구글 계정 로그인 허용) | **2026-07-13 로그인 400번대 진단 결과**: 어제 에러 = 동의화면 테스트 모드 + 데스크톱에서 미등록 계정 선택 → `403`(코드 무관, Google Cloud Console 설정 영역). 스코프 `openid·email·profile` = **비민감**이라 구글 검증 없이 즉시 게시 가능. 미완(사용자가 "다음에"). learning-notes #8 |
+| 🔁 redirect proxy env 배선 | [PR #33](https://github.com/Goospel/RandomTravel/pull/33)(`redirectProxyUrl`) **머지 후** Vercel **Production·Preview 양쪽**에 `AUTH_REDIRECT_PROXY_URL=https://travelanywhere-kr.vercel.app/api/auth` 등록 + `AUTH_SECRET` 양쪽 동일 확인 | 코드만으론 미작동 — 프로덕션에 값 없으면 프록시 비활성(Auth.js 문서). 미설정 시 Preview 배포 로그인은 `redirect_uri_mismatch`(400) 여전. learning-notes #7 |
 
 ## 12. 수익 모델 (장기 구상) — 여행 행동 데이터 사업화
 
