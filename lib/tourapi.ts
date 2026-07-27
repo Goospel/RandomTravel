@@ -616,7 +616,14 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   return result;
 }
 
-/** 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건 */
+/**
+ * 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건.
+ *
+ * ⚖️ 지역 미선택(areaPool=null)이면 전국 단일 쿼리가 아니라 **ALL_AREA_CODES 로 실체화**한다(§6.9A).
+ *   전국 쿼리는 TourAPI 항목 수에 비례해 서울·경기로 쏠려, 배포된 "17개 시·도에 같은 주사위"
+ *   카피가 과장이었다 — 조합을 (타입×17시·도)로 펼쳐 셔플하면 카피가 전 경로에서 참이 된다.
+ *   후보 수 집계(candidateCount)는 풀이 같아 무변이고, 뽑기 콜 수도 무변(첫 비어있지 않은 조합만 count).
+ */
 async function drawByType(
   params: DrawParams,
   areaPool: number[] | null,
@@ -627,13 +634,12 @@ async function drawByType(
       ? params.contentTypeIds
       : RANDOM_DEFAULT_TYPES;
 
+  // 지역 미선택이면 전국 17시·도로 실체화 → 조합이 (타입×시·도) 균등이 된다(§6.9A).
+  const areas = areaPool ?? ALL_AREA_CODES;
+
   const combos: Query[] = [];
   for (const contentTypeId of typePool) {
-    if (areaPool) {
-      for (const areaCode of areaPool) combos.push({ contentTypeId, areaCode });
-    } else {
-      combos.push({ contentTypeId });
-    }
+    for (const areaCode of areas) combos.push({ contentTypeId, areaCode });
   }
   shuffle(combos);
 
