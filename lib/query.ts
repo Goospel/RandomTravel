@@ -126,6 +126,14 @@ export interface RandomQueryOptions {
   festival?: boolean;
   noRain?: boolean;
   quiet?: boolean;
+  /**
+   * ⚖️ 분산 모드(§6.9B) — 방문자 적은 시·도 가중. 기본 OFF.
+   *
+   * ⚠️ 이건 **필터가 아니라 분포 축**이라 후보 풀을 안 바꾼다 → 후보 수 쿼리에는 넣지 않는다
+   * (FilterPanel 의 countQuery 는 이 옵션을 전달하지 않음). "뽑기·count 쿼리 일치" 관례의
+   * 첫 의도적 예외 — 넣으면 같은 풀에 대해 count URL 만 갈라져 캐시가 무의미하게 쪼개진다.
+   */
+  scatter?: boolean;
   /** 📅 선택된 기준일 YYYYMMDD. null/오늘/과거는 생략(기준일=오늘과 동일, §6.8). 미래만 방출 */
   dateYmd?: string | null;
   /** 비교 기준 오늘(YYYYMMDD). 기본 kstYmd() — 테스트·단일 시계 주입용 */
@@ -190,6 +198,9 @@ export function buildRandomQuery(
   //   같은 buildRandomQuery 라 noRain 미방출 → dynamic 강등 없음.
   if (opts.noRain && !future) params.set("noRain", "1");
   if (opts.quiet) params.set("quiet", "1");
+  // ⚖️ 는 🌊 바다 경로에 미적용(이미 count 가중이라 의미 충돌) → 🌊 ON 이면 미방출.
+  //   types 를 🌊 에서 빼는 것과 같은 관례(표시·전송·서버 동작 일치).
+  if (opts.scatter && !opts.seaside) params.set("scatter", "1");
   if (future) params.set("date", opts.dateYmd!);
   return params.toString();
 }

@@ -228,6 +228,13 @@ export function ResultCard({
             </span>
           )}
         </div>
+        {/* ⚖️ 분산 모드로 실제 가중이 걸린 뽑기만(§6.9B) — 근거 없는 분포 변경이 안 보이는 것 방지.
+            폴백(균등)으로 내려갔으면 표식이 안 붙고 아래 notice 로 사실이 나간다. */}
+        {data.picked.scatter && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            ⚖️ 방문자 적은 시·도 가중으로 뽑음
+          </p>
+        )}
         {data.picked.notice && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
             ⚠️ {data.picked.notice}

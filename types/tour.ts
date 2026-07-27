@@ -87,6 +87,11 @@ export interface PickedInfo {
   distanceM?: number | null;
   /** 🔭 빈 곳에서 뽑기(M21)로 나왔을 때 참 — "지도에 없던 동네" 배지 트리거. 아니면 null/생략 (§7.11) */
   emptySpot?: boolean | null;
+  /**
+   * ⚖️ 분산 모드(§6.9B)로 **실제 가중이 걸려** 뽑혔을 때만 참 — 결과 카드 캡션 트리거.
+   * 토글이 켜졌어도 방문자 데이터를 못 불러와 균등으로 폴백했으면 붙지 않는다(notice 로 안내).
+   */
+  scatter?: boolean | null;
   /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
   notice?: string | null;
 }

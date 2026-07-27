@@ -57,6 +57,7 @@ export default function Home() {
   const [festival, setFestival] = useState(false); // 🎪 축제 (§6.2)
   const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
   const [quiet, setQuiet] = useState(false); // 🍃 한적 (§6.7)
+  const [scatter, setScatter] = useState(false); // ⚖️ 분산 모드 (§6.9B) — 기본 OFF
   // 📅 방문 시점 기준일(§6.8) — null = 오늘(기본). 미래 칩 선택 시 그 ymd 저장(날짜 단독=완전 랜덤).
   const [dateYmd, setDateYmd] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -120,6 +121,7 @@ export default function Home() {
     setFestival(false);
     setNoRain(false);
     setQuiet(false);
+    setScatter(false); // ⚖️ 기본(OFF) 복귀(§6.9B)
     setDateYmd(null); // 📅 '오늘' 복귀(§6.8)
   };
 
@@ -181,6 +183,7 @@ export default function Home() {
       festival,
       noRain,
       quiet,
+      scatter, // ⚖️ 조건 모드 + ON 일 때만 방출(🌊 면 미방출, §6.9B)
       dateYmd, // 📅 미래 기준일이면 date 방출 + ☔ 미방출(§6.8)
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
@@ -323,7 +326,8 @@ export default function Home() {
     seasonal ||
     festival ||
     noRain ||
-    quiet;
+    quiet ||
+    scatter;
 
   // 🧩 발 들인 시·도 정복 pill(헤더) — 홈 히어로 타일과 같은 출처(areaCode 기준).
   const conqueredAreas = visitedAreaCodes(store.visited).size;
@@ -383,6 +387,7 @@ export default function Home() {
                 festival={festival}
                 noRain={noRain}
                 quiet={quiet}
+                scatter={scatter}
                 dateYmd={dateYmd}
                 onToggleArea={toggleArea}
                 onToggleType={toggleType}
@@ -391,6 +396,7 @@ export default function Home() {
                 onToggleFestival={() => setFestival((v) => !v)}
                 onToggleNoRain={() => setNoRain((v) => !v)}
                 onToggleQuiet={() => setQuiet((v) => !v)}
+                onToggleScatter={() => setScatter((v) => !v)}
                 onSelectDate={setDateYmd}
                 onClear={clearFilters}
               />

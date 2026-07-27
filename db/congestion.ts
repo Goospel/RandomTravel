@@ -8,12 +8,15 @@
 // 고빈도 뽑기·후보 수 요청에 직격한다. 적재는 청크 upsert(≤1,000행)로 부분 실패에도 idempotent.
 
 import { unstable_cache } from "next/cache";
-import { desc, eq, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { congestionDaily, visitorDaily } from "@/db/schema";
 import type { DayAggregate, SigunguRank } from "@/lib/congestion";
+import { VISITOR_OUTSIDER, type VisitorRecentRow } from "@/lib/scatter";
 
 const CHUNK = 1000; // 한 방 INSERT 상한(§6.7 — 바인드 파라미터 65,534 상한 + 부분 진행 보존)
+/** ⚖️ 가중 재료 창(§6.9B) — 최근 가용 며칠까지 평균낼지. 적재가 적으면 있는 만큼만. */
+const VISITOR_WINDOW_DAYS = 7;
 
 /** baseYmd ≤ 기준일 중 최신 날짜의 전국 시군구 행 + 신선도(max fetched_at). */
 export interface CongestionDay {
@@ -94,6 +97,58 @@ export async function upsertCongestion(
         },
       });
   }
+}
+
+/** ⚖️ 분산 모드 가중 재료(§6.9B) — 최근 가용 ≤7일의 외지인 방문자, 시군구별 평균. */
+export interface VisitorRecent {
+  /** 평균에 쓴 날짜들(최신순). 적재가 1일뿐이면 1개 — 배치가 쌓이며 자연 확장. */
+  baseYmds: string[];
+  rows: VisitorRecentRow[];
+}
+
+/** 최근 ≤7일 창의 외지인 행을 시군구별 평균. 행이 없으면 null(호출부가 균등 폴백+notice). */
+async function queryVisitorRecent(): Promise<VisitorRecent | null> {
+  // 최신 날짜 ≤7개 — 단일일의 요일·이벤트 노이즈를 평균으로 완충한다.
+  //   방문자 데이터는 약 1개월 지연이라 '오늘 기준' 필터는 무의미(항상 과거) → 최신 그대로.
+  const days = await db
+    .selectDistinct({ baseYmd: visitorDaily.baseYmd })
+    .from(visitorDaily)
+    .orderBy(desc(visitorDaily.baseYmd))
+    .limit(VISITOR_WINDOW_DAYS);
+  if (days.length === 0) return null;
+  const baseYmds = days.map((d) => d.baseYmd);
+
+  const rows = await db
+    .select({
+      sigunguCd: visitorDaily.sigunguCd,
+      avgNum: sql<number>`avg(${visitorDaily.touNum})`,
+    })
+    .from(visitorDaily)
+    .where(
+      and(
+        eq(visitorDaily.touDivCd, VISITOR_OUTSIDER),
+        inArray(visitorDaily.baseYmd, baseYmds),
+      ),
+    )
+    .groupBy(visitorDaily.sigunguCd);
+  if (rows.length === 0) return null;
+
+  return {
+    baseYmds,
+    // neon 은 집계 결과를 문자열로 줄 수 있어 Number 로 정규화(순수부는 숫자만 다룬다).
+    rows: rows.map((r) => ({ sigunguCd: r.sigunguCd, touNum: Number(r.avgNum) })),
+  };
+}
+
+/**
+ * ⚖️ 가중 재료 1회 조회 — unstable_cache(1h). TourAPI 0콜(DB 1쿼리).
+ * 실패는 throw → 호출부(drawRandom)가 균등 폴백 + notice 로 소프트 스킵(조용한 저하 금지).
+ */
+export function getVisitorRecent(): Promise<VisitorRecent | null> {
+  return unstable_cache(queryVisitorRecent, ["visitor-recent"], {
+    revalidate: 3600,
+    tags: ["visitor"],
+  })();
 }
 
 /** 방문자수 적재 행(시군구×날짜×관광객구분). */

@@ -58,7 +58,9 @@ import {
   kstYmd,
   QUIET_AREA_CUT,
 } from "@/lib/congestion";
-import { getCongestionDay } from "@/db/congestion";
+import { getCongestionDay, getVisitorRecent } from "@/db/congestion";
+import { areaWeights, orderByWeightedArea } from "@/lib/scatter";
+import { LDONG_TO_APP_AREA } from "@/lib/congestionCodes";
 import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
 
@@ -318,6 +320,12 @@ export interface DrawParams {
   noRain?: boolean;
   /** 🍃 한적: 성수기 예측 시·도를 풀에서 제거 (배치 DB 조회, §6.7) */
   quiet?: boolean;
+  /**
+   * ⚖️ 분산 모드(§6.9B) — 시·도 선택을 균등에서 **외지인 방문자수 √역가중**으로. 기본 OFF.
+   * 필터가 아니라 **분포 축**이라 후보 풀은 안 바뀐다(후보 수 배지 무변이 불변식).
+   * 🌊·📍·🔭 경로에는 미적용(각각 이미 다른 선택 축을 쓴다 — 1단계 범위).
+   */
+  scatter?: boolean;
   /** 제철 기준 월(1-12). 미지정 시 현재 월 — 테스트·일관성 주입용 */
   month?: number;
   /** 축제 기준 날짜 YYYYMMDD. 미지정 시 오늘(KST) — 테스트·일관성 주입용 */
@@ -603,6 +611,27 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     }
   }
 
+  // 6) ⚖️ 분산 모드(§6.9B) — 시·도 가중치 준비. 풀은 안 건드린다(분포 축이지 필터가 아님).
+  //    🍃 다음에 두는 이유: notices 에 접근 가능한 지점이면서, 풀 좁힘이 다 끝난 뒤라
+  //    가중이 실제 후보 지역에만 적용된다. 🌊 경로는 아래에서 이 값을 안 쓴다(미적용).
+  let areaWeightMap: Map<number, number> | null = null;
+  if (params.scatter && !params.seaside) {
+    let recent: Awaited<ReturnType<typeof getVisitorRecent>> = null;
+    try {
+      recent = await getVisitorRecent();
+    } catch {
+      recent = null;
+    }
+    if (!recent || recent.rows.length === 0) {
+      // 조용한 저하 금지 — 균등으로 뽑되 그 사실을 알린다(§6.5 동형).
+      notices.push(
+        "방문자 데이터를 못 불러와 이번엔 모든 시·도 같은 확률로 뽑았어요.",
+      );
+    } else {
+      areaWeightMap = areaWeights(recent.rows, LDONG_TO_APP_AREA);
+    }
+  }
+
   const ctx: BadgeCtx = {
     month,
     seasonal: !!params.seasonal,
@@ -614,10 +643,10 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     congestionTargetYmd,
   };
 
-  // 6) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 7) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
-    : await drawByType(params, areaPool, ctx);
+    : await drawByType(params, areaPool, ctx, areaWeightMap);
   if (notices.length) result.picked.notice = notices.join(" "); // 🎪·☔ 건너뛴 사실 노출
   return result;
 }
@@ -671,18 +700,31 @@ export function itemAreaCode(item: TourApiItem): number | null {
   return ldongToAreaCode(item.lDongRegnCd, item.lDongSignguCd);
 }
 
-/** 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건 */
+/**
+ * 기본/제철 경로 — (지역×타입) 조합을 순회해 첫 비어있지 않은 조합에서 1건.
+ *
+ * 조합 **순서**만 두 갈래다(집합·쿼리는 완전히 동일 — §6.9 "후보 수 무변" 불변식):
+ *  - `weights = null`(기본): 전역 셔플 → (타입×시·도) 균등(§6.9A).
+ *  - `weights` 있음(⚖️ ON): (가중 시·도)×(셔플 타입) 순 → 방문자 적은 시·도가 앞에 자주 온다.
+ *    지역 단위로 붙어 나오므로 "그 지역 전 타입 0건이면 다음 지역"이 자연히 성립하고,
+ *    조합 배열을 **재배열만** 하므로 §6.9A 의 lDong 버킷 디스크립터가 그대로 공유된다
+ *    (따로 만들면 ⚖️ ON 에서만 areacode 40% 손실이 재발한다).
+ */
 async function drawByType(
   params: DrawParams,
   areaPool: number[] | null,
   ctx: BadgeCtx,
+  weights: Map<number, number> | null = null,
 ): Promise<DrawResult> {
   const typePool =
     params.contentTypeIds && params.contentTypeIds.length > 0
       ? params.contentTypeIds
       : RANDOM_DEFAULT_TYPES;
 
-  const combos = shuffle(buildDrawCombos(typePool, areaPool));
+  const built = buildDrawCombos(typePool, areaPool);
+  const combos = weights
+    ? orderByWeightedArea(built, weights, Math.random)
+    : shuffle(built);
 
   const limit = Math.min(combos.length, COMBO_BUDGET);
 
@@ -710,6 +752,7 @@ async function drawByType(
             contentTypeId: RESTAURANT_TYPE,
             totalCount: linked.count,
             ...badges,
+            ...(weights ? { scatter: true } : {}),
           },
         };
       }
@@ -739,6 +782,9 @@ async function drawByType(
         contentTypeId: q.contentTypeId,
         totalCount,
         ...badges,
+        // ⚖️ 실제로 가중이 걸린 뽑기만 표식 — 폴백(균등)으로 내려간 경우는 붙이지 않는다
+        //   (근거 없는 분포 변경 주장 금지. 폴백 사실은 notice 로 따로 나간다).
+        ...(weights ? { scatter: true } : {}),
       },
     };
   }

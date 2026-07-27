@@ -120,6 +120,7 @@ export function FilterPanel({
   festival,
   noRain,
   quiet,
+  scatter,
   dateYmd,
   onToggleArea,
   onToggleType,
@@ -128,6 +129,7 @@ export function FilterPanel({
   onToggleFestival,
   onToggleNoRain,
   onToggleQuiet,
+  onToggleScatter,
   onSelectDate,
   onClear,
 }: {
@@ -138,6 +140,8 @@ export function FilterPanel({
   festival: boolean;
   noRain: boolean;
   quiet: boolean;
+  /** ⚖️ 분산 모드(§6.9B). 필터가 아니라 분포 축 — 후보 수에 영향 없음 */
+  scatter: boolean;
   /** 📅 선택 기준일 YYYYMMDD(§6.8). null = 오늘(기본) */
   dateYmd: string | null;
   onToggleArea: (code: number) => void;
@@ -147,9 +151,11 @@ export function FilterPanel({
   onToggleFestival: () => void;
   onToggleNoRain: () => void;
   onToggleQuiet: () => void;
+  onToggleScatter: () => void;
   onSelectDate: (ymd: string | null) => void;
   onClear: () => void;
 }) {
+  // ⚖️ 는 후보를 안 줄이지만 '기본과 다른 상태'라 초기화 대상 — 📅 날짜 칩과 같은 취급.
   const hasAny =
     selectedAreas.size > 0 ||
     selectedTypes.size > 0 ||
@@ -157,7 +163,8 @@ export function FilterPanel({
     seasonal ||
     festival ||
     noRain ||
-    quiet;
+    quiet ||
+    scatter;
 
   // 📅 방문 시점 칩(§6.8) — 조건 모드 진입은 마운트 후(pure 기본)라 렌더 시 new Date() 안전(SSR 아님).
   //    선택 ymd 가 현재 칩에 없으면(자정 통과·과거화) '오늘'로 간주 — 소리 없는 날짜 변경 방지.
@@ -172,6 +179,9 @@ export function FilterPanel({
 
   // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
   //   activeYmd(stale 정리분)를 넘겨 count 경로도 date 방출/noRain 미방출을 뽑기와 일치시킨다.
+  // ⚠️ scatter 는 **일부러 안 넘긴다**(§6.9B) — ⚖️ 는 풀이 아니라 분포만 바꾸므로 후보 수가
+  //   같아야 하고(불변식), 넣으면 같은 풀의 count URL 이 갈라져 캐시만 쪼개진다.
+  //   "뽑기·count 쿼리 일치" 관례의 유일한 의도적 예외. 여기에 scatter 를 추가하지 말 것.
   const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
     seaside,
     seasonal,
@@ -328,6 +338,23 @@ export function FilterPanel({
             desc="관광지 집중률 예측 기반, 안 붐빌 곳"
           />
         </div>
+      </section>
+
+      {/* ⚖️ 분산 모드(§6.9B) — '추가 조건' 그리드와 분리된 줄. 필터가 아니라 분포 축이라
+          같은 격자에 넣으면 후보를 줄이는 조건으로 오해된다. 🌊 는 이미 count 가중 축이라 배타. */}
+      <section className="flex flex-col gap-2">
+        <ExtraToggle
+          on={scatter}
+          onToggle={onToggleScatter}
+          emoji="⚖️"
+          label="분산 모드"
+          desc={
+            scatter
+              ? "방문자 적은 시·도가 더 자주 나와요 (약 1개월 전 공공 방문자 집계 기준)"
+              : "끄면 17개 시·도 같은 확률"
+          }
+          locked={seaside}
+        />
       </section>
 
       {seaside && (
