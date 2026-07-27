@@ -348,8 +348,9 @@ export function FilterPanel({
           onToggle={onToggleScatter}
           emoji="⚖️"
           label="분산 모드"
+          // 🌊 로 잠겼으면 켜져 있어도 꺼진 것으로 취급(☔ 관례) → 설명도 OFF 쪽으로.
           desc={
-            scatter
+            scatter && !seaside
               ? "방문자 적은 시·도가 더 자주 나와요 (약 1개월 전 공공 방문자 집계 기준)"
               : "끄면 17개 시·도 같은 확률"
           }
