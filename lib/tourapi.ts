@@ -18,9 +18,11 @@ import {
   RANDOM_DEFAULT_TYPES,
   SEA_CAT3,
   ALL_AREA_CODES,
+  AREA_TO_LDONG,
   NEARBY_RADIUS_M,
   COURSE_RADII,
 } from "@/lib/constants";
+import { ldongToAreaCode } from "@/lib/ldong";
 import {
   COURSE_SLOTS,
   type CourseSlot,
@@ -164,6 +166,8 @@ interface Query {
   cat3?: string;
   /** 🔭 TourAPI sigunguCode(§7.11). areaCode 와 함께 얹어 시·군·구 셀로 좁힌다(URL 캐시 자동 분리). */
   sigunguCode?: string;
+  /** ⚖️ 법정동 시도 코드(§6.9A). 무지역 뽑기의 시·도 버킷 — areaCode 대신 쓴다. */
+  lDongRegnCd?: string;
 }
 
 function queryParams(q: Query): Record<string, string | number> {
@@ -171,6 +175,8 @@ function queryParams(q: Query): Record<string, string | number> {
   if (q.areaCode) p.areaCode = q.areaCode;
   if (q.cat3) p.cat3 = q.cat3;
   if (q.sigunguCode) p.sigunguCode = q.sigunguCode;
+  // 파라미터가 URL 에 그대로 들어가 24h getTotalCount 캐시 키가 버킷 단위로 자연 분화된다.
+  if (q.lDongRegnCd) p.lDongRegnCd = q.lDongRegnCd;
   return p;
 }
 
@@ -616,14 +622,56 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   return result;
 }
 
+/** 뽑기 조합 1개 — 쿼리 파라미터 + 배지·결과 귀속용 슬롯 시·도(§6.9A). */
+export interface DrawCombo extends Query {
+  /** 이 조합이 대표하는 시·도. 응답 항목에서 시·도를 못 읽을 때의 귀속 기본값. */
+  slotAreaCode: number;
+}
+
 /**
- * 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건.
+ * ⚖️ (타입×지역) 조합 생성 — 셔플 전의 순수부(§6.9A).
  *
- * ⚖️ 지역 미선택(areaPool=null)이면 전국 단일 쿼리가 아니라 **ALL_AREA_CODES 로 실체화**한다(§6.9A).
- *   전국 쿼리는 TourAPI 항목 수에 비례해 서울·경기로 쏠려, 배포된 "17개 시·도에 같은 주사위"
- *   카피가 과장이었다 — 조합을 (타입×17시·도)로 펼쳐 셔플하면 카피가 전 경로에서 참이 된다.
- *   후보 수 집계(candidateCount)는 풀이 같아 무변이고, 뽑기 콜 수도 무변(첫 비어있지 않은 조합만 count).
+ * - `areaPool = null`(지역 미선택): **17개 시·도 lDong 버킷으로 실체화**한다. 전국 단일 쿼리는
+ *   관광지 수에 비례해 서울·경기로 쏠려 배포 카피("17개 시·도에 같은 주사위")가 과장이었다.
+ *   ⚠️ 버킷을 `areaCode` 로 만들면 안 된다 — 항목의 ~40%가 areacode 필드 공백(지방 한적 명소
+ *   다수)이라 어느 시·도에서도 안 잡혀 영구 탈락한다(실측: 전국 21,240 vs areaCode 버킷 합
+ *   12,723). 같은 항목이 lDongRegnCd 는 보유해 lDong 버킷은 도달률 99.99%.
+ *   광주·전남은 병합 코드 12 를 **중복 보유**(합산 확률 2/17 — AREA_TO_LDONG 주석).
+ * - `areaPool` 지정(사용자 선택·🍃 등 필터 결과): **기존 areaCode 쿼리 그대로**(동작 무변).
+ *   그 경로의 areacode 공백 손실은 M22 이전부터로 전면 마이그레이션은 §11.1 몫.
  */
+export function buildDrawCombos(
+  typePool: number[],
+  areaPool: number[] | null,
+): DrawCombo[] {
+  const combos: DrawCombo[] = [];
+  for (const contentTypeId of typePool) {
+    if (areaPool) {
+      for (const areaCode of areaPool)
+        combos.push({ contentTypeId, areaCode, slotAreaCode: areaCode });
+    } else {
+      for (const areaCode of ALL_AREA_CODES)
+        combos.push({
+          contentTypeId,
+          lDongRegnCd: AREA_TO_LDONG[areaCode],
+          slotAreaCode: areaCode,
+        });
+    }
+  }
+  return combos;
+}
+
+/**
+ * 응답 항목의 시·도 귀속 — item.areacode 우선, 비면 법정동 코드로 판별(§6.9A).
+ * lDong 버킷 쿼리는 areacode 가 빈 항목을 일부러 포함하므로 이 폴백이 배지의 전제다.
+ */
+export function itemAreaCode(item: TourApiItem): number | null {
+  const ac = item.areacode ? Number(item.areacode) : NaN;
+  if (Number.isFinite(ac) && ac > 0) return ac;
+  return ldongToAreaCode(item.lDongRegnCd, item.lDongSignguCd);
+}
+
+/** 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건 */
 async function drawByType(
   params: DrawParams,
   areaPool: number[] | null,
@@ -634,21 +682,9 @@ async function drawByType(
       ? params.contentTypeIds
       : RANDOM_DEFAULT_TYPES;
 
-  // 지역 미선택이면 전국 17시·도로 실체화 → 조합이 (타입×시·도) 균등이 된다(§6.9A).
-  const areas = areaPool ?? ALL_AREA_CODES;
-
-  const combos: Query[] = [];
-  for (const contentTypeId of typePool) {
-    for (const areaCode of areas) combos.push({ contentTypeId, areaCode });
-  }
-  shuffle(combos);
+  const combos = shuffle(buildDrawCombos(typePool, areaPool));
 
   const limit = Math.min(combos.length, COMBO_BUDGET);
-  if (combos.length > COMBO_BUDGET) {
-    console.warn(
-      `[drawRandom] 조합 ${combos.length}개 중 ${COMBO_BUDGET}개만 탐색(예산 상한).`,
-    );
-  }
 
   for (let i = 0; i < limit; i++) {
     const q = combos[i];
@@ -688,7 +724,9 @@ async function drawByType(
 
     const overview = await getOverview(item.contentid);
     const place = normalizePlace(item, overview);
-    const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
+    // 귀속: item.areacode → 법정동 코드 판별 → 슬롯 시·도(§6.9A). lDong 버킷은 areacode 가
+    // 빈 항목을 일부러 포함하므로 중간 단계가 없으면 배지가 통째로 빠진다.
+    const areaCode = itemAreaCode(item) ?? q.slotAreaCode;
     const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
     // 제철 음식점인데 품목 매칭에 실패해 여기로 왔으면, 랜덤 식당에 "이 집=제철" 오해를 줄
     // 제철 배지는 숨긴다(수박 배지 + 무관한 횟집 방지). 다른 타입·매칭 성공 경로는 그대로.
@@ -702,6 +740,14 @@ async function drawByType(
         ...badges,
       },
     };
+  }
+
+  // 예산 상한 경고는 **여기**(전 조합 탐색 실패 후)에서만 — 잘린 시점에 경고하면 상한이
+  // 실제로 해를 끼치지 않은 경우까지 매 뽑기 오경보였다(85조합 전부 비어있지 않음 실측).
+  if (combos.length > COMBO_BUDGET) {
+    console.warn(
+      `[drawRandom] 조합 ${combos.length}개 중 예산 상한 ${COMBO_BUDGET}개를 모두 소진(전부 빈 조합).`,
+    );
   }
 
   throw new TourApiError(

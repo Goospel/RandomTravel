@@ -13,6 +13,9 @@ export interface TourApiItem {
   mapx?: string; // 경도 longitude
   mapy?: string; // 위도 latitude
   areacode?: string;
+  // 법정동 코드 — areacode 가 빈 항목(~40%)의 시·도 귀속 단서(§6.9A). 항상 응답에 실린다.
+  lDongRegnCd?: string;
+  lDongSignguCd?: string;
   cat3?: string; // 🧭 소분류 코드 — 코스 식사 슬롯의 카페·클럽 거부 판정용(M20)
   tel?: string;
   overview?: string; // detailCommon 보강 시
