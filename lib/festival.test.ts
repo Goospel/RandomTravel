@@ -55,6 +55,11 @@ describe("festivalAreaCode — lDongRegnCd → TourAPI areaCode", () => {
     expect(festivalAreaCode(raw({ lDongRegnCd: "51" }))).toBe(32);
     expect(festivalAreaCode(raw({ lDongRegnCd: "52" }))).toBe(37);
   });
+  it("세종은 시도 코드가 5자리(36110) — areacode 가 비어도 8 로 잡힌다", () => {
+    // 실측 2026-07-27: 실제 세종 축제 2건이 이 형태. 3자리 36 만 알던 시절엔
+    // 변환 실패로 festivalMap 에서 통째 탈락해 🎪 필터에서 세종이 사라졌다.
+    expect(festivalAreaCode(raw({ lDongRegnCd: "36110", areacode: "" }))).toBe(8);
+  });
   it("lDongRegnCd 없으면 areacode(TourAPI 코드) 폴백", () => {
     expect(festivalAreaCode(raw({ lDongRegnCd: undefined, areacode: "6" }))).toBe(6);
   });

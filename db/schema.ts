@@ -114,13 +114,15 @@ export const congestionDaily = pgTable(
   (t) => [primaryKey({ columns: [t.sigunguCd, t.baseYmd] })],
 );
 
-// 방문자수: 시군구×날짜×관광객구분(a현지인/b외지인/c외국인). M17은 적재만(활용은 후속).
+// 방문자수: 시군구×날짜×관광객구분. ⚖️ 분산 모드(M22 §6.9B)가 외지인 행을 역가중에 쓴다.
 export const visitorDaily = pgTable(
   "visitor_daily",
   {
     sigunguCd: text("sigungu_cd").notNull(), // 법정동 signguCode
     baseYmd: text("base_ymd").notNull(),
-    touDivCd: text("tou_div_cd").notNull(), // 관광객 구분 a/b/c
+    // 관광객 구분 — 실값 "1"현지인/"2"외지인/"3"외국인(실측 2026-07: 268행씩 3구분).
+    // ⚠️ 이전 주석의 a/b/c 는 오기였다(API 문서 표기와 실응답 불일치) — M22 에서 정정.
+    touDivCd: text("tou_div_cd").notNull(),
     touNum: doublePrecision("tou_num").notNull(),
   },
   (t) => [primaryKey({ columns: [t.sigunguCd, t.baseYmd, t.touDivCd] })],

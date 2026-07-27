@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   const festivalOnly = parseBool(sp.get("festivalOnly")); // 🎪 축제 (§6.2)
   const noRain = parseBool(sp.get("noRain")); // ☔ 날씨 (§6.1)
   const quiet = parseBool(sp.get("quiet")); // 🍃 한적 (§6.7)
+  const scatter = parseBool(sp.get("scatter")); // ⚖️ 분산 모드 (§6.9B)
   const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined; // 📅 방문 시점 (§6.8)
 
   // 파라미터에 '내용'이 있는데 유효 코드가 하나도 없으면(조작된 URL 등) 잘못된 요청 —
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
       festivalOnly,
       noRain,
       quiet,
+      scatter,
       dateYmd,
       now,
     });

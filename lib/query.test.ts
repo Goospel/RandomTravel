@@ -466,3 +466,55 @@ describe("parseSigunguCodes — 문자열 화이트리스트(통계청 code, §7
     expect(parseSigunguCodes("12345", valid)).toEqual([]);
   });
 });
+
+describe("buildRandomQuery — ⚖️ 분산 모드(§6.9B)", () => {
+  it("조건 모드 + ON 이면 scatter=1 방출", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { scatter: true }),
+    );
+    expect(p.get("scatter")).toBe("1");
+  });
+
+  it("OFF(기본)면 미방출 — 기존 URL 무변", () => {
+    expect(buildRandomQuery("filtered", new Set([1]), new Set())).toBe("areas=1");
+    expect(
+      buildRandomQuery("filtered", new Set([1]), new Set(), { scatter: false }),
+    ).toBe("areas=1");
+  });
+
+  it("순수 모드는 ON 이어도 '' — '조건 0개 = 완전 랜덤' 불변식(§2) 무손상", () => {
+    expect(buildRandomQuery("pure", new Set(), new Set(), { scatter: true })).toBe("");
+  });
+
+  it("🌊 바다 ON 이면 미방출 — 서버가 무시하는 파라미터를 URL 에 안 싣는 관례(§6.9B)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        scatter: true,
+        seaside: true,
+      }),
+    );
+    expect(p.has("scatter")).toBe(false);
+    expect(p.get("seaside")).toBe("1");
+  });
+
+  it("draw ⊇ count 이고 차집합 ⊆ {scatter} — count 쿼리만 scatter 를 뺀다", () => {
+    // FilterPanel 의 countQuery 는 scatter 를 전달하지 않는다(의도적 예외).
+    const state = {
+      areas: new Set([1, 39]),
+      types: new Set([12]),
+      opts: { quiet: true, seasonal: true },
+    };
+    const draw = new URLSearchParams(
+      buildRandomQuery("filtered", state.areas, state.types, {
+        ...state.opts,
+        scatter: true,
+      }),
+    );
+    const count = new URLSearchParams(
+      buildRandomQuery("filtered", state.areas, state.types, state.opts),
+    );
+    for (const [k, v] of count) expect(draw.get(k)).toBe(v); // draw ⊇ count
+    const diff = [...draw.keys()].filter((k) => !count.has(k));
+    expect(diff).toEqual(["scatter"]); // 차집합 = {scatter}
+  });
+});

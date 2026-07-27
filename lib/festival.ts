@@ -5,7 +5,8 @@
 // "오늘 진행 중"은 서버가 한 번에 못 주므로(eventStartDate 는 '아직 안 끝난'=진행중+예정을
 // 준다) 받은 목록을 시작 ≤ 오늘 ≤ 종료 로 클라이언트에서 한 번 더 거른다.
 
-import { LDONG_TO_AREA, LDONG12_GWANGJU_GU, ALL_AREA_CODES } from "@/lib/constants";
+import { ALL_AREA_CODES } from "@/lib/constants";
+import { ldongToAreaCode } from "@/lib/ldong";
 
 /** searchFestival2 원본 항목 중 관심 필드 */
 export interface RawFestival {
@@ -52,14 +53,12 @@ export function isInProgress(f: RawFestival, today: string): boolean {
 
 /**
  * 법정동 시도 코드 → TourAPI areaCode. 없으면 areacode 폴백, 그래도 안 되면 null.
- * 특례: 12 = 전남광주통합특별시(2026-07-01 개편) — 한 시도 코드가 areaCode 5(광주)와
- * 38(전남)에 걸쳐 시도 단위 매핑이 불가하므로 lDongSignguCd 로 가른다(없으면 폴백).
+ * 판별 자체는 공용 헬퍼 `ldongToAreaCode`(lib/ldong) — 축제는 areacode 가 거의 비어
+ * lDong 을 **먼저** 본다(뽑기 결과는 반대로 item.areacode 우선 — §6.9A).
  */
 export function festivalAreaCode(f: RawFestival): number | null {
-  if (f.lDongRegnCd === "12" && f.lDongSignguCd) {
-    return LDONG12_GWANGJU_GU.has(f.lDongSignguCd) ? 5 : 38;
-  }
-  if (f.lDongRegnCd && LDONG_TO_AREA[f.lDongRegnCd]) return LDONG_TO_AREA[f.lDongRegnCd];
+  const fromLdong = ldongToAreaCode(f.lDongRegnCd, f.lDongSignguCd);
+  if (fromLdong != null) return fromLdong;
   const ac = f.areacode ? Number(f.areacode) : NaN;
   return Number.isFinite(ac) && AREA_SET.has(ac) ? ac : null;
 }

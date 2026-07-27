@@ -18,9 +18,11 @@ import {
   RANDOM_DEFAULT_TYPES,
   SEA_CAT3,
   ALL_AREA_CODES,
+  AREA_TO_LDONG,
   NEARBY_RADIUS_M,
   COURSE_RADII,
 } from "@/lib/constants";
+import { ldongToAreaCode } from "@/lib/ldong";
 import {
   COURSE_SLOTS,
   type CourseSlot,
@@ -56,7 +58,9 @@ import {
   kstYmd,
   QUIET_AREA_CUT,
 } from "@/lib/congestion";
-import { getCongestionDay } from "@/db/congestion";
+import { getCongestionDay, getVisitorRecent } from "@/db/congestion";
+import { areaWeights, orderByWeightedArea } from "@/lib/scatter";
+import { LDONG_TO_APP_AREA } from "@/lib/congestionCodes";
 import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
 
@@ -164,6 +168,8 @@ interface Query {
   cat3?: string;
   /** 🔭 TourAPI sigunguCode(§7.11). areaCode 와 함께 얹어 시·군·구 셀로 좁힌다(URL 캐시 자동 분리). */
   sigunguCode?: string;
+  /** ⚖️ 법정동 시도 코드(§6.9A). 무지역 뽑기의 시·도 버킷 — areaCode 대신 쓴다. */
+  lDongRegnCd?: string;
 }
 
 function queryParams(q: Query): Record<string, string | number> {
@@ -171,6 +177,8 @@ function queryParams(q: Query): Record<string, string | number> {
   if (q.areaCode) p.areaCode = q.areaCode;
   if (q.cat3) p.cat3 = q.cat3;
   if (q.sigunguCode) p.sigunguCode = q.sigunguCode;
+  // 파라미터가 URL 에 그대로 들어가 24h getTotalCount 캐시 키가 버킷 단위로 자연 분화된다.
+  if (q.lDongRegnCd) p.lDongRegnCd = q.lDongRegnCd;
   return p;
 }
 
@@ -312,6 +320,12 @@ export interface DrawParams {
   noRain?: boolean;
   /** 🍃 한적: 성수기 예측 시·도를 풀에서 제거 (배치 DB 조회, §6.7) */
   quiet?: boolean;
+  /**
+   * ⚖️ 분산 모드(§6.9B) — 시·도 선택을 균등에서 **외지인 방문자수 √역가중**으로. 기본 OFF.
+   * 필터가 아니라 **분포 축**이라 후보 풀은 안 바뀐다(후보 수 배지 무변이 불변식).
+   * 🌊·📍·🔭 경로에는 미적용(각각 이미 다른 선택 축을 쓴다 — 1단계 범위).
+   */
+  scatter?: boolean;
   /** 제철 기준 월(1-12). 미지정 시 현재 월 — 테스트·일관성 주입용 */
   month?: number;
   /** 축제 기준 날짜 YYYYMMDD. 미지정 시 오늘(KST) — 테스트·일관성 주입용 */
@@ -597,6 +611,27 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     }
   }
 
+  // 6) ⚖️ 분산 모드(§6.9B) — 시·도 가중치 준비. 풀은 안 건드린다(분포 축이지 필터가 아님).
+  //    🍃 다음에 두는 이유: notices 에 접근 가능한 지점이면서, 풀 좁힘이 다 끝난 뒤라
+  //    가중이 실제 후보 지역에만 적용된다. 🌊 경로는 아래에서 이 값을 안 쓴다(미적용).
+  let areaWeightMap: Map<number, number> | null = null;
+  if (params.scatter && !params.seaside) {
+    let recent: Awaited<ReturnType<typeof getVisitorRecent>> = null;
+    try {
+      recent = await getVisitorRecent();
+    } catch {
+      recent = null;
+    }
+    if (!recent || recent.rows.length === 0) {
+      // 조용한 저하 금지 — 균등으로 뽑되 그 사실을 알린다(§6.5 동형).
+      notices.push(
+        "방문자 데이터를 못 불러와 이번엔 모든 시·도 같은 확률로 뽑았어요.",
+      );
+    } else {
+      areaWeightMap = areaWeights(recent.rows, LDONG_TO_APP_AREA);
+    }
+  }
+
   const ctx: BadgeCtx = {
     month,
     seasonal: !!params.seasonal,
@@ -608,41 +643,90 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     congestionTargetYmd,
   };
 
-  // 6) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 7) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
-    : await drawByType(params, areaPool, ctx);
+    : await drawByType(params, areaPool, ctx, areaWeightMap);
   if (notices.length) result.picked.notice = notices.join(" "); // 🎪·☔ 건너뛴 사실 노출
   return result;
 }
 
-/** 기본/제철 경로 — (지역×타입) 조합을 셔플해 첫 비어있지 않은 조합에서 1건 */
+/** 뽑기 조합 1개 — 쿼리 파라미터 + 배지·결과 귀속용 슬롯 시·도(§6.9A). */
+export interface DrawCombo extends Query {
+  /** 이 조합이 대표하는 시·도. 응답 항목에서 시·도를 못 읽을 때의 귀속 기본값. */
+  slotAreaCode: number;
+}
+
+/**
+ * ⚖️ (타입×지역) 조합 생성 — 셔플 전의 순수부(§6.9A).
+ *
+ * - `areaPool = null`(지역 미선택): **17개 시·도 lDong 버킷으로 실체화**한다. 전국 단일 쿼리는
+ *   관광지 수에 비례해 서울·경기로 쏠려 배포 카피("17개 시·도에 같은 주사위")가 과장이었다.
+ *   ⚠️ 버킷을 `areaCode` 로 만들면 안 된다 — 항목의 ~40%가 areacode 필드 공백(지방 한적 명소
+ *   다수)이라 어느 시·도에서도 안 잡혀 영구 탈락한다(실측: 전국 21,240 vs areaCode 버킷 합
+ *   12,723). 같은 항목이 lDongRegnCd 는 보유해 lDong 버킷은 도달률 99.99%.
+ *   광주·전남은 병합 코드 12 를 **중복 보유**(합산 확률 2/17 — AREA_TO_LDONG 주석).
+ * - `areaPool` 지정(사용자 선택·🍃 등 필터 결과): **기존 areaCode 쿼리 그대로**(동작 무변).
+ *   그 경로의 areacode 공백 손실은 M22 이전부터로 전면 마이그레이션은 §11.1 몫.
+ */
+export function buildDrawCombos(
+  typePool: number[],
+  areaPool: number[] | null,
+): DrawCombo[] {
+  const combos: DrawCombo[] = [];
+  for (const contentTypeId of typePool) {
+    if (areaPool) {
+      for (const areaCode of areaPool)
+        combos.push({ contentTypeId, areaCode, slotAreaCode: areaCode });
+    } else {
+      for (const areaCode of ALL_AREA_CODES)
+        combos.push({
+          contentTypeId,
+          lDongRegnCd: AREA_TO_LDONG[areaCode],
+          slotAreaCode: areaCode,
+        });
+    }
+  }
+  return combos;
+}
+
+/**
+ * 응답 항목의 시·도 귀속 — item.areacode 우선, 비면 법정동 코드로 판별(§6.9A).
+ * lDong 버킷 쿼리는 areacode 가 빈 항목을 일부러 포함하므로 이 폴백이 배지의 전제다.
+ */
+export function itemAreaCode(item: TourApiItem): number | null {
+  const ac = item.areacode ? Number(item.areacode) : NaN;
+  if (Number.isFinite(ac) && ac > 0) return ac;
+  return ldongToAreaCode(item.lDongRegnCd, item.lDongSignguCd);
+}
+
+/**
+ * 기본/제철 경로 — (지역×타입) 조합을 순회해 첫 비어있지 않은 조합에서 1건.
+ *
+ * 조합 **순서**만 두 갈래다(집합·쿼리는 완전히 동일 — §6.9 "후보 수 무변" 불변식):
+ *  - `weights = null`(기본): 전역 셔플 → (타입×시·도) 균등(§6.9A).
+ *  - `weights` 있음(⚖️ ON): (가중 시·도)×(셔플 타입) 순 → 방문자 적은 시·도가 앞에 자주 온다.
+ *    지역 단위로 붙어 나오므로 "그 지역 전 타입 0건이면 다음 지역"이 자연히 성립하고,
+ *    조합 배열을 **재배열만** 하므로 §6.9A 의 lDong 버킷 디스크립터가 그대로 공유된다
+ *    (따로 만들면 ⚖️ ON 에서만 areacode 40% 손실이 재발한다).
+ */
 async function drawByType(
   params: DrawParams,
   areaPool: number[] | null,
   ctx: BadgeCtx,
+  weights: Map<number, number> | null = null,
 ): Promise<DrawResult> {
   const typePool =
     params.contentTypeIds && params.contentTypeIds.length > 0
       ? params.contentTypeIds
       : RANDOM_DEFAULT_TYPES;
 
-  const combos: Query[] = [];
-  for (const contentTypeId of typePool) {
-    if (areaPool) {
-      for (const areaCode of areaPool) combos.push({ contentTypeId, areaCode });
-    } else {
-      combos.push({ contentTypeId });
-    }
-  }
-  shuffle(combos);
+  const built = buildDrawCombos(typePool, areaPool);
+  const combos = weights
+    ? orderByWeightedArea(built, weights, Math.random)
+    : shuffle(built);
 
   const limit = Math.min(combos.length, COMBO_BUDGET);
-  if (combos.length > COMBO_BUDGET) {
-    console.warn(
-      `[drawRandom] 조합 ${combos.length}개 중 ${COMBO_BUDGET}개만 탐색(예산 상한).`,
-    );
-  }
 
   for (let i = 0; i < limit; i++) {
     const q = combos[i];
@@ -654,9 +738,10 @@ async function drawByType(
       if (linked) {
         const overview = await getOverview(linked.item.contentid);
         const place = normalizePlace(linked.item, overview);
-        const areaCode = linked.item.areacode
-          ? Number(linked.item.areacode)
-          : q.areaCode;
+        // 귀속 규칙은 일반 경로와 동일하게 — item.areacode → 법정동 → 슬롯(§6.9A).
+        // 지금은 제철 풀이 항상 areaCode 쿼리라 결과가 같지만, ⚖️(§6.9B) 재구성으로
+        // 이 경로의 전제가 바뀌어도 두 경로가 갈라지지 않게 미리 통일한다.
+        const areaCode = itemAreaCode(linked.item) ?? q.areaCode;
         const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
         // 배지는 지역 전체가 아니라 **매칭된 그 품목만** — 뽑힌 맛집과 정확히 일치.
         badges.seasonal = { items: [linked.matched] };
@@ -667,6 +752,7 @@ async function drawByType(
             contentTypeId: RESTAURANT_TYPE,
             totalCount: linked.count,
             ...badges,
+            ...(weights ? { scatter: true } : {}),
           },
         };
       }
@@ -682,7 +768,9 @@ async function drawByType(
 
     const overview = await getOverview(item.contentid);
     const place = normalizePlace(item, overview);
-    const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
+    // 귀속: item.areacode → 법정동 코드 판별 → 슬롯 시·도(§6.9A). lDong 버킷은 areacode 가
+    // 빈 항목을 일부러 포함하므로 중간 단계가 없으면 배지가 통째로 빠진다.
+    const areaCode = itemAreaCode(item) ?? q.slotAreaCode;
     const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
     // 제철 음식점인데 품목 매칭에 실패해 여기로 왔으면, 랜덤 식당에 "이 집=제철" 오해를 줄
     // 제철 배지는 숨긴다(수박 배지 + 무관한 횟집 방지). 다른 타입·매칭 성공 경로는 그대로.
@@ -694,8 +782,19 @@ async function drawByType(
         contentTypeId: q.contentTypeId,
         totalCount,
         ...badges,
+        // ⚖️ 실제로 가중이 걸린 뽑기만 표식 — 폴백(균등)으로 내려간 경우는 붙이지 않는다
+        //   (근거 없는 분포 변경 주장 금지. 폴백 사실은 notice 로 따로 나간다).
+        ...(weights ? { scatter: true } : {}),
       },
     };
+  }
+
+  // 예산 상한 경고는 **여기**(전 조합 탐색 실패 후)에서만 — 잘린 시점에 경고하면 상한이
+  // 실제로 해를 끼치지 않은 경우까지 매 뽑기 오경보였다(85조합 전부 비어있지 않음 실측).
+  if (combos.length > COMBO_BUDGET) {
+    console.warn(
+      `[drawRandom] 조합 ${combos.length}개 중 예산 상한 ${COMBO_BUDGET}개를 모두 소진(전부 빈 조합).`,
+    );
   }
 
   throw new TourApiError(

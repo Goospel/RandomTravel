@@ -13,6 +13,9 @@ export interface TourApiItem {
   mapx?: string; // 경도 longitude
   mapy?: string; // 위도 latitude
   areacode?: string;
+  // 법정동 코드 — areacode 가 빈 항목(~40%)의 시·도 귀속 단서(§6.9A). 항상 응답에 실린다.
+  lDongRegnCd?: string;
+  lDongSignguCd?: string;
   cat3?: string; // 🧭 소분류 코드 — 코스 식사 슬롯의 카페·클럽 거부 판정용(M20)
   tel?: string;
   overview?: string; // detailCommon 보강 시
@@ -84,6 +87,11 @@ export interface PickedInfo {
   distanceM?: number | null;
   /** 🔭 빈 곳에서 뽑기(M21)로 나왔을 때 참 — "지도에 없던 동네" 배지 트리거. 아니면 null/생략 (§7.11) */
   emptySpot?: boolean | null;
+  /**
+   * ⚖️ 분산 모드(§6.9B)로 **실제 가중이 걸려** 뽑혔을 때만 참 — 결과 카드 캡션 트리거.
+   * 토글이 켜졌어도 방문자 데이터를 못 불러와 균등으로 폴백했으면 붙지 않는다(notice 로 안내).
+   */
+  scatter?: boolean | null;
   /** 동적 필터(🎪·☔ 등) 소스 장애로 조건을 건너뛴 경우의 안내 문구 (§6.5) */
   notice?: string | null;
 }
