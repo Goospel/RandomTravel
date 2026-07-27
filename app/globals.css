@@ -35,8 +35,8 @@ body {
 
 /* ── M3 뽑기 애니메이션 + M16 탐험 로그 연출 ─────────────
    슬롯 릴은 리스트를 2번 이어 붙인 컬럼을 -50%까지 밀어 무한 반복(이음새 없음).
-   카드 등장은 살짝 떠오르며 페이드인. tile-pop=정복 타일, fade-up=토스트/라벨,
-   pop-in=핀 선택 강조. */
+   카드 등장은 살짝 떠오르며 페이드인. fade-up=토스트/라벨, pop-in=핀 선택 강조.
+   (tile-pop=시·도 정복 타일은 M23에서 타일이 시·군·구 지도로 바뀌며 제거) */
 @keyframes slot-spin {
   from {
     transform: translateY(0);
@@ -54,20 +54,6 @@ body {
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-@keyframes tile-pop {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.3;
-  }
-  60% {
-    transform: scale(1.12);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
   }
 }
 
@@ -105,10 +91,6 @@ body {
   animation: card-reveal 0.4s ease-out both;
 }
 
-.animate-tile-pop {
-  animation: tile-pop 0.5s ease-out;
-}
-
 .animate-fade-up {
   animation: fade-up 0.32s ease-out;
 }
@@ -121,7 +103,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-slot-spin,
   .animate-card-reveal,
-  .animate-tile-pop,
   .animate-fade-up,
   .animate-pop-in {
     animation: none;
