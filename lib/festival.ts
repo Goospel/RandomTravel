@@ -5,13 +5,15 @@
 // "오늘 진행 중"은 서버가 한 번에 못 주므로(eventStartDate 는 '아직 안 끝난'=진행중+예정을
 // 준다) 받은 목록을 시작 ≤ 오늘 ≤ 종료 로 클라이언트에서 한 번 더 거른다.
 
-import { LDONG_TO_AREA, ALL_AREA_CODES } from "@/lib/constants";
+import { LDONG_TO_AREA, LDONG12_GWANGJU_GU, ALL_AREA_CODES } from "@/lib/constants";
 
 /** searchFestival2 원본 항목 중 관심 필드 */
 export interface RawFestival {
   contentid: string;
   title: string;
   lDongRegnCd?: string;
+  /** 법정동 시군구 코드 — 통합시(12)에서 광주/전남을 가르는 유일한 단서 */
+  lDongSignguCd?: string;
   areacode?: string;
   eventstartdate?: string;
   eventenddate?: string;
@@ -48,8 +50,15 @@ export function isInProgress(f: RawFestival, today: string): boolean {
   return s <= today && today <= e;
 }
 
-/** 법정동 시도 코드 → TourAPI areaCode. 없으면 areacode 폴백, 그래도 안 되면 null. */
+/**
+ * 법정동 시도 코드 → TourAPI areaCode. 없으면 areacode 폴백, 그래도 안 되면 null.
+ * 특례: 12 = 전남광주통합특별시(2026-07-01 개편) — 한 시도 코드가 areaCode 5(광주)와
+ * 38(전남)에 걸쳐 시도 단위 매핑이 불가하므로 lDongSignguCd 로 가른다(없으면 폴백).
+ */
 export function festivalAreaCode(f: RawFestival): number | null {
+  if (f.lDongRegnCd === "12" && f.lDongSignguCd) {
+    return LDONG12_GWANGJU_GU.has(f.lDongSignguCd) ? 5 : 38;
+  }
   if (f.lDongRegnCd && LDONG_TO_AREA[f.lDongRegnCd]) return LDONG_TO_AREA[f.lDongRegnCd];
   const ac = f.areacode ? Number(f.areacode) : NaN;
   return Number.isFinite(ac) && AREA_SET.has(ac) ? ac : null;
