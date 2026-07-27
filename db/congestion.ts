@@ -99,10 +99,13 @@ export async function upsertCongestion(
   }
 }
 
-/** ⚖️ 분산 모드 가중 재료(§6.9B) — 최근 가용 ≤7일의 외지인 방문자, 시군구별 평균. */
+/**
+ * ⚖️ 분산 모드 가중 재료(§6.9B) — 최근 가용 ≤7일의 외지인 방문자, 시군구별 평균.
+ *
+ * 평균에 쓴 날짜 목록은 **반환하지 않는다** — 소비처가 없다(⚖️ 는 기준일을 UI에 안 쓰고
+ * 토글 문구가 "약 1~2개월 전"으로 뭉뚱그린다). 🍃 처럼 기준일 배지를 붙이게 되면 그때 추가.
+ */
 export interface VisitorRecent {
-  /** 평균에 쓴 날짜들(최신순). 적재가 1일뿐이면 1개 — 배치가 쌓이며 자연 확장. */
-  baseYmds: string[];
   rows: VisitorRecentRow[];
 }
 
@@ -134,7 +137,6 @@ async function queryVisitorRecent(): Promise<VisitorRecent | null> {
   if (rows.length === 0) return null;
 
   return {
-    baseYmds,
     // neon 은 집계 결과를 문자열로 줄 수 있어 Number 로 정규화(순수부는 숫자만 다룬다).
     rows: rows.map((r) => ({ sigunguCd: r.sigunguCd, touNum: Number(r.avgNum) })),
   };

@@ -38,17 +38,18 @@ describe("areaWeights — 외지인 방문자수 √역가중 (§6.9B)", () => {
     expect(w.get(2)!).toBeGreaterThan(w.get(1)!);
   });
 
-  it("weight = 1/√합 — 91배 격차를 ~9.5배로 완충", () => {
-    // 실측 극단: 경기 7.57M vs 세종 83k (약 91배)
+  it("weight = 1/√합 — 71배 격차를 ~8.4배로 완충", () => {
+    // 실측 극단(2026-07-27, 입도 중복 제거 후): 서울 5,916,964 vs 세종 83,164 = 71.1배.
+    // ⚠️ 제거 전 "경기 7.57M·91배"는 이중 계상 오염값이었다(경기 ×1.544 부풀림).
     const w = areaWeights(
-      [row("41111", 7_570_000), row("36110", 83_000)],
+      [row("11110", 5_916_964), row("36110", 83_164)],
       LDONG_TO_APP_AREA,
     );
-    const ratio = w.get(8)! / w.get(31)!;
-    expect(ratio).toBeGreaterThan(9);
-    expect(ratio).toBeLessThan(10);
-    // 원시 역비례였다면 91배 — √ 완충이 실제로 걸렸는지 확인
-    expect(ratio).toBeLessThan(91 / 5);
+    const ratio = w.get(8)! / w.get(1)!;
+    expect(ratio).toBeGreaterThan(8);
+    expect(ratio).toBeLessThan(9);
+    // 원시 역비례였다면 71배 — √ 완충이 실제로 걸렸는지 확인
+    expect(ratio).toBeLessThan(71 / 5);
   });
 
   it("같은 시·도의 시군구 여러 행은 합산한 뒤 √", () => {
@@ -139,6 +140,73 @@ describe("areaWeights — 외지인 방문자수 √역가중 (§6.9B)", () => {
   it("폴백은 전남광주 병합 12 도 시군구 3자리로 가른다", () => {
     const w = areaWeights([row("12850", 100)], LDONG_TO_APP_AREA); // 완도군
     expect(w.get(38)!).toBeCloseTo(1 / Math.sqrt(100), 12); // 전남
+  });
+});
+
+describe("입도 중복 제거 — 시 상위 코드 + 구 하위 코드 이중 계상 (§6.9B)", () => {
+  it("수원형 — 상위 41110 이 구 4개와 공존하면 상위를 버린다", () => {
+    // 실측: 41110 수원시 506,160 + 41111~17 구 합 586,499 = 같은 인구 이중 계상.
+    const w = areaWeights(
+      [
+        row("41110", 500), // 통합시 상위(정밀 매핑에 없음) = 중복
+        row("41111", 100),
+        row("41113", 100),
+        row("41115", 100),
+        row("41117", 100),
+      ],
+      LDONG_TO_APP_AREA,
+    );
+    expect(w.get(31)!).toBeCloseTo(1 / Math.sqrt(400), 12); // 구 합만
+  });
+
+  it("화성형 — 정본이 상위(41590)면 하위 쪽을 버린다(방향 반대 케이스)", () => {
+    // 41590 화성시만 정밀 매핑이고 41591~97 은 신설 구(미매핑). "하위를 항상 채택"하면 틀린다.
+    const w = areaWeights(
+      [
+        row("41590", 300), // 앱의 시군구 정본
+        row("41591", 100),
+        row("41593", 100),
+        row("41595", 100),
+        row("41597", 100),
+      ],
+      LDONG_TO_APP_AREA,
+    );
+    expect(w.get(31)!).toBeCloseTo(1 / Math.sqrt(300), 12);
+  });
+
+  it("★ 별개 시군구는 제거하지 않는다 — 43740 영동군 + 43745 증평군", () => {
+    // 앞 4자리가 같지만 서로 다른 군이다(둘 다 정밀 매핑 보유). 행 수만 비교하는 규칙은
+    // 여기서 1:1 동수가 돼 한쪽을 통째로 삭제한다 — 실측으로 확인된 오검출.
+    const w = areaWeights([row("43740", 100), row("43745", 300)], LDONG_TO_APP_AREA);
+    expect(w.get(33)!).toBeCloseTo(1 / Math.sqrt(400), 12); // 합산 유지
+  });
+
+  it("그룹에 1행뿐이면 그대로 둔다", () => {
+    const w = areaWeights([row("43110", 400)], LDONG_TO_APP_AREA);
+    expect(w.get(33)!).toBeCloseTo(1 / Math.sqrt(400), 12);
+  });
+
+  it("정본이 없는 그룹은 행 수 많은 쪽 — 세분 입도 채택", () => {
+    // 어느 쪽도 정밀 매핑에 없으면 앵커가 없다 → 행 수로 판단(세분이 여럿이면 세분).
+    const w = areaWeights(
+      [row("41910", 900), row("41911", 100), row("41913", 100)],
+      LDONG_TO_APP_AREA,
+    );
+    expect(w.get(31)!).toBeCloseTo(1 / Math.sqrt(200), 12);
+  });
+
+  it("정본 없는 그룹이 1:1 동수면 세분 입도 채택(명문화된 tie 규칙)", () => {
+    const w = areaWeights([row("41910", 900), row("41911", 400)], LDONG_TO_APP_AREA);
+    expect(w.get(31)!).toBeCloseTo(1 / Math.sqrt(400), 12);
+  });
+
+  it("다른 4자리 그룹끼리는 서로 간섭하지 않는다", () => {
+    const w = areaWeights(
+      [row("41110", 500), row("41111", 100), row("11110", 900)],
+      LDONG_TO_APP_AREA,
+    );
+    expect(w.get(31)!).toBeCloseTo(1 / Math.sqrt(100), 12); // 수원 구만
+    expect(w.get(1)!).toBeCloseTo(1 / Math.sqrt(900), 12); // 서울 무영향
   });
 });
 
@@ -241,26 +309,27 @@ describe("orderByWeightedArea — 조합을 (가중 지역)×(셔플 타입) 순
 
 describe("⚖️ 분포 스냅샷 — 가중 확률(설계치) 1,000회", () => {
   it("방문자 적은 시·도가 실제로 더 자주 1순위가 된다", () => {
-    // 실측 규모를 본뜬 3개 시·도: 경기 7.57M · 제주 1.2M · 세종 83k
+    // 실측값 그대로(2026-07-27, 중복 제거 후): 서울 5,916,964 · 제주 259,497 · 세종 83,164
     const w = areaWeights(
-      [row("41111", 7_570_000), row("50110", 1_200_000), row("36110", 83_000)],
+      [row("11110", 5_916_964), row("50110", 259_497), row("36110", 83_164)],
       LDONG_TO_APP_AREA,
     );
-    const pool = [31, 39, 8];
+    const pool = [1, 39, 8];
     const rand = lcg(20260727);
     const first = new Map<number, number>();
     for (let i = 0; i < 1000; i++) {
       const a = weightedPickOrder(pool, w, rand)[0];
       first.set(a, (first.get(a) ?? 0) + 1);
     }
-    const gyeonggi = first.get(31) ?? 0;
+    const seoul = first.get(1) ?? 0;
     const jeju = first.get(39) ?? 0;
     const sejong = first.get(8) ?? 0;
-    // 설계치: 가중 합 대비 세종 ~66% · 제주 ~18% · 경기 ~7% (1/√N 정규화)
+    // 가중 확률(설계치): 세종 ~59% · 제주 ~34% · 서울 ~7% (1/√N 정규화)
     expect(sejong).toBeGreaterThan(jeju);
-    expect(jeju).toBeGreaterThan(gyeonggi);
-    expect(gyeonggi + jeju + sejong).toBe(1000);
+    expect(jeju).toBeGreaterThan(seoul);
+    expect(seoul + jeju + sejong).toBe(1000);
     // 균등(각 333)에서 확실히 벗어났는지 — 안 그러면 가중이 안 걸린 것
     expect(sejong).toBeGreaterThan(500);
+    expect(seoul).toBeLessThan(120);
   });
 });

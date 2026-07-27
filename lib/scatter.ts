@@ -42,6 +42,61 @@ export interface VisitorRecentRow {
   touNum: number;
 }
 
+/**
+ * 입도 중복 제거 — **같은 인구가 두 번 세어지는 것**을 막는다(§6.9B).
+ *
+ * 방문자 데이터는 통합시를 **시 상위 코드와 구 하위 코드로 동시에** 준다(실측 2026-07-27:
+ * 41110 수원시 506,160 **과** 41111~41117 구 합 586,499 이 같은 날 공존 — 13개 그룹).
+ * 그대로 합하면 경기 ×1.54·충북 ×1.49·전북 ×1.33·경남 ×1.33·충남 ×1.29·경북 ×1.16 으로
+ * 부풀고, 충북처럼 중간 규모 시·도는 ⚖️ 가 **의도와 반대로 눌린다**.
+ *
+ * 판별은 법정동 **앞 4자리 그룹** 단위로 하되, 무엇을 버릴지는 **정밀 매핑(ldongToArea) 보유
+ * 여부**로 정한다 — 정밀 매핑이 곧 "앱이 인정하는 시·군·구 정본"이기 때문이다:
+ *  ① 그룹에 정본과 미매핑이 **섞여 있으면** 미매핑 쪽이 다른 입도의 중복 → 정본만 남긴다.
+ *     수원(정본=구 4개, 중복=상위 41110)과 화성(정본=상위 41590, 중복=신설 구 4개)이 **방향이
+ *     반대**인데도 같은 규칙으로 잡힌다.
+ *  ② 그룹이 **전부 정본**이면 애초에 중복이 아니라 **서로 다른 시·군·구**다 → 손대지 않는다.
+ *     ⚠️ 실측 반례: `43740 영동군` + `43745 증평군`. 앞 4자리가 같지만 별개 군이라, "행 수 많은
+ *     쪽만 채택" 같은 순수 개수 규칙을 쓰면 1:1 동수가 돼 **한 군의 방문자가 통째로 사라진다**.
+ *  ③ 그룹이 **전부 미매핑**이면 기준 삼을 정본이 없다 → 이때만 **행 수가 많은 쪽**을 채택하고,
+ *     동수면 세분 입도(그룹 대표코드 `prefix+"0"` 가 아닌 쪽)를 택한다. 현재 데이터엔 이 경우가
+ *     0건이지만, 새 통합시가 정밀 매핑보다 먼저 들어오는 상황의 방어선이다.
+ */
+function dedupeGranularity(
+  rows: VisitorRecentRow[],
+  ldongToArea: Record<string, number>,
+): VisitorRecentRow[] {
+  const groups = new Map<string, VisitorRecentRow[]>();
+  for (const r of rows) {
+    const key = r.sigunguCd.slice(0, 4);
+    const list = groups.get(key);
+    if (list) list.push(r);
+    else groups.set(key, [r]);
+  }
+
+  const out: VisitorRecentRow[] = [];
+  for (const [prefix, list] of groups) {
+    if (list.length < 2) {
+      out.push(...list);
+      continue;
+    }
+    const canonical = list.filter((r) => ldongToArea[r.sigunguCd] != null);
+    const unmapped = list.filter((r) => ldongToArea[r.sigunguCd] == null);
+
+    if (unmapped.length === 0 || canonical.length > 0) {
+      // ② 전부 정본(별개 시군구) · ① 혼재(정본만 채택) — 두 경우 다 정본만 내보내면 된다.
+      out.push(...canonical);
+      continue;
+    }
+    // ③ 전부 미매핑 — 대표코드 vs 세분, 행 수 많은 쪽. 동수면 세분.
+    const rep = unmapped.filter((r) => r.sigunguCd === `${prefix}0`);
+    const fine = unmapped.filter((r) => r.sigunguCd !== `${prefix}0`);
+    if (rep.length === 0 || fine.length === 0) out.push(...unmapped);
+    else out.push(...(rep.length > fine.length ? rep : fine));
+  }
+  return out;
+}
+
 /** 정렬된 수열의 중앙값(짝수는 두 가운데 평균). 빈 배열은 NaN. (lib/congestion 동형) */
 function median(nums: number[]): number {
   if (nums.length === 0) return NaN;
@@ -55,9 +110,9 @@ function median(nums: number[]): number {
 /**
  * 시·도별 가중치 = **1/√(외지인 방문자 합)**.
  *
- * 왜 √인가: 시·도 극단이 실측 91배(경기 7.57M vs 세종 83k)라 원시 역비례면 세종이 판을
- * 독점한다(확률비 91배). √ 완충으로 확률비 ~9.5배 — "적을수록 자주"는 유지하되 큰 시·도가
- * 사실상 사라지지 않는 지점.
+ * 왜 √인가: 시·도 극단이 실측 **71.1배**(서울 5,916,964 vs 세종 83,164 — 입도 중복 제거 후)라
+ * 원시 역비례면 세종이 판을 독점한다. √ 완충으로 확률비 **8.43배** — "적을수록 자주"는 유지하되
+ * 큰 시·도가 사실상 사라지지 않는 지점.
  *
  * 결측 시·도(방문자 데이터에 없는 시·도)는 **분포 중앙값 가중**으로 계층화한다. 0 을 주면
  * 그 시·도가 통째 탈락하고(오버투어리즘 주제와 충돌), 최대 가중을 주면 "데이터 없음"이
@@ -76,7 +131,9 @@ export function areaWeights(
   areaCodes: readonly number[] = DEFAULT_AREA_CODES,
 ): Map<number, number> {
   const sums = new Map<number, number>();
-  for (const r of rows) {
+  // 합산 **전에** 입도 중복을 걷어낸다 — 안 하면 통합시 인구가 두 번 세어져 큰 시·도가
+  // 부풀고, 그 시·도의 가중치가 부당하게 낮아진다(⚖️ 의도와 반대 방향).
+  for (const r of dedupeGranularity(rows, ldongToArea)) {
     const area = visitorArea(r.sigunguCd, ldongToArea);
     if (area == null) continue; // 판별 불가 — 합에 안 섞는다
     if (!Number.isFinite(r.touNum) || r.touNum <= 0) continue;
