@@ -14,10 +14,11 @@ import type { SavedPlace } from "@/lib/travelStore";
 // 감속이 끝나는 시각 — §7.9 슬롯 최소 노출(MIN_SPIN_MS 1.2s)과 같은 값. 뽑기가 더 오래
 // 걸리면 이후엔 가장 느린 tick(1조각)으로 계속 돌다 결과 도착 시 착지한다.
 const SPIN_TOTAL_MS = 1200;
-// 착지 연출 — 당첨 조각 점등 → 껐다 → 다시 점등 → 해제(두 번 깜빡).
-const LAND_STEPS_MS = [0, 260, 440, 1000];
-// prefers-reduced-motion 일 때: 깜빡임 없이 한 번만 길게 점등.
-const LAND_STEPS_REDUCED_MS = [0, 1200];
+// 착지 연출 — 당첨 조각 점등 → 껐다 → 다시 점등하고 **그대로 유지**(해제 스텝 없음).
+//   다음 뽑기의 회전이 덮을 때까지 남는다.
+const LAND_STEPS_MS = [0, 260, 440];
+// prefers-reduced-motion 일 때: 깜빡임 없이 한 번 점등하고 유지.
+const LAND_STEPS_REDUCED_MS = [0];
 
 const EMPTY: Set<string> = new Set();
 
@@ -65,7 +66,7 @@ export function HomeConquerMap({
     return () => window.clearTimeout(id);
   }, [spinning, reduced]);
 
-  // 착지 — 회전이 끝나면 당첨 조각만 깜빡이고 해제. 좌표 없음·판정 실패(먼바다 등)면 즉시 해제.
+  // 착지 — 회전이 끝나면 당첨 조각만 깜빡이다 켠 채로 남는다. 좌표 없음·판정 실패(먼바다 등)면 해제.
   useEffect(() => {
     if (spinning) return;
     const code =
@@ -121,7 +122,9 @@ export function HomeConquerMap({
       <p className="mt-2 text-center text-[11.5px] text-emerald-700 dark:text-emerald-300">
         {spinning
           ? "🎰 전국을 돌리는 중…"
-          : "다녀온 곳이 속한 시·군·구가 초록으로 채워져요."}
+          : flashing.size > 0
+            ? "🎯 노란 조각이 방금 뽑힌 동네예요."
+            : "다녀온 곳이 속한 시·군·구가 초록으로 채워져요."}
       </p>
     </>
   );

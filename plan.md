@@ -607,7 +607,7 @@ TourAPI는 결과가 페이지로 쪼개져 오므로, 단순히 1페이지에�
 - **순수부 `lib/roulette.ts`**:
   - `rouletteFrame(elapsedMs, totalMs)` → `{ intervalMs, count }` — 경과에 따라 tick 간격은 **늘고**(fast→slow) 동시 점등 개수는 **줄어든다**(감속). 단조 함수라 프레임 상태를 들고 다닐 필요가 없다.
   - `pickFlashCodes(codes, count, rand)` — 중복 없이 count개. 풀보다 count가 크면 전량, 빈 풀은 빈 배열.
-  - **착지**: 목표 코드가 정해지면 마지막 구간은 그 코드만 점등(두어 번 깜빡) → 종료.
+  - **착지**: 목표 코드가 정해지면 마지막 구간은 그 코드만 점등(두어 번 깜빡) → **켠 채로 유지**.
 - **배선(`app/page.tsx` · `MapHero`)**:
   - `status.kind === "loading"` → spinning 시작. `status.kind === "ok"` → **`sigunguAt(place.lat, place.lng)`**(lib/conquer 기존 export)로 목표 코드 → 착지. 좌표 없음·판정 실패(먼바다 등)면 착지 없이 조용히 종료.
   - 회전 최소 시간은 기존 **`MIN_SPIN_MS = 1200`**(§7.9)이 이미 보장 — 별도 타이머 신설 불필요.
@@ -615,7 +615,8 @@ TourAPI는 결과가 페이지로 쪼개져 오므로, 단순히 1페이지에�
   - 결과 카드 자리의 `SlotMachine`은 **그대로 둔다**(위=지도, 아래=슬롯 — 위치가 달라 겹치지 않음).
 - **홈 히어로 교체(`MapHero.tsx`)**: 정복 뷰의 **17개 시·도 타일 그리드 → `ConquerSvg`**(래퍼 `components/HomeConquerMap` — koreaMap 의존을 이 파일 하나에 가둔다). 경계 데이터(~207KB)는 `dynamic(ssr:false)`로 분리해 **초기 청크 무변**. 정복률 링도 **시·군·구 기준으로 통일**(`/map` 히어로와 같은 숫자) — 지도가 시·군·구를 칠하는데 링만 시·도 %면 두 수치가 어긋나 보인다.
   - ⚠️ **§7.11 번들 보호의 실질 축소**: "홈 초기 청크에 koreaMap 미포함"은 그대로지만, M16의 *"핀 뷰만 볼 땐 아예 안 받는다"* 이점은 사라진다 — **정복 뷰가 홈 기본값**이라 홈을 열면 사실상 항상 지도 청크를 받는다. 첫 페인트를 막지 않는 것(dynamic)까지가 이제 보장 범위. 룰렛이 홈에서 돌아야 한다는 요구의 직접 대가라 수용.
-- **접근성**: `prefers-reduced-motion: reduce`면 룰렛 생략, 당첨 조각만 한 번 점등. SVG `aria-label`은 정복 현황 그대로 두고 **룰렛은 장식**으로 처리 — 결과 안내는 기존 결과 카드 `aria-live`가 이미 담당하므로 `aria-live` 중복 낭독을 만들지 않는다.
+- **착지 결과는 남는다(2026-07-28 사용자 요청)**: 착지 후 당첨 조각을 해제하지 않고 **다음 뽑기의 회전이 덮을 때까지 유지**한다(구현: 해제 스텝 삭제 — `LAND_STEPS_MS`의 마지막 원소). "한 번 보여주고 스르륵 사라져" 결과 지역을 지도에서 다시 확인할 수 없던 문제. 남아 있는 동안 지도 캡션은 `🎯 노란 조각이 방금 뽑힌 동네예요.`로 바뀐다(정체불명의 노란 점 방지). 좌표 없음·에러 결과는 종전대로 즉시 해제. ⚠️ 알려진 한계: 유지 중인 조각을 곧바로 '다녀옴' 저장하면 정복 초록이 amber에 가려진다(다음 뽑기에 정리) — `flashing > conquered` 우선순위를 뒤집으면 *이미 정복한 곳이 뽑혔을 때 착지가 안 보이는* 퇴행이 생겨 그대로 둠.
+- **접근성**: `prefers-reduced-motion: reduce`면 룰렛 생략, 당첨 조각만 한 번 점등(역시 유지). SVG `aria-label`은 정복 현황 그대로 두고 **룰렛은 장식**으로 처리 — 결과 안내는 기존 결과 카드 `aria-live`가 이미 담당하므로 `aria-live` 중복 낭독을 만들지 않는다.
 - **🎉 시·도 정복 토스트는 유지**(설계 초안 정정 — 구현 중 판단): 토스트는 히어로 우측 상단 absolute 배지라 **타일과 독립**이고, 헤더의 시·도 정복 pill(`conqueredAreas / 17`)도 그대로 남아 정합이 유지된다. 지우는 쪽이 오히려 코드를 건드리는 일이라 그대로 뒀다. **시·군·구 단위로 세분화하는 것**만 범위 밖(§11.1 — 2026-07-28 사용자 결정: 나중에). 단 타일과 함께 쓰이던 `animate-tile-pop`은 사용처가 사라져 CSS에서 제거.
 - **테스트(TDD — 순수부만)**: `roulette.test.ts` — 감속 **단조성**(elapsed 증가 시 intervalMs 비감소·count 비증가)·경계(elapsed 0·elapsed≥total)·`pickFlashCodes`(중복 없음·count>풀이면 전량·빈 풀 안전·rand 주입 결정성). 타이머 루프·DOM은 단위 테스트 비대상(SlotMachine 전례).
 - **파일**: 신규 `lib/roulette.ts`(+test) · `components/ConquerSvg.tsx`. 기존 `components/ConquerMap.tsx`(SVG 추출) · `components/MapHero.tsx`(타일→지도·링 기준 통일) · `app/page.tsx`(룰렛 배선).
