@@ -58,10 +58,51 @@ describe("festivalAreaCode — lDongRegnCd → TourAPI areaCode", () => {
   it("lDongRegnCd 없으면 areacode(TourAPI 코드) 폴백", () => {
     expect(festivalAreaCode(raw({ lDongRegnCd: undefined, areacode: "6" }))).toBe(6);
   });
-  it("변환 불가(오염 코드 12·둘 다 없음·화이트리스트 밖)는 null", () => {
+  it("변환 불가(12+시군구 없음·둘 다 없음·화이트리스트 밖)는 null", () => {
     expect(festivalAreaCode(raw({ lDongRegnCd: "12", areacode: "" }))).toBeNull();
     expect(festivalAreaCode(raw({ lDongRegnCd: undefined, areacode: undefined }))).toBeNull();
     expect(festivalAreaCode(raw({ lDongRegnCd: undefined, areacode: "999" }))).toBeNull();
+  });
+});
+
+// 2026-07-01 행정구역 개편: 광주(구 29)+전남(구 46) → 전남광주통합특별시(법정동 신코드 12).
+// 시도 단위로는 TourAPI areaCode 5(광주)/38(전남)을 가를 수 없어 lDongSignguCd 로 판별한다.
+describe("festivalAreaCode — 전남광주통합특별시(법정동 12)는 시군구로 광주5/전남38 판별", () => {
+  it("광주권 5개 구는 5", () => {
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", lDongSignguCd: "210" }))).toBe(5); // 동구
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", lDongSignguCd: "330" }))).toBe(5); // 광산구
+  });
+  it("전남권 시·군은 38", () => {
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", lDongSignguCd: "770" }))).toBe(38); // 장흥군
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", lDongSignguCd: "850" }))).toBe(38); // 완도군
+  });
+  it("광주 5구 열거 밖의 미지 시군구는 전남(38) 기본", () => {
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", lDongSignguCd: "999" }))).toBe(38);
+  });
+  it("시군구 코드가 없으면 기존 폴백 체인(오배정 방지)", () => {
+    // areacode 빈 값 → null (탈락 유지)
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", areacode: "" }))).toBeNull();
+    // areacode 가 있으면 그걸 쓴다
+    expect(festivalAreaCode(raw({ lDongRegnCd: "12", areacode: "38" }))).toBe(38);
+  });
+  it("다른 시도 코드는 기존 LDONG_TO_AREA 경로 무변(시군구 값에 영향 없음)", () => {
+    expect(festivalAreaCode(raw({ lDongRegnCd: "29", lDongSignguCd: "210" }))).toBe(5);
+    expect(festivalAreaCode(raw({ lDongRegnCd: "46", lDongSignguCd: "770" }))).toBe(38);
+    expect(festivalAreaCode(raw({ lDongRegnCd: "11", lDongSignguCd: "210" }))).toBe(1);
+    expect(festivalAreaCode(raw({ lDongRegnCd: "51", lDongSignguCd: "330" }))).toBe(32);
+  });
+  it("normalizeFestivals 통합: 12번 축제가 광주·전남으로 살아남는다", () => {
+    const out = normalizeFestivals(
+      [
+        raw({ contentid: "g", lDongRegnCd: "12", lDongSignguCd: "210", areacode: "", title: "금남로 걷자잉" }),
+        raw({ contentid: "j", lDongRegnCd: "12", lDongSignguCd: "770", areacode: "", title: "물축제" }),
+      ],
+      "20260704",
+    );
+    expect(out.map((f) => [f.contentId, f.areaCode])).toEqual([
+      ["g", 5],
+      ["j", 38],
+    ]);
   });
 });
 
