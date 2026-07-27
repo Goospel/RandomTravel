@@ -325,7 +325,7 @@ export function FilterPanel({
             onToggle={onToggleQuiet}
             emoji="🍃"
             label="한적한 곳"
-            desc="한국관광공사 집중률 예측 기반, 안 붐빌 곳"
+            desc="관광지 집중률 예측 기반, 안 붐빌 곳"
           />
         </div>
       </section>
