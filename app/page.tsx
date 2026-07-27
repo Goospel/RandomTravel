@@ -361,6 +361,7 @@ export default function Home() {
 
       <StoryBanner />
 
+      {/* 🎰 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
       <MapHero
         visited={store.visited}
         storeReady={store.ready}
@@ -368,6 +369,10 @@ export default function Home() {
         filledArea={filledArea}
         onEmptySpot={runEmptySpot}
         emptySpotPending={emptySpotPending}
+        spinning={loading}
+        landedLat={status.kind === "ok" ? status.data.place.lat : null}
+        landedLng={status.kind === "ok" ? status.data.place.lng : null}
+        drawSeq={seq}
       />
 
       <div className="mt-4 flex flex-wrap items-start gap-4">

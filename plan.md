@@ -597,6 +597,31 @@ TourAPI는 결과가 페이지로 쪼개져 오므로, 단순히 1페이지에�
 - **호출 예산**: 뽑기 1회 전형 **3~4콜**(count 1 + item 1~2 + overview 1), 워스트 3셀×(count 5 + item 3)+overview 1 = **25콜**. 후보 수(count) **0콜**. 생성기는 개발 시 1회 17콜.
 - **검증 기준**: ① 방문 기록 계정에서 🔭 뽑기 → **/map 정복 지도**에서 결과 시·군·구가 빈 조각 + 결과 카드 🍃 배지 동반 ② 방문 0 → 전국 한적 시·군·구에서 뽑힘 ③ 기존 뽑기 쿼리·응답 회귀 없음(불변식 테스트) ④ /map 캡션 N = count 응답 = 빈 조각∩한적 수(성질상 뽑기 가능 집합과 동일) ⑤ congestion 정지 → 성능 저하 모드 + notice ⑥ **홈 초기 번들에 koreaMap 미포함 실측**(next build 분석).
 
+### 7.12 🎰 정복 지도 룰렛 (M23)
+
+> 뽑기 버튼을 누르면 **홈 정복 지도의 시·군·구 조각들이 룰렛처럼 빠르게 켜졌다 꺼졌다** 하다가, 결과가 나오면 **당첨 시·군·구 한 조각에 착지**한다. "어디가 걸릴까"를 결과 카드가 아니라 **지도 위에서** 보게 하는 연출 — §7.9 분산 서사("전국 어디든 같은 출발선")를 시각적으로 반복한다.
+
+- **지도 공유 — `components/ConquerSvg.tsx` 추출**: 현행 `ConquerMap` 안의 SVG(250 path + 시·도 외곽선 + 모듈 로드 시 1회 `ringsToPath` 계산)를 그대로 분리해 **`/map`과 홈이 같은 컴포넌트를 공유**. props `{ conquered: Set<string>, flashing?: Set<string>, spinning?: boolean }`. `ConquerMap`은 이걸 쓰도록 교체 — 렌더 결과 동일(회귀 없음).
+- **번쩍임은 별도 색 레이어**: 룰렛은 정복색(emerald)이 아니라 **amber**로 켠다. 정복 fill을 껐다 켜는 게 아니므로 **룰렛 종료 시 복원 로직 자체가 불필요**하고, 이미 정복한 조각이 "지워졌다"는 착시도 없다. fill 우선순위 = `flashing` > `conquered` > 미정복.
+- **spinning 중 transition 제거**: 현행 path의 `transition-[fill] duration-500`은 룰렛 tick(수십~수백 ms)에서 번쩍임을 뭉갠다 → spinning일 때 transition 클래스 미부여.
+- **순수부 `lib/roulette.ts`**:
+  - `rouletteFrame(elapsedMs, totalMs)` → `{ intervalMs, count }` — 경과에 따라 tick 간격은 **늘고**(fast→slow) 동시 점등 개수는 **줄어든다**(감속). 단조 함수라 프레임 상태를 들고 다닐 필요가 없다.
+  - `pickFlashCodes(codes, count, rand)` — 중복 없이 count개. 풀보다 count가 크면 전량, 빈 풀은 빈 배열.
+  - **착지**: 목표 코드가 정해지면 마지막 구간은 그 코드만 점등(두어 번 깜빡) → 종료.
+- **배선(`app/page.tsx` · `MapHero`)**:
+  - `status.kind === "loading"` → spinning 시작. `status.kind === "ok"` → **`sigunguAt(place.lat, place.lng)`**(lib/conquer 기존 export)로 목표 코드 → 착지. 좌표 없음·판정 실패(먼바다 등)면 착지 없이 조용히 종료.
+  - 회전 최소 시간은 기존 **`MIN_SPIN_MS = 1200`**(§7.9)이 이미 보장 — 별도 타이머 신설 불필요.
+  - `status.kind === "error"`도 룰렛 종료(연출만 계속 도는 무성 실패 차단).
+  - 결과 카드 자리의 `SlotMachine`은 **그대로 둔다**(위=지도, 아래=슬롯 — 위치가 달라 겹치지 않음).
+- **홈 히어로 교체(`MapHero.tsx`)**: 정복 뷰의 **17개 시·도 타일 그리드 → `ConquerSvg`**(래퍼 `components/HomeConquerMap` — koreaMap 의존을 이 파일 하나에 가둔다). 경계 데이터(~207KB)는 `dynamic(ssr:false)`로 분리해 **초기 청크 무변**. 정복률 링도 **시·군·구 기준으로 통일**(`/map` 히어로와 같은 숫자) — 지도가 시·군·구를 칠하는데 링만 시·도 %면 두 수치가 어긋나 보인다.
+  - ⚠️ **§7.11 번들 보호의 실질 축소**: "홈 초기 청크에 koreaMap 미포함"은 그대로지만, M16의 *"핀 뷰만 볼 땐 아예 안 받는다"* 이점은 사라진다 — **정복 뷰가 홈 기본값**이라 홈을 열면 사실상 항상 지도 청크를 받는다. 첫 페인트를 막지 않는 것(dynamic)까지가 이제 보장 범위. 룰렛이 홈에서 돌아야 한다는 요구의 직접 대가라 수용.
+- **접근성**: `prefers-reduced-motion: reduce`면 룰렛 생략, 당첨 조각만 한 번 점등. SVG `aria-label`은 정복 현황 그대로 두고 **룰렛은 장식**으로 처리 — 결과 안내는 기존 결과 카드 `aria-live`가 이미 담당하므로 `aria-live` 중복 낭독을 만들지 않는다.
+- **🎉 시·도 정복 토스트는 유지**(설계 초안 정정 — 구현 중 판단): 토스트는 히어로 우측 상단 absolute 배지라 **타일과 독립**이고, 헤더의 시·도 정복 pill(`conqueredAreas / 17`)도 그대로 남아 정합이 유지된다. 지우는 쪽이 오히려 코드를 건드리는 일이라 그대로 뒀다. **시·군·구 단위로 세분화하는 것**만 범위 밖(§11.1 — 2026-07-28 사용자 결정: 나중에). 단 타일과 함께 쓰이던 `animate-tile-pop`은 사용처가 사라져 CSS에서 제거.
+- **테스트(TDD — 순수부만)**: `roulette.test.ts` — 감속 **단조성**(elapsed 증가 시 intervalMs 비감소·count 비증가)·경계(elapsed 0·elapsed≥total)·`pickFlashCodes`(중복 없음·count>풀이면 전량·빈 풀 안전·rand 주입 결정성). 타이머 루프·DOM은 단위 테스트 비대상(SlotMachine 전례).
+- **파일**: 신규 `lib/roulette.ts`(+test) · `components/ConquerSvg.tsx`. 기존 `components/ConquerMap.tsx`(SVG 추출) · `components/MapHero.tsx`(타일→지도·링 기준 통일) · `app/page.tsx`(룰렛 배선).
+- **호출 예산**: **추가 API 0콜** — 전부 클라이언트 렌더.
+- **검증 기준**: ① 홈에서 뽑기 → 조각들이 번쩍이다 결과 시·군·구에 착지 ② 착지 조각 = 결과 카드의 지역 ③ 이미 정복한 조각이 룰렛 후에도 초록 유지 ④ reduced-motion에서 번쩍임 없음 ⑤ **홈 초기 번들에 koreaMap 미포함 실측**(§7.11 회귀 방지) ⑥ `/map` 정복 지도 렌더 무변.
+
 ## 8. 기술 스택 & 결정 근거
 
 | 영역 | 선택 | 근거 |
@@ -695,6 +720,7 @@ RandomTravel/
 | **M20** | 🧭 반나절 코스 1단계 ✅완료 — 뽑힌 곳을 앵커로 볼거리→식사→카페 3스텝 타임라인 + 스텝 재뽑기·전체 재생성(§7.10). `locationBasedList2` 재사용(부분 병렬·반경 5→10→20km 확대)·🍃 코스 헤더 배지(시·군·구 명시). 신규 순수부 `lib/course`(`COURSE_SLOTS`·`courseLegs`·`needsDriveHint`)·`haversineM`·`fmtYmd` 승격·`parseContentIds`·`buildCourseQuery`(TDD). 새 `/api/course`(전체+스텝 재뽑기+🍃 배지 재조립). 추가 API·키 불필요(같은 `TOUR_API_KEY`). **실측: 서울/완도/양평 3스텝·재뽑기·🍃 배지(완도군30%·양평군49%·서울 생략)·🚗 힌트(14.1km) e2e 통과, vitest 356** |
 | **M21** | 🔭 빈 곳에서 뽑기 ✅완료 — 미방문∩한적 시·군·구 교집합에서 뽑기 + /map 역방향 CTA(§7.11). 생성기 `scripts/genTourSigungu.mjs`→`lib/tourSigungu.ts`(`areaCode2` 17콜 셀 매핑 N:1·229셀·250 members·특례 4건 시드). 순수부 `lib/emptySpot`(`emptySpotSigunguSet`·`eligibleCells`) + `QUIET_SIGUNGU_CUT` 승격·`sigunguPctRank` factor-out(배지와 한적 정의 단일화). `drawEmptySpot`(BadgeCtx 직접 구성→🍃 동반·좌표 검증 accept 콜백)·`countEmptySpot`(TourAPI 0콜)·`buildEmptySpotQuery`·`parseSigunguCodes`. 번들 분리 `lib/visitedAreas`(홈 초기 청크 koreaMap 제외 실측)·`store.synced` 게이트(로그인 기기 간 방문 병합 후 뽑기). 결과 카드 🔭+🍃 배지·/map 딥링크. 추가 API·키 불필요. **실측: e2e 정읍/완도/합천/순천 뽑기 emptySpot+🍃, /map "125곳", 역방향 신호+URL 스트립, vitest 391** |
 | **M22** | ⚖️ 분산 모드 + 시·도 균등 승격 ✅완료 — (A) 무지역 뽑기 (타입×17시·도) 조합 균등화(§5.5 개정) — 버킷은 **lDongRegnCd**(areaCode 쿼리는 항목 ~40% areacode 공백으로 카탈로그 손실 실측 → lDong 도달률 99.99%, 세종 36110·전남광주 12 병합 특례) + (B) 외지인 방문자수 √역가중 토글(기본 OFF, §6.9). `visitor_daily`(M17 적재분) 활용 개시 — 2계층 귀속 + **입도 중복 제거**(시 상위+구 하위 공존 16행, 경기 ×1.54 오염 봉쇄), 극단 71.1배→확률비 8.43배(세종 15.68%↔서울 1.86%). 후보 수 무변(⚖️ ON/OFF 797==797 실측). 신규 순수부 `lib/scatter`·`lib/ldong`·`buildDrawCombos`(TDD). 추가 API·키 불필요. **vitest 454·돌연변이 15종 사살** |
+| **M23** | 🎰 정복 지도 룰렛 ✅완료 — 뽑기 중 홈 정복 지도의 시·군·구 조각이 룰렛처럼 점멸하다 **당첨 조각에 착지**(§7.12). 홈 정복 뷰를 17개 시·도 타일 → 250조각 SVG 지도로 교체(`ConquerSvg` 추출로 `/map`과 공유, `HomeConquerMap`을 `dynamic`으로 분리해 초기 청크 무변). 번쩍임은 amber 별도 레이어라 정복 상태 복원 불필요. 신규 순수부 `lib/roulette`(감속 단조성·`pickFlashCodes`, TDD). 착지 판정은 기존 `sigunguAt` 재사용. 추가 API·키 불필요(클라 렌더 0콜). **실측: 12→9→1조각 감속 후 무주군 착지 = 결과(전북 무주) 일치, 정복 조각 초록 유지, reduced-motion 시 회전 0·착지만 1.2s, 홈 정적 HTML에 지도 청크 참조 0건, vitest 467** |
 
 > **M10 로그인 관련 — §12 "로그인 불필요" 전제의 정제(2026-07-04)**: §12.5/§12.6의 "P0는 localStorage 전용·로그인 없음"은 **기본값으로 유지**된다(비로그인도 그대로 동작). M10은 그 위에 **선택적 로그인+동기화**(전략 A)를 얹은 것 — 로그인은 여전히 **강제 아님**. 명분은 개인정보가 아니라 **기기 간 동기화**(localStorage는 브라우저 하나에 갇힘). 로그인+서버저장은 오히려 개인정보처리자 의무를 새로 만들므로, 저장은 provider ID+표시이름+찜/방문 최소화. **v1 한계**: 삭제는 기기 간 전파 안 함(합집합 병합이라 한 기기에서 지운 항목이 다른 기기 재로그인 시 되살아날 수 있음).
 >
@@ -722,6 +748,7 @@ RandomTravel/
 | 🔭 date 배선·조건 존중·홈 수치 캡션 | 빈 곳 뽑기에 📅 기준일 UI 연동 + 지역·타입 조건 존중 + 홈 캡션에 N 표시 | M21 1단계는 오늘 고정·조건 무시·홈 무수치(§7.11) |
 | 한적 TOP5 히어로 리스트 | 홈 히어로에 오늘 한적 예측 상위 시·군·구 리스트 | 공모전 화면 후보 — 수요 확인 후 |
 | ⚖️ 기본 ON 재검토 | 분산 모드 기본값 반전(조건 모드 진입 시 기본 분산) | M22는 기본 OFF 확정(2026-07-10 사용자 결정, §6.9) — 사용 데이터 보고 |
+| 🎉 정복 토스트 시·군·구 세분화 | 「○○ 정복! · 내 지도 +1」 토스트를 시·도(17) → 시·군·구(250) 단위로. 지금은 시·도 단위 그대로 동작 | M23 범위 밖(2026-07-28 사용자 결정: 나중에, §7.12). `sigunguAt`로 판정 가능하나 250개면 토스트 빈도·문구를 다시 정해야 함 |
 | ~~🔐 OAuth 동의화면 게시~~ | 구글 OAuth 동의화면을 "테스트 → 프로덕션(게시)"로 전환 — 미등록 테스트 사용자 `403 access_denied` 근본 해결(아무 구글 계정 로그인 허용) | **2026-07-13 로그인 400번대 진단 결과**: 어제 에러 = 동의화면 테스트 모드 + 데스크톱에서 미등록 계정 선택 → `403`(코드 무관, Google Cloud Console 설정 영역). 스코프 `openid·email·profile` = **비민감**이라 구글 검증 없이 즉시 게시 가능. 미완(사용자가 "다음에"). learning-notes #8. ✅ **완료 확인(2026-07-27)** — 콘솔 실측: TravelAnywhere(travelanywhere-501410) 게시 상태가 이미 **프로덕션 단계**(외부)로 게시돼 있었음. 별도 조치 불요 — 공모전 테스트 계정 요건(§14.1)의 구글 로그인 측 선행 조건 충족 |
 | ~~🔁 redirect proxy env 배선~~ | [PR #33](https://github.com/Goospel/RandomTravel/pull/33)(`redirectProxyUrl`) **머지 후** Vercel **Production·Preview 양쪽**에 `AUTH_REDIRECT_PROXY_URL=https://travelanywhere-kr.vercel.app/api/auth` 등록 + `AUTH_SECRET` 양쪽 동일 확인 | 코드만으론 미작동 — 프로덕션에 값 없으면 프록시 비활성(Auth.js 문서). 미설정 시 Preview 배포 로그인은 `redirect_uri_mismatch`(400) 여전. learning-notes #7. ✅ **완료(2026-07-27)** — 확인 결과 **7/13에 이미 Production·Preview 양쪽 등록돼 있었음**(백로그가 낡음). 값이 Sensitive 타입이라 판독 불가 → 문서 확정값으로 `vercel env add --force` 덮어써 확정(같으면 무해·다르면 교정). `AUTH_SECRET`은 단일 항목이 양쪽 커버라 동일 보장. env 반영은 다음 배포부터 |
 

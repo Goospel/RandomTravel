@@ -1,7 +1,8 @@
 "use client";
 
 // 🧩 전국 정복 지도(M12 + M16 리디자인) — 다녀온 곳의 좌표로 시·군·구를 "정복"으로 칠한다.
-//   순수 집계·판정은 lib/conquer, 윤곽은 lib/koreaMap(생성물). 여기선 히어로+SVG+진행보드 렌더.
+//   순수 집계·판정은 lib/conquer, 윤곽은 lib/koreaMap(생성물). 여기선 히어로+진행보드 렌더.
+//   지도 SVG 자체는 M23에서 components/ConquerSvg 로 추출 — 홈 히어로와 공유한다(§7.12).
 //   히어로: 정복률 링 + 3통계(시·군·구·다녀온 곳·시·도) + 탐험가 레벨 진행바.
 
 import { useMemo } from "react";
@@ -10,32 +11,11 @@ import {
   visitedAreaCodes,
   TOTAL_SIGUNGU,
 } from "@/lib/conquer";
-import {
-  KOREA_MAP_VIEWBOX,
-  KOREA_SIGUNGU,
-  KOREA_SIDO_OUTLINES,
-  type Sigungu,
-} from "@/lib/koreaMap";
+import { KOREA_SIGUNGU } from "@/lib/koreaMap";
+import { ConquerSvg } from "@/components/ConquerSvg";
 import { AREA_NAME } from "@/lib/constants";
 import { explorerLevel } from "@/lib/level";
 import type { SavedPlace } from "@/lib/travelStore";
-
-// 평탄 링([x0,y0,x1,y1,...])들 → SVG path d. 정적이라 모듈 로드 시 1회만 계산.
-function ringsToPath(rings: number[][]): string {
-  let d = "";
-  for (const r of rings) {
-    if (r.length < 6) continue;
-    d += "M" + r[0] + " " + r[1];
-    for (let i = 2; i < r.length; i += 2) d += "L" + r[i] + " " + r[i + 1];
-    d += "Z";
-  }
-  return d;
-}
-const SIGUNGU_PATHS: { sg: Sigungu; d: string }[] = KOREA_SIGUNGU.map((sg) => ({
-  sg,
-  d: ringsToPath(sg.rings),
-}));
-const SIDO_OUTLINE_PATHS: string[] = Object.values(KOREA_SIDO_OUTLINES);
 
 // 시·도별 전체 시·군·구 수 + code→area — 모듈 로드 시 1회.
 const AREA_TOTAL = new Map<number, number>();
@@ -135,38 +115,7 @@ export function ConquerMap({
               </span>
             </div>
           </div>
-          <svg
-            viewBox={KOREA_MAP_VIEWBOX}
-            role="img"
-            aria-label={`전국 정복 지도 — 시·군·구 ${total}곳 중 ${n}곳 정복`}
-            className="mx-auto block h-auto w-full max-w-[400px]"
-          >
-            <g>
-              {SIGUNGU_PATHS.map(({ sg, d }) => {
-                const on = conquered.has(sg.code);
-                return (
-                  <path
-                    key={sg.code}
-                    d={d}
-                    vectorEffect="non-scaling-stroke"
-                    strokeWidth={0.5}
-                    className={`stroke-white transition-[fill] duration-500 dark:stroke-zinc-950 ${
-                      on
-                        ? "fill-emerald-600 dark:fill-emerald-600"
-                        : "fill-[#e6efe9] dark:fill-zinc-800"
-                    }`}
-                  >
-                    <title>{`${sg.name} · ${on ? "정복 ✓" : "미정복"}`}</title>
-                  </path>
-                );
-              })}
-            </g>
-            <g fill="none" className="stroke-slate-400 dark:stroke-zinc-600" aria-hidden="true">
-              {SIDO_OUTLINE_PATHS.map((d, i) => (
-                <path key={i} d={d} vectorEffect="non-scaling-stroke" strokeWidth={1} opacity={0.55} />
-              ))}
-            </g>
-          </svg>
+          <ConquerSvg conquered={conquered} />
           <p className="mt-3 text-center text-[11.5px] text-zinc-400">
             다녀온 곳이 속한 시·군·구가 초록으로 칠해져요 · 조각 위에 올리면 이름이 보여요.
           </p>

@@ -1,14 +1,29 @@
 "use client";
 
 // 🗺️ 홈 지도 히어로(M16 탐험 로그) — 뽑기 화면 상단에 정복 현황을 상시 노출.
-//   정복 뷰: 정복률 링 + 17개 시·도 타일. 핀 뷰: 경량 좌표 캔버스(가벼운 글랜스용 —
-//   실제 카카오맵은 /map 페이지에서). '다녀왔어요'로 새 시·도를 채우면 🎉 토스트.
+//   정복 뷰: 정복률 링 + 250조각 시·군·구 지도(M23에서 17개 시·도 타일을 대체, §7.12) +
+//   뽑는 동안 도는 🎰 룰렛. 핀 뷰: 경량 좌표 캔버스(가벼운 글랜스용 — 실제 카카오맵은
+//   /map 페이지에서). '다녀왔어요'로 새 시·도를 채우면 🎉 토스트.
 
 import { useState } from "react";
 import Link from "next/link";
-import { AREA_CODES, AREA_NAME } from "@/lib/constants";
-import { visitedAreaCodes } from "@/lib/visitedAreas"; // 🔭 홈 번들에서 koreaMap 제외(§7.11)
+import dynamic from "next/dynamic";
+import { AREA_NAME } from "@/lib/constants";
 import type { SavedPlace } from "@/lib/travelStore";
+
+// 정복 지도는 시·군·구 경계(~207KB)와 lib/conquer 를 싣는다 → 별도 청크로 분리해 홈 초기
+// 페인트를 막지 않는다(§7.11 번들 보호 — /map 의 ConquerMap 과 같은 처리).
+const HomeConquerMap = dynamic(
+  () => import("@/components/HomeConquerMap").then((m) => m.HomeConquerMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[440px] items-center justify-center text-sm text-emerald-700/60 dark:text-emerald-300/60">
+        정복 지도 불러오는 중…
+      </div>
+    ),
+  },
+);
 
 type View = "conquer" | "pin";
 
@@ -29,6 +44,10 @@ export function MapHero({
   filledArea,
   onEmptySpot,
   emptySpotPending,
+  spinning,
+  landedLat,
+  landedLng,
+  drawSeq,
 }: {
   visited: SavedPlace[];
   storeReady: boolean;
@@ -40,12 +59,16 @@ export function MapHero({
   onEmptySpot: () => void;
   /** 🔭 클릭~runDraw 진입 전 창(동적 import·exclude 계산) 이중 클릭 차단 */
   emptySpotPending: boolean;
+  /** 🎰 뽑는 중(§7.12) — 정복 지도가 룰렛으로 돈다 */
+  spinning: boolean;
+  /** 🎰 결과 좌표 — 이 좌표의 시·군·구에 착지. 없으면 착지 없이 종료 */
+  landedLat: number | null;
+  landedLng: number | null;
+  /** 🎰 뽑기 순번 — 같은 좌표가 연달아 나와도 착지 연출이 다시 돌게 하는 키 */
+  drawSeq: number;
 }) {
   const [view, setView] = useState<View>("conquer");
 
-  const areaSet = visitedAreaCodes(visited);
-  const conqueredCount = areaSet.size;
-  const pct = Math.round((conqueredCount / AREA_CODES.length) * 100);
   const withCoords = visited.filter((v) => v.lat != null && v.lng != null);
 
   const toggle = (active: boolean) =>
@@ -76,49 +99,14 @@ export function MapHero({
 
       {view === "conquer" ? (
         <>
-          <div className="mb-4 flex items-center gap-4">
-            <div
-              className="flex h-[66px] w-[66px] flex-none items-center justify-center rounded-full"
-              style={{ background: `conic-gradient(#059669 ${Math.max(pct, conqueredCount > 0 ? 3 : 0)}%, #d1fae5 0)` }}
-              aria-hidden
-            >
-              <div className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-white text-sm font-extrabold text-emerald-600 dark:bg-zinc-950">
-                {pct}%
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                전국 정복 현황
-              </div>
-              <div className="text-[26px] font-extrabold leading-tight tracking-tight">
-                {conqueredCount}
-                <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400">
-                  개 시·도 · 다녀온 곳 {visited.length}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-6 gap-1.5" aria-label="시·도별 정복 타일">
-            {AREA_CODES.map((a, i) => {
-              const on = areaSet.has(a.code);
-              const base =
-                "flex h-8 items-center justify-center rounded-lg text-[11.5px] font-bold";
-              const cls = on
-                ? `${base} text-white ${i % 2 ? "bg-emerald-500" : "bg-emerald-600"} ${
-                    filledArea === a.code ? "animate-tile-pop" : ""
-                  }`
-                : `${base} bg-[#e6efe9] text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500`;
-              return (
-                <div key={a.code} className={cls}>
-                  {a.name}
-                  {on ? " ✓" : ""}
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-center text-[11.5px] text-emerald-700 dark:text-emerald-300">
-            다녀옴을 체크한 시·도가 색으로 채워져요.
-          </p>
+          <HomeConquerMap
+            visited={visited}
+            storeReady={storeReady}
+            spinning={spinning}
+            landedLat={landedLat}
+            landedLng={landedLng}
+            drawSeq={drawSeq}
+          />
           {/* 🔭 빈 곳에서 뽑기(§7.11) — 무수치 캡션(홈은 koreaMap·N 계산 미수신).
               store.synced 게이트(로그인 사용자 기기 간 방문 병합 완료 후라야 exclude 정확). */}
           <button
