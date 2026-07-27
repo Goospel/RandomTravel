@@ -696,9 +696,10 @@ async function drawByType(
       if (linked) {
         const overview = await getOverview(linked.item.contentid);
         const place = normalizePlace(linked.item, overview);
-        const areaCode = linked.item.areacode
-          ? Number(linked.item.areacode)
-          : q.areaCode;
+        // 귀속 규칙은 일반 경로와 동일하게 — item.areacode → 법정동 → 슬롯(§6.9A).
+        // 지금은 제철 풀이 항상 areaCode 쿼리라 결과가 같지만, ⚖️(§6.9B) 재구성으로
+        // 이 경로의 전제가 바뀌어도 두 경로가 갈라지지 않게 미리 통일한다.
+        const areaCode = itemAreaCode(linked.item) ?? q.areaCode;
         const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
         // 배지는 지역 전체가 아니라 **매칭된 그 품목만** — 뽑힌 맛집과 정확히 일치.
         badges.seasonal = { items: [linked.matched] };
