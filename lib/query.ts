@@ -262,3 +262,36 @@ export function parseSigunguCodes(
   }
   return out;
 }
+
+// ─── 🍃 오늘 한적 TOP5 (M27, §7.16) ─────────────────────────────────
+
+/**
+ * 🍃 `only=<통계청 5자리 1개>` — TOP5 칩의 원샷 뽑기 대상(§7.16A).
+ * 유효 코드가 **정확히 1개**일 때만 채택하고, 복수·무효·없음은 null = 무시(일반 뽑기로
+ *   흘려보낸다 — 400 아님, 경계 정리 관례). 파싱 자체는 parseSigunguCodes 재사용.
+ * ⚠️ 대응 빌더는 없다 — `?only=<code>` 한 조각이라 호출부가 직접 만든다(§7.16 구현 결정).
+ */
+export function parseOnlySigungu(
+  raw: string | null,
+  valid: ReadonlySet<string>,
+): string | null {
+  const codes = parseSigunguCodes(raw, valid);
+  return codes.length === 1 ? codes[0] : null;
+}
+
+/** 시연 딥링크로 초기 ON 할 수 있는 토글 — 화이트리스트(§7.16C). */
+const DEEPLINK_TOGGLES = ["quiet", "scatter"] as const;
+export type DeeplinkToggle = (typeof DEEPLINK_TOGGLES)[number];
+
+/**
+ * 🍃⚖️ 시연 딥링크(§7.16C) — 홈 도착 URL 의 `?quiet=1&scatter=1` → 초기 ON 토글 집합.
+ * 화이트리스트 밖(대상 축 3종·지역·테마 등)은 전부 무시 — 대상 축은 상호배타 로직이 있어
+ *   URL 로 켜면 표시·전송 일치가 깨진다(§6.11). 값 판정은 parseBool 관례 그대로.
+ * 서버 동작 무변 — 도착 시 클라 토글 상태만 바꾼다.
+ */
+export function initialTogglesFromUrl(search: string): Set<DeeplinkToggle> {
+  const sp = new URLSearchParams(search);
+  const out = new Set<DeeplinkToggle>();
+  for (const k of DEEPLINK_TOGGLES) if (parseBool(sp.get(k))) out.add(k);
+  return out;
+}

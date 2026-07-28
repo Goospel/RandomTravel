@@ -141,6 +141,31 @@ export type CountResponse =
   | { dynamic: true }
   | { totalCount: number; approx: boolean };
 
+// ─── 🍃 오늘 한적 TOP5 (M27, §7.16A) ────────────────────────────────
+
+/** 🍃 한적 TOP5 칩 1개 — 홈 스트립 표시 + 탭 시 `only=<code>` 원샷 뽑기 대상. */
+export interface QuietTopItem {
+  /** 통계청 5자리 시·군·구 code(only= 파라미터 축 — 법정동·TourAPI 코드와 다름) */
+  code: string;
+  /** 시·군·구명 */
+  name: string;
+  /** 소속 시·도명(AREA_NAME) — 칩 표기 "전남 신안군" */
+  areaName: string;
+  /** round(pctRank×100) — "집중률 하위 N%" */
+  pctBelow: number;
+}
+
+/**
+ * 🍃 /api/quiet/top 응답 — 오늘(KST) 한적 예측 상위 시·군·구.
+ * 데이터 없음·stale(>48h)·조회 실패는 전부 `{ items: [], baseYmd: null }`
+ * (낡은 예측으로 유인 금지 — 클라는 스트립 자체를 렌더하지 않는다).
+ */
+export interface QuietTopResponse {
+  items: QuietTopItem[];
+  /** 데이터 기준일 YYYYMMDD('예측' 표기 필수 짝). 빈 결과면 null */
+  baseYmd: string | null;
+}
+
 // ─── 🧭 반나절 코스 (M20, §7.10) ────────────────────────────────────
 
 /** 🧭 코스 한 스텝 — 슬롯(볼거리·식사·카페) + 그 장소(개요는 생략). */

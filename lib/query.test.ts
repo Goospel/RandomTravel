@@ -11,6 +11,8 @@ import {
   buildCourseQuery,
   buildEmptySpotQuery,
   parseSigunguCodes,
+  parseOnlySigungu,
+  initialTogglesFromUrl,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -594,5 +596,71 @@ describe("buildRandomQuery — 🐕 pet · ♿ barrierFree 대상 축(§6.11)", 
     expect(
       buildRandomQuery("pure", new Set(), new Set(), { pet: true, barrierFree: true }),
     ).toBe("");
+  });
+});
+
+describe("parseOnlySigungu — 🍃 TOP5 칩 원샷 뽑기 대상(§7.16A)", () => {
+  const VALID = new Set(["36480", "37340", "11010"]);
+
+  it("유효 코드 1개면 그 코드", () => {
+    expect(parseOnlySigungu("36480", VALID)).toBe("36480");
+  });
+  it("공백은 다듬는다", () => {
+    expect(parseOnlySigungu(" 36480 ", VALID)).toBe("36480");
+  });
+  it("복수는 무시(null) — 일반 뽑기로 흘려보낸다", () => {
+    expect(parseOnlySigungu("36480,37340", VALID)).toBeNull();
+  });
+  it("화이트리스트 밖 코드는 무시(null·400 아님)", () => {
+    expect(parseOnlySigungu("99999", VALID)).toBeNull();
+  });
+  it("숫자 아님·빈 문자열·null 은 무시(null)", () => {
+    expect(parseOnlySigungu("abc", VALID)).toBeNull();
+    expect(parseOnlySigungu("", VALID)).toBeNull();
+    expect(parseOnlySigungu(null, VALID)).toBeNull();
+  });
+  it("같은 코드 중복은 1개로 접혀 채택된다", () => {
+    expect(parseOnlySigungu("36480,36480", VALID)).toBe("36480");
+  });
+});
+
+describe("only 불변식 — 미설정 시 쿼리스트링 완전 무변(§7.16A·§2)", () => {
+  it("조건 0개 = 빈 쿼리(only 가 새지 않음)", () => {
+    expect(buildRandomQuery("filtered", new Set(), new Set(), {})).toBe("");
+    expect(buildRandomQuery("pure", new Set(), new Set(), {})).toBe("");
+  });
+  it("조건이 있어도 빌더는 only 를 방출하지 않는다(별도 진입점)", () => {
+    const qs = buildRandomQuery("filtered", new Set([32]), new Set([12]), {
+      quiet: true,
+      scatter: true,
+    });
+    expect(new URLSearchParams(qs).has("only")).toBe(false);
+  });
+});
+
+describe("initialTogglesFromUrl — 시연 딥링크 화이트리스트(§7.16C)", () => {
+  it("?quiet=1&scatter=1 → 두 토글", () => {
+    const on = initialTogglesFromUrl("?quiet=1&scatter=1");
+    expect([...on].sort()).toEqual(["quiet", "scatter"]);
+  });
+  it("하나만 켜면 하나만", () => {
+    expect([...initialTogglesFromUrl("?quiet=1")]).toEqual(["quiet"]);
+  });
+  it("parseBool 관례 — true/on/yes 도 참, 0·false 는 거짓", () => {
+    expect([...initialTogglesFromUrl("?quiet=true&scatter=on")].sort()).toEqual([
+      "quiet",
+      "scatter",
+    ]);
+    expect([...initialTogglesFromUrl("?quiet=0&scatter=false")]).toEqual([]);
+  });
+  it("화이트리스트 밖 파라미터는 무시(대상 축·지역 등)", () => {
+    expect([...initialTogglesFromUrl("?seaside=1&pet=1&noRain=1&areas=32")]).toEqual([]);
+  });
+  it("빈 검색 문자열은 빈 집합(URL 무신호 = 무변)", () => {
+    expect([...initialTogglesFromUrl("")]).toEqual([]);
+    expect([...initialTogglesFromUrl("?")]).toEqual([]);
+  });
+  it("? 없는 형태도 받는다(location.search 는 있지만 방어)", () => {
+    expect([...initialTogglesFromUrl("quiet=1")]).toEqual(["quiet"]);
   });
 });

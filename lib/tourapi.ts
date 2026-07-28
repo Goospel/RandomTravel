@@ -68,6 +68,7 @@ import { areaWeights, orderByWeightedArea } from "@/lib/scatter";
 import { LDONG_TO_APP_AREA } from "@/lib/congestionCodes";
 import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
+import type { TourSigunguCell } from "@/lib/tourSigungu";
 import { fetchWithTimeout } from "@/lib/apiFetch";
 
 const SERVICE_ROOT = "https://apis.data.go.kr/B551011";
@@ -1156,6 +1157,29 @@ export async function drawEmptySpot(params: EmptySpotParams): Promise<DrawResult
     : null;
 
   const cells = shuffle(eligibleCells(sigunguSet)).slice(0, EMPTY_SPOT_CELL_TRIES);
+  const result = await drawFromCells(cells, sigunguSet, ctx, notice, { emptySpot: true });
+  if (result) return result;
+
+  // ④-b: 시도 소진 — '정복 완료'가 아니라 이번 시도가 못 찾은 것(오귀속 금지).
+  throw new TourApiError("이번엔 못 찾았어요 — 한 번 더 뽑아보세요.", "EMPTY_POOL");
+}
+
+/**
+ * 🔭·🍃 셀 뽑기 소경로 — 주어진 셀들을 순회하며 타입 기본 5종 셔플로 1건 + 좌표 검증.
+ * 뽑힌 좌표가 sigunguSet 소속일 때만 채택(스냅·경계 포함, §7.4) — 셀은 N:1 이라
+ *   좌표 검증이 "약속한 그 시·군·구"를 보장하는 유일한 장치다(카드 주소가 곧 주장).
+ * 못 찾으면 null — EMPTY_POOL 문구는 원인을 아는 호출부가 정한다(오귀속 금지).
+ *
+ * 🔭 빈 곳(M21 §7.11)과 🍃 TOP5 칩 원샷(M27 §7.16A)이 공유한다. 차이는 sigunguSet 을
+ *   어떻게 만드느냐뿐 — 🔭 는 미방문∩한적, 🍃 는 지정 1곳(미방문 조건 없음).
+ */
+async function drawFromCells(
+  cells: readonly TourSigunguCell[],
+  sigunguSet: ReadonlySet<string>,
+  ctx: BadgeCtx,
+  notice: string | null,
+  extraPicked: Partial<PickedInfo> = {},
+): Promise<DrawResult | null> {
   for (const cell of cells) {
     for (const contentTypeId of shuffle([...RANDOM_DEFAULT_TYPES])) {
       const listParams = queryParams({
@@ -1166,7 +1190,6 @@ export async function drawEmptySpot(params: EmptySpotParams): Promise<DrawResult
       const totalCount = await getTotalCount("areaBasedList2", listParams);
       if (totalCount <= 0) continue; // 이 (셀,타입)은 0건 → 다음 타입
 
-      // 좌표 검증 — 뽑힌 곳이 sigunguSet(미방문∩한적) 소속인지(스냅·경계 포함, §7.4).
       const item = await pickItemFrom("areaBasedList2", listParams, totalCount, undefined, (it) => {
         const lat = toNum(it.mapy); // ⚠️ mapy=위도, mapx=경도
         const lng = toNum(it.mapx);
@@ -1181,13 +1204,56 @@ export async function drawEmptySpot(params: EmptySpotParams): Promise<DrawResult
       const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
       return {
         place,
-        picked: { areaCode, contentTypeId, totalCount, emptySpot: true, ...badges, notice },
+        picked: { areaCode, contentTypeId, totalCount, ...extraPicked, ...badges, notice },
       };
     }
   }
+  return null;
+}
 
-  // ④-b: 시도 소진 — '정복 완료'가 아니라 이번 시도가 못 찾은 것(오귀속 금지).
-  throw new TourApiError("이번엔 못 찾았어요 — 한 번 더 뽑아보세요.", "EMPTY_POOL");
+// ─── 🍃 오늘 한적 TOP5 칩 원샷 뽑기 (M27, §7.16A) ────────────────────
+
+export interface OnlySigunguParams {
+  /** 뽑을 시·군·구 통계청 code 1개(only= 파라미터 — parseOnlySigungu 산출). */
+  code: string;
+  /** 📅 기준일 YYYYMMDD(§6.8 축 대칭). TOP5 칩은 항상 오늘 — 라우트가 오늘을 넘김. */
+  dateYmd?: string;
+  now?: Date;
+}
+
+/**
+ * 🍃 지정 시·군·구 1곳에서 원샷 뽑기(M27) — TOP5 칩 탭 진입점.
+ *  - 🔭 drawEmptySpot 의 셀 뽑기 소경로를 그대로 재사용하되 **미방문·한적 조건이 없다**
+ *    (칩 자체가 이미 한적 상위 선정 결과라 다시 거르면 같은 판정을 두 번 하는 것).
+ *  - 🍃 배지는 §6.7 노출 조건(pctRank ≤ 0.5) 그대로 — ranks 를 ctx 에 실어 buildBadges 가 판정.
+ *    stale·조회 실패면 배지만 생략된다(약속한 지역에서 뽑는 것 자체는 지켜지므로 notice 불필요).
+ *  - FilterPanel 상태와 무관한 별도 진입점(📍 주변 뽑기 동형) — "조건 0개 = 완전 랜덤" 무침범.
+ */
+export async function drawOnlySigungu(params: OnlySigunguParams): Promise<DrawResult> {
+  const now = params.now ?? new Date();
+  const targetYmd = params.dateYmd ?? kstYmd(now);
+  const { ranks, baseYmd } = await emptySpotDay(targetYmd, now.getTime());
+
+  const sigunguSet = new Set([params.code]);
+  const ctx: BadgeCtx = {
+    month: 0,
+    seasonal: false,
+    festivalMap: null,
+    festivalBaseYmd: null,
+    weatherObs: null,
+    sigunguRanks: ranks,
+    congestionBaseYmd: baseYmd,
+    congestionTargetYmd: targetYmd,
+  };
+
+  // 통계청 code 는 정확히 한 셀에 속한다(⋃members 중복 0) — 셔플·상한이 필요 없다.
+  const result = await drawFromCells(eligibleCells(sigunguSet), sigunguSet, ctx, null);
+  if (result) return result;
+
+  throw new TourApiError(
+    "이 동네에서는 보여드릴 곳을 찾지 못했어요 — 다른 곳을 골라보세요.",
+    "EMPTY_POOL",
+  );
 }
 
 /**

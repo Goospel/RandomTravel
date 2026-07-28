@@ -7,6 +7,7 @@ import {
   drawRandom,
   drawNearby,
   drawEmptySpot,
+  drawOnlySigungu,
   TourApiError,
   isRetryableDrawError,
 } from "@/lib/tourapi";
@@ -18,6 +19,7 @@ import {
   parseLatLng,
   parseDateYmd,
   parseSigunguCodes,
+  parseOnlySigungu,
 } from "@/lib/query";
 import { KOREA_SIGUNGU } from "@/lib/koreaMap";
 import type { ErrorResponse } from "@/types/tour";
@@ -64,6 +66,22 @@ export async function GET(request: NextRequest) {
     try {
       const result = await retryOnce(
         () => drawEmptySpot({ exclude, dateYmd, now }),
+        isRetryableDrawError,
+      );
+      return Response.json(result);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+
+  // 🍃 TOP5 칩 원샷 뽑기(M27) — only=<통계청 5자리 1개> 면 그 시·군·구 셀에서만 뽑는다.
+  //    복수·무효는 null → 아래 일반 뽑기로 그대로 흘러간다(400 아님, §7.16A).
+  //    only 미지정이면 파싱 결과가 null 이라 분기 자체가 없다 = 기존 뽑기와 완전 동일(불변식).
+  const only = parseOnlySigungu(sp.get("only"), VALID_SIGUNGU);
+  if (only) {
+    try {
+      const result = await retryOnce(
+        () => drawOnlySigungu({ code: only, now }),
         isRetryableDrawError,
       );
       return Response.json(result);
