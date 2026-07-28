@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type {
   RandomResponse,
   ErrorResponse,
@@ -16,6 +17,7 @@ import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
 import { StoryBanner } from "@/components/StoryBanner";
+import { QuietTopStrip } from "@/components/QuietTopStrip";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
 import { Icon } from "@/components/icons";
@@ -29,6 +31,7 @@ import {
   buildNearbyQuery,
   buildCourseQuery,
   buildEmptySpotQuery,
+  initialTogglesFromUrl,
 } from "@/lib/query";
 // 🔭 visitedAreaCodes 는 koreaMap 비의존 경량 모듈에서(§7.11). conqueredSigunguCodes 는 홈에
 //    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
@@ -247,6 +250,37 @@ export default function Home() {
     void runEmptySpot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.ready, store.synced]);
+
+  // 🍃⚖️ 시연 딥링크(§7.16C) — 홈 도착 URL `?quiet=1&scatter=1` → 토글 초기 ON + URL 스트립.
+  //   심사 시연·기능설명서에서 "조건을 켠 상태" URL 한 줄로 들어오기 위한 것(토글 켜는 걸 잊는
+  //   실수 제거). 서버 동작은 무변 — 클라 토글 상태만 바꾼다.
+  //   ⚠️ 조건 모드로도 함께 전환한다 — 순수 모드에선 buildRandomQuery 가 빈 쿼리를 내므로
+  //     토글만 켜면 아무 효과가 없고 패널도 안 보인다(표시·전송 일치).
+  //   ref 가드 + replaceState 는 🔭 신호(위)와 같은 M21 패턴. 토글 신호가 없으면 URL 을 건드리지
+  //     않아 `?emptySpot=1` 같은 다른 신호를 삼키지 않는다.
+  const deeplinkSignalRef = useRef(false);
+  useEffect(() => {
+    if (deeplinkSignalRef.current) return;
+    const on = initialTogglesFromUrl(window.location.search);
+    if (on.size === 0) return;
+    deeplinkSignalRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    // URL(외부 상태)을 읽어 초기 토글을 세우는 자리라 effect 안 setState 가 의도된 동작이다.
+    // ref 가드로 1회만 실행되므로 연쇄 렌더도 없다.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setMode("filtered");
+    if (on.has("quiet")) setQuiet(true);
+    if (on.has("scatter")) setScatter(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  // 🍃 TOP5 칩 탭(§7.16A) — 그 시·군·구에서 원샷 뽑기. 조건 패널 상태와 무관한 별도 진입점이라
+  //   buildRandomQuery 를 거치지 않는다(📍 주변 뽑기 동형 — "조건 0개 = 완전 랜덤" 무침범).
+  //   빌더 없이 한 조각(`only=<code>`)만 붙인다 — code 는 서버 화이트리스트 통과 값이라 인코딩 불필요.
+  function drawQuietTop(code: string) {
+    void runDraw(`/api/random?only=${code}`, false, true);
+    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 
   // 📍 결과 카드의 "주변에서 뽑기" — 현재 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
   function drawNearby() {
@@ -508,6 +542,25 @@ export default function Home() {
           />
         </div>
       )}
+
+      {/* 🍃 오늘 한적 TOP5(§7.16A) — 통합 카드 **밖** 아래, 결과 카드 아래·기록 서랍 위.
+          데이터 없음·stale 이면 스트립은 자기 자신을 렌더하지 않는다(빈 자리). */}
+      <div className="mt-3">
+        <QuietTopStrip onPick={drawQuietTop} disabled={loading} />
+      </div>
+
+      {/* 📈 홈→/impact 서사 연결(§7.16B) — 문제 정의 화면은 M26 산출물 재사용.
+          스트립 안이 아니라 밖에 둔다 — 혼잡도 데이터가 stale 이면 스트립이 통째로 사라지는데,
+          이 링크는 그와 무관하게 항상 있어야 한다(서사 진입점이 데이터 신선도에 인질 잡히지 않게). */}
+      <p className="mt-3 text-center text-[13px] leading-[1.6] text-g-text-2">
+        <Link
+          href="/impact"
+          className="inline-flex items-center gap-1.5 underline underline-offset-2 hover:text-g-primary"
+        >
+          <Icon name="scales" size={14} />
+          왜 아무 데나 뽑는 게 분산이 되는지 — 숫자로 보기
+        </Link>
+      </p>
 
       {/* 기록(찜·최근·다녀옴) */}
       <div className="mt-3">
