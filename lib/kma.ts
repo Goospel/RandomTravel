@@ -16,6 +16,7 @@ import {
   type NcstItem,
   type WeatherObs,
 } from "@/lib/weather";
+import { fetchWithTimeout } from "@/lib/apiFetch";
 
 const BASE = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
 
@@ -59,9 +60,11 @@ async function fetchNcst(
 
   let res: Response;
   try {
-    res = await fetch(url, { next: { revalidate: 1800 } });
+    // 8초 타임아웃 + 1회 재시도(§6.5) — 17개 지점을 Promise.all 로 묶으므로 한 지점이 멈추면
+    // ☔ 단계 전체가 그만큼 늘어난다. TourAPI 와 같은 결함이라 같은 정책으로 막는다.
+    res = await fetchWithTimeout(url, { next: { revalidate: 1800 } });
   } catch {
-    throw new WeatherError("기상청 서버에 연결하지 못했어요.");
+    throw new WeatherError("기상청 서버가 응답이 없어요.");
   }
 
   const text = await res.text();

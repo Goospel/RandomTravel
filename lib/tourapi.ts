@@ -63,6 +63,7 @@ import { areaWeights, orderByWeightedArea } from "@/lib/scatter";
 import { LDONG_TO_APP_AREA } from "@/lib/congestionCodes";
 import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
+import { fetchWithTimeout } from "@/lib/apiFetch";
 
 const BASE = "https://apis.data.go.kr/B551011/KorService2";
 
@@ -123,9 +124,11 @@ async function tourFetch(
 
   let res: Response;
   try {
-    res = await fetch(url, init);
+    // 8초 타임아웃 + 1회 재시도(§6.5) — 상류가 응답을 붙잡고 있어도 뽑기가 무한 대기하지 않는다.
+    res = await fetchWithTimeout(url, init);
   } catch {
-    throw new TourApiError("관광 데이터 서버에 연결하지 못했어요.");
+    // 연결 실패·타임아웃 모두 사용자 관점에선 "응답이 없다" — 재시도 버튼은 상단 "다시 뽑기".
+    throw new TourApiError("관광 데이터가 응답이 없어요. 다시 한번 뽑아보세요.");
   }
 
   const text = await res.text();
@@ -211,8 +214,12 @@ async function getItemAt(
   return itemsOf(body)[0] ?? null;
 }
 
-/** detailCommon2 개요 보강 — 실패해도 뽑기를 막지 않는다(best-effort) */
-async function getOverview(contentId: string): Promise<string | null> {
+/**
+ * detailCommon2 개요 보강 — 실패해도 뽑기를 막지 않는다(best-effort).
+ * ⚠️ 뽑기 응답 안에서 부르지 않는다(§5.6) — contentId 가 매번 달라 24h 캐시가 항상 미스라
+ *    뽑기마다 상류 왕복 1회가 통째로 붙는다. `/api/overview` 가 카드 노출 뒤에 부른다.
+ */
+export async function getOverview(contentId: string): Promise<string | null> {
   try {
     const body = await tourFetch(
       "detailCommon2",
@@ -402,7 +409,7 @@ export interface DrawResult {
 
 const COMBO_BUDGET = 34; // 상류 getTotalCount 호출 상한 (대부분 24h 캐시)
 const MAX_INDEX_TRIES = 3;
-const EMPTY_SPOT_CELL_TRIES = 3; // 🔭 셀 순회 상한(§7.11) — 워스트 3셀×(count 5+item 3)+overview
+const EMPTY_SPOT_CELL_TRIES = 3; // 🔭 셀 순회 상한(§7.11) — 워스트 3셀×(count 5+item 3), 개요는 별도(§5.6)
 const RESTAURANT_TYPE = 39; // 🍽️ 음식점 contentTypeId — 🦀 제철과 조합 시 품목-맛집 키워드 매칭 대상
 
 /** count 가중 랜덤 인덱스 — 큰 풀일수록 뽑힐 확률↑ (개수 적은 분류로의 쏠림 방지, §6.3) */
@@ -736,8 +743,7 @@ async function drawByType(
     if (ctx.seasonal && q.contentTypeId === RESTAURANT_TYPE && q.areaCode != null) {
       const linked = await pickSeasonalRestaurant(q.areaCode, ctx.month);
       if (linked) {
-        const overview = await getOverview(linked.item.contentid);
-        const place = normalizePlace(linked.item, overview);
+        const place = normalizePlace(linked.item, null); // 개요는 카드 노출 뒤(§5.6)
         // 귀속 규칙은 일반 경로와 동일하게 — item.areacode → 법정동 → 슬롯(§6.9A).
         // 지금은 제철 풀이 항상 areaCode 쿼리라 결과가 같지만, ⚖️(§6.9B) 재구성으로
         // 이 경로의 전제가 바뀌어도 두 경로가 갈라지지 않게 미리 통일한다.
@@ -766,8 +772,7 @@ async function drawByType(
     const item = await pickItemFrom("areaBasedList2", params, totalCount);
     if (!item) continue;
 
-    const overview = await getOverview(item.contentid);
-    const place = normalizePlace(item, overview);
+    const place = normalizePlace(item, null); // 개요는 카드 노출 뒤(§5.6)
     // 귀속: item.areacode → 법정동 코드 판별 → 슬롯 시·도(§6.9A). lDong 버킷은 areacode 가
     // 빈 항목을 일부러 포함하므로 중간 단계가 없으면 배지가 통째로 빠진다.
     const areaCode = itemAreaCode(item) ?? q.slotAreaCode;
@@ -828,7 +833,10 @@ async function drawSeaside(
     );
   }
 
-  // 조합별 totalCount 수집(24h 캐시) → 빈 조합 제외
+  // 조합별 totalCount 수집(24h 캐시) → 빈 조합 제외.
+  // ⚠️ **직렬 유지** — Promise.all 병렬화를 시도했다가 되돌렸다(실측 2026-07-28). 상류가 동시
+  //   요청을 흡수하지 못해 대기 중인 호출까지 8초 타임아웃에 걸려 🌊 3회 중 2회가 통째로 실패했다
+  //   (15.5s 실패·8.0s 실패). 직렬은 느려도 성공한다 — 여기선 지연보다 성공률이 먼저다.
   const weighted: { q: Query; count: number }[] = [];
   for (let i = 0; i < limit; i++) {
     const count = await getTotalCount("areaBasedList2", queryParams(combos[i]));
@@ -850,8 +858,7 @@ async function drawSeaside(
     const item = await pickItemFrom("areaBasedList2", queryParams(q), count);
     if (!item) continue;
 
-    const overview = await getOverview(item.contentid);
-    const place = normalizePlace(item, overview);
+    const place = normalizePlace(item, null); // 개요는 카드 노출 뒤(§5.6)
     const areaCode = item.areacode ? Number(item.areacode) : (q.areaCode ?? null);
     const sea = SEA_CAT3.find((s) => s.cat3 === q.cat3);
     return {
@@ -907,11 +914,10 @@ export async function drawNearby(params: NearbyParams): Promise<DrawResult> {
     const item = await pickItemFrom("locationBasedList2", locParams, totalCount);
     if (!item) continue;
 
-    const overview = await getOverview(item.contentid);
     const areaCode = item.areacode ? Number(item.areacode) : null;
     const distRaw = item.dist != null ? Number(item.dist) : NaN;
     return {
-      place: normalizePlace(item, overview),
+      place: normalizePlace(item, null), // 개요는 카드 노출 뒤(§5.6)
       picked: {
         areaCode,
         contentTypeId,
@@ -1015,8 +1021,7 @@ export async function drawEmptySpot(params: EmptySpotParams): Promise<DrawResult
       });
       if (!item) continue;
 
-      const overview = await getOverview(item.contentid);
-      const place = normalizePlace(item, overview);
+      const place = normalizePlace(item, null); // 개요는 카드 노출 뒤(§5.6)
       const areaCode = item.areacode ? Number(item.areacode) : cell.area;
       const badges = buildBadges(areaCode, ctx, place.lat, place.lng);
       return {
