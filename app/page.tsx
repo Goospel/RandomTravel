@@ -507,7 +507,9 @@ function ErrorPanel({
   error: ErrorResponse;
   onClearConditions: (() => void) | null;
 }) {
-  const isKeyIssue = error.code === "UPSTREAM_ERROR";
+  // 실제 키 누락 메시지일 때만 힌트를 붙인다 — code 만 보면 단순 상류 타임아웃까지
+  // '설정 고장'처럼 보여 사용자를 엉뚱한 곳으로 보낸다(§6.5).
+  const isKeyIssue = error.error.includes("TOUR_API_KEY");
   return (
     <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
       <p className="font-semibold">⚠️ {error.error}</p>

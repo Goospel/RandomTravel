@@ -3,7 +3,14 @@
 //  - 쿼리: ?areas=32,39&types=39 (콤마 다중, 둘 다 생략 시 완전 랜덤)
 
 import { type NextRequest } from "next/server";
-import { drawRandom, drawNearby, drawEmptySpot, TourApiError } from "@/lib/tourapi";
+import {
+  drawRandom,
+  drawNearby,
+  drawEmptySpot,
+  TourApiError,
+  isRetryableDrawError,
+} from "@/lib/tourapi";
+import { retryOnce } from "@/lib/apiFetch";
 import {
   parseAreaCodes,
   parseContentTypeIds,
@@ -38,7 +45,10 @@ export async function GET(request: NextRequest) {
       return Response.json(body, { status: 400 });
     }
     try {
-      const result = await drawNearby(anchor);
+      const result = await retryOnce(
+        () => drawNearby(anchor),
+        isRetryableDrawError,
+      );
       return Response.json(result);
     } catch (e) {
       return errorResponse(e);
@@ -52,7 +62,10 @@ export async function GET(request: NextRequest) {
     const exclude = new Set(parseSigunguCodes(sp.get("exclude"), VALID_SIGUNGU));
     const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined; // §6.8 축 대칭(1단계 UI 미배선)
     try {
-      const result = await drawEmptySpot({ exclude, dateYmd, now });
+      const result = await retryOnce(
+        () => drawEmptySpot({ exclude, dateYmd, now }),
+        isRetryableDrawError,
+      );
       return Response.json(result);
     } catch (e) {
       return errorResponse(e);
@@ -90,18 +103,23 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await drawRandom({
-      areaCodes,
-      contentTypeIds,
-      seaside,
-      seasonal,
-      festivalOnly,
-      noRain,
-      quiet,
-      scatter,
-      dateYmd,
-      now,
-    });
+    // 🔁 상류 장애·타임아웃이면 뽑기 전체를 1회 더 굴린다(§6.5) — isRetryableDrawError 주석 참조.
+    const result = await retryOnce(
+      () =>
+        drawRandom({
+          areaCodes,
+          contentTypeIds,
+          seaside,
+          seasonal,
+          festivalOnly,
+          noRain,
+          quiet,
+          scatter,
+          dateYmd,
+          now,
+        }),
+      isRetryableDrawError,
+    );
     return Response.json(result);
   } catch (e) {
     return errorResponse(e);
