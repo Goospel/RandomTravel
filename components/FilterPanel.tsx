@@ -131,6 +131,8 @@ export function FilterPanel({
   selectedAreas,
   selectedTypes,
   seaside,
+  pet,
+  barrierFree,
   seasonal,
   festival,
   noRain,
@@ -140,6 +142,8 @@ export function FilterPanel({
   onToggleArea,
   onToggleType,
   onToggleSeaside,
+  onTogglePet,
+  onToggleBarrierFree,
   onToggleSeasonal,
   onToggleFestival,
   onToggleNoRain,
@@ -151,6 +155,10 @@ export function FilterPanel({
   selectedAreas: Set<number>;
   selectedTypes: Set<number>;
   seaside: boolean;
+  /** 🐕 반려동물 동반(§6.11) — 대상 축. 켜면 지역·테마가 잠긴다(전국 전용) */
+  pet: boolean;
+  /** ♿ 무장애(§6.11) — 대상 축. 지역·테마·다른 조건과 그대로 조합 */
+  barrierFree: boolean;
   seasonal: boolean;
   festival: boolean;
   noRain: boolean;
@@ -162,6 +170,8 @@ export function FilterPanel({
   onToggleArea: (code: number) => void;
   onToggleType: (code: number) => void;
   onToggleSeaside: () => void;
+  onTogglePet: () => void;
+  onToggleBarrierFree: () => void;
   onToggleSeasonal: () => void;
   onToggleFestival: () => void;
   onToggleNoRain: () => void;
@@ -175,11 +185,19 @@ export function FilterPanel({
     selectedAreas.size > 0 ||
     selectedTypes.size > 0 ||
     seaside ||
+    pet ||
+    barrierFree ||
     seasonal ||
     festival ||
     noRain ||
     quiet ||
     scatter;
+
+  // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — 하나 켜지면 나머지 둘은 잠긴다(잠긴 토글은
+  //   눌리지 않은 것으로 취급 = ☔ 관례). 🐕 는 상류가 지역·타입을 안 받아 지역·테마까지 잠근다.
+  const targetOn = seaside || pet || barrierFree;
+  const areaLocked = pet; // 🐕 = 전국 전용
+  const typeLocked = seaside || pet; // 🌊 = 관광지 고정 · 🐕 = 전국·전 타입
 
   // 📅 방문 시점 칩(§6.8) — 조건 모드 진입은 마운트 후(pure 기본)라 렌더 시 new Date() 안전(SSR 아님).
   //    선택 ymd 가 현재 칩에 없으면(자정 통과·과거화) '오늘'로 간주 — 소리 없는 날짜 변경 방지.
@@ -199,6 +217,8 @@ export function FilterPanel({
   //   "뽑기·count 쿼리 일치" 관례의 유일한 의도적 예외. 여기에 scatter 를 추가하지 말 것.
   const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
     seaside,
+    pet,
+    barrierFree,
     seasonal,
     festival,
     noRain,
@@ -230,10 +250,17 @@ export function FilterPanel({
               key={a.code}
               type="button"
               onClick={() => onToggleArea(a.code)}
-              aria-pressed={selectedAreas.has(a.code)}
-              className={chip(selectedAreas.has(a.code))}
+              // 🐕 ON이면 지역이 무시되므로 '눌림'을 보고하지 않는다(안내문과 일치).
+              aria-pressed={areaLocked ? undefined : selectedAreas.has(a.code)}
+              disabled={areaLocked}
+              className={
+                areaLocked
+                  ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
+                  : chip(selectedAreas.has(a.code))
+              }
             >
               {a.name}
+              {areaLocked && <Icon name="lock" size={11} />}
             </button>
           ))}
         </div>
@@ -249,23 +276,23 @@ export function FilterPanel({
           className="flex flex-wrap gap-1.5"
         >
           {CONTENT_TYPES.map((c) => {
-            const on = !seaside && selectedTypes.has(c.code);
+            const on = !typeLocked && selectedTypes.has(c.code);
             return (
               <button
                 key={c.code}
                 type="button"
                 onClick={() => onToggleType(c.code)}
-                // 바다 ON이면 테마가 무시되므로 '눌림'을 보고하지 않는다(안내문과 일치).
-                aria-pressed={seaside ? undefined : selectedTypes.has(c.code)}
-                disabled={seaside}
+                // 바다·반려동물 ON이면 테마가 무시되므로 '눌림'을 보고하지 않는다(안내문과 일치).
+                aria-pressed={typeLocked ? undefined : selectedTypes.has(c.code)}
+                disabled={typeLocked}
                 className={
-                  seaside
+                  typeLocked
                     ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
                     : chip(on)
                 }
               >
                 {c.name}
-                {seaside && <Icon name="lock" size={11} />}
+                {typeLocked && <Icon name="lock" size={11} />}
               </button>
             );
           })}
@@ -318,6 +345,23 @@ export function FilterPanel({
             icon="wave"
             label="바다"
             desc="해수욕장·섬·항구·해안"
+            locked={!seaside && targetOn}
+          />
+          <ExtraToggle
+            on={pet}
+            onToggle={onTogglePet}
+            icon="paw"
+            label="반려동물 동반"
+            desc="반려동물과 함께 갈 수 있는 곳 (전국)"
+            locked={!pet && targetOn}
+          />
+          <ExtraToggle
+            on={barrierFree}
+            onToggle={onToggleBarrierFree}
+            icon="accessible"
+            label="무장애 여행"
+            desc="휠체어·보조견 등 무장애 정보가 있는 곳"
+            locked={!barrierFree && targetOn}
           />
           <ExtraToggle
             on={seasonal}
@@ -359,20 +403,34 @@ export function FilterPanel({
           onToggle={onToggleScatter}
           icon="scales"
           label="분산 모드"
-          // 🌊 로 잠겼으면 켜져 있어도 꺼진 것으로 취급(☔ 관례) → 설명도 OFF 쪽으로.
+          // 대상 축(🌊·🐕·♿)으로 잠겼으면 켜져 있어도 꺼진 것으로 취급(☔ 관례) → 설명도 OFF 쪽으로.
           desc={
-            scatter && !seaside
+            scatter && !targetOn
               ? "방문자 적은 시·도가 더 자주 나와요 (약 1~2개월 전 공공 방문자 집계 기준)"
               : "끄면 17개 시·도 같은 확률"
           }
-          locked={seaside}
+          locked={targetOn}
         />
       </section>
+
+      {targetOn && (
+        <LockNote>
+          <b className="font-bold">바다·반려동물 동반·무장애</b>는 서로 다른 목록에서
+          뽑아요 — 한 번에 하나만 골라요.
+        </LockNote>
+      )}
 
       {seaside && (
         <LockNote>
           바다를 켜면 테마는 <b className="font-bold">관광지로 고정</b>돼요 — 그래서
           다른 테마 칸이 잠겼어요.
+        </LockNote>
+      )}
+
+      {pet && (
+        <LockNote>
+          <b className="font-bold">반려동물 동반 목록</b>은 지역·테마로 나눠 받을 수
+          없어요 — 그래서 전국에서 통째로 뽑고 지역·테마 칸이 잠겼어요.
         </LockNote>
       )}
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { RandomResponse } from "@/types/tour";
+import type { RandomResponse, InfoChip } from "@/types/tour";
 import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 import { useKakaoShare } from "@/hooks/useKakaoShare";
@@ -50,6 +50,35 @@ function Badge({
   );
 }
 
+/**
+ * 🐕 동반 정보 · ♿ 편의시설 상세(§6.11) — 라벨-값 목록.
+ * 값이 문장이라 pill 로는 안 담겨 카드 안쪽 블록(rounded-lg + surface-2)에 2열 나열한다.
+ */
+function InfoChipList({
+  icon,
+  title,
+  chips,
+}: {
+  icon: IconName;
+  title: string;
+  chips: InfoChip[];
+}) {
+  if (chips.length === 0) return null;
+  return (
+    <dl className="flex flex-col gap-1.5 rounded-lg bg-g-surface-2 px-3 py-2.5">
+      <dt className="inline-flex items-center gap-1.5 text-[11px] font-bold leading-none text-g-text-2">
+        <Icon name={icon} size={12} />
+        {title}
+      </dt>
+      {chips.map((c) => (
+        <dd key={c.label} className="text-[12px] leading-[1.5] text-g-text-2">
+          <b className="font-bold">{c.label}</b> · {c.value}
+        </dd>
+      ))}
+    </dl>
+  );
+}
+
 export function ResultCard({
   data,
   onDrawNearby,
@@ -84,7 +113,13 @@ export function ResultCard({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const { share } = useKakaoShare();
   // 📝 개요는 카드가 뜬 뒤 따로 받는다(§5.6) — 뽑기 응답에서 이 왕복을 뺀 대가.
-  const overview = useOverview(place.contentId, place.overview);
+  //   ♿ 는 같은 왕복에 detailWithTour2 편의시설 칩까지 받는다(§6.11).
+  //   🐕 는 카드 구성에 detailCommon2 가 필수라 개요가 뽑기 응답에 이미 실려 있다(조회 생략).
+  const { overview, facilities } = useOverview(
+    place.contentId,
+    place.overview,
+    !!data.picked.barrierFree,
+  );
 
   const areaCode = place.areaCode ?? data.picked.areaCode;
   const areaName = areaCode != null ? AREA_NAME[areaCode] : undefined;
@@ -201,6 +236,11 @@ export function ResultCard({
           {data.picked.seaside && (
             <Badge icon="wave">{data.picked.seaside.category}</Badge>
           )}
+          {/* 🐕·♿ 대상 축 배지(§6.11) — 소스 자체가 근거라 추가 조회 없이 붙는다. */}
+          {data.picked.pet && <Badge icon="paw">반려동물 동반</Badge>}
+          {data.picked.barrierFree && (
+            <Badge icon="accessible">무장애 정보 보유</Badge>
+          )}
           {data.picked.seasonal && data.picked.seasonal.items.length > 0 && (
             <Badge icon="pot">
               지금 제철 {data.picked.seasonal.items.map((s) => s.item).join(" · ")}
@@ -271,6 +311,16 @@ export function ResultCard({
             {overview}
           </p>
         )}
+        {data.picked.pet && (
+          <InfoChipList
+            icon="paw"
+            title="반려동물 동반 안내"
+            chips={data.picked.pet.chips}
+          />
+        )}
+        {/* ♿ 편의시설은 지연 로드(§6.11) — 없거나 아직 안 왔으면 블록 자체가 안 뜬다. */}
+        <InfoChipList icon="accessible" title="무장애 편의시설" chips={facilities} />
+
         {/* 🔭 통합 카드 지도는 시·군·구 단위라 결과 칩으로 바로 확인되지만,
             내 지도 전체 맥락은 /map 에서 본다(§7.11). */}
         {data.picked.emptySpot && (

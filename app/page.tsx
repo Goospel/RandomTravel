@@ -69,6 +69,8 @@ export default function Home() {
   const [areas, setAreas] = useState<Set<number>>(new Set());
   const [types, setTypes] = useState<Set<number>>(new Set());
   const [seaside, setSeaside] = useState(false); // 🌊 바다 (§6.3)
+  const [pet, setPet] = useState(false); // 🐕 반려동물 동반 (§6.11)
+  const [barrierFree, setBarrierFree] = useState(false); // ♿ 무장애 (§6.11)
   const [seasonal, setSeasonal] = useState(false); // 🦀 제철 (§6.4)
   const [festival, setFestival] = useState(false); // 🎪 축제 (§6.2)
   const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
@@ -121,6 +123,8 @@ export default function Home() {
     setAreas(new Set());
     setTypes(new Set());
     setSeaside(false);
+    setPet(false); // 🐕 (§6.11)
+    setBarrierFree(false); // ♿ (§6.11)
     setSeasonal(false);
     setFestival(false);
     setNoRain(false);
@@ -128,6 +132,15 @@ export default function Home() {
     setScatter(false); // ⚖️ 기본(OFF) 복귀(§6.9B)
     setDateYmd(null); // 📅 '오늘' 복귀(§6.8)
   };
+
+  // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — 하나를 켜면 나머지 둘을 끈다. UI 는 잠금으로
+  //   이 상황을 거의 막지만, 상태 쪽에서도 불변식을 지켜야 "잠긴 사이 남아 있던 옛 축"이
+  //   되살아나지 않는다(buildRandomQuery 의 우선순위 방출과 이중 안전).
+  function toggleTarget(axis: "seaside" | "pet" | "barrierFree") {
+    setSeaside(axis === "seaside" ? !seaside : false);
+    setPet(axis === "pet" ? !pet : false);
+    setBarrierFree(axis === "barrierFree" ? !barrierFree : false);
+  }
 
   // 공통 뽑기 실행 — URL 을 받아 상태·기록을 처리. updateAnchor=true 면 결과를 앵커로 잡는다.
   //   슬롯 최소 노출(§7.9): fetch 를 '커밋 클로저'로 감싸 reject 없는 형태로 만들고, delay 와
@@ -183,6 +196,8 @@ export default function Home() {
     // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식).
     const qs = buildRandomQuery(mode, areas, types, {
       seaside,
+      pet, // 🐕 켜지면 지역·테마 미방출(§6.11)
+      barrierFree, // ♿ 지역·테마·조건과 AND(§6.11)
       seasonal,
       festival,
       noRain,
@@ -345,6 +360,8 @@ export default function Home() {
     areas.size > 0 ||
     types.size > 0 ||
     seaside ||
+    pet ||
+    barrierFree ||
     seasonal ||
     festival ||
     noRain ||
@@ -387,6 +404,8 @@ export default function Home() {
               selectedAreas={areas}
               selectedTypes={types}
               seaside={seaside}
+              pet={pet}
+              barrierFree={barrierFree}
               seasonal={seasonal}
               festival={festival}
               noRain={noRain}
@@ -395,7 +414,9 @@ export default function Home() {
               dateYmd={dateYmd}
               onToggleArea={toggleArea}
               onToggleType={toggleType}
-              onToggleSeaside={() => setSeaside((v) => !v)}
+              onToggleSeaside={() => toggleTarget("seaside")}
+              onTogglePet={() => toggleTarget("pet")}
+              onToggleBarrierFree={() => toggleTarget("barrierFree")}
               onToggleSeasonal={() => setSeasonal((v) => !v)}
               onToggleFestival={() => setFestival((v) => !v)}
               onToggleNoRain={() => setNoRain((v) => !v)}
