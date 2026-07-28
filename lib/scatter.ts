@@ -108,6 +108,29 @@ function median(nums: number[]): number {
 }
 
 /**
+ * 시·도별 **외지인 방문자 합** — ⚖️ 가중(areaWeights)과 📈 임팩트 ①(점유율)의 공용 재료.
+ *
+ * 합산 **전에** 입도 중복을 걷어낸다 — 안 하면 통합시 인구가 두 번 세어져 큰 시·도가
+ * 부풀고, 그 시·도의 가중치가 부당하게 낮아진다(⚖️ 의도와 반대 방향).
+ * 결측 시·도는 **키 자체가 없다**(0 이 아니라 "관측 없음") — 계층화는 areaWeights 몫.
+ *
+ * @param ldongToArea 법정동 시군구 5자리 → 앱 areaCode(areaWeights 와 동일 규약).
+ */
+export function areaVisitorSums(
+  rows: VisitorRecentRow[],
+  ldongToArea: Record<string, number>,
+): Map<number, number> {
+  const sums = new Map<number, number>();
+  for (const r of dedupeGranularity(rows, ldongToArea)) {
+    const area = visitorArea(r.sigunguCd, ldongToArea);
+    if (area == null) continue; // 판별 불가 — 합에 안 섞는다
+    if (!Number.isFinite(r.touNum) || r.touNum <= 0) continue;
+    sums.set(area, (sums.get(area) ?? 0) + r.touNum);
+  }
+  return sums;
+}
+
+/**
  * 시·도별 가중치 = **1/√(외지인 방문자 합)**.
  *
  * 왜 √인가: 시·도 극단이 실측 **71.1배**(서울 5,916,964 vs 세종 83,164 — 입도 중복 제거 후)라
@@ -130,15 +153,7 @@ export function areaWeights(
   ldongToArea: Record<string, number>,
   areaCodes: readonly number[] = DEFAULT_AREA_CODES,
 ): Map<number, number> {
-  const sums = new Map<number, number>();
-  // 합산 **전에** 입도 중복을 걷어낸다 — 안 하면 통합시 인구가 두 번 세어져 큰 시·도가
-  // 부풀고, 그 시·도의 가중치가 부당하게 낮아진다(⚖️ 의도와 반대 방향).
-  for (const r of dedupeGranularity(rows, ldongToArea)) {
-    const area = visitorArea(r.sigunguCd, ldongToArea);
-    if (area == null) continue; // 판별 불가 — 합에 안 섞는다
-    if (!Number.isFinite(r.touNum) || r.touNum <= 0) continue;
-    sums.set(area, (sums.get(area) ?? 0) + r.touNum);
-  }
+  const sums = areaVisitorSums(rows, ldongToArea);
 
   const weights = new Map<number, number>();
   for (const [area, sum] of sums) weights.set(area, 1 / Math.sqrt(sum));

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   VISITOR_OUTSIDER,
+  areaVisitorSums,
   areaWeights,
   weightedPickOrder,
   orderByWeightedArea,
@@ -331,5 +332,43 @@ describe("⚖️ 분포 스냅샷 — 가중 확률(설계치) 1,000회", () => 
     // 균등(각 333)에서 확실히 벗어났는지 — 안 그러면 가중이 안 걸린 것
     expect(sejong).toBeGreaterThan(500);
     expect(seoul).toBeLessThan(120);
+  });
+});
+
+describe("areaVisitorSums — 시·도 외지인 방문자 합산 (§7.15 ① 공용화)", () => {
+  it("시군구 행을 앱 시·도로 귀속해 합산한다", () => {
+    const sums = areaVisitorSums(
+      [row("11110", 500), row("11140", 300), row("28110", 100)],
+      LDONG_TO_APP_AREA,
+    );
+    expect(sums.get(1)).toBe(800);
+    expect(sums.get(2)).toBe(100);
+  });
+
+  it("입도 중복(시 상위 + 구 하위)을 제거한 뒤 합산한다 — areaWeights 와 같은 재료", () => {
+    // 수원: 정본은 구 코드(41111…), 41110 은 상위 중복 → 상위가 빠져야 한다.
+    const sums = areaVisitorSums(
+      [row("41110", 1000), row("41111", 400), row("41113", 600)],
+      LDONG_TO_APP_AREA,
+    );
+    expect(sums.get(31)).toBe(1000); // 400+600 (상위 1000 은 중복이라 제외)
+  });
+
+  it("군위(27720)는 대구가 아니라 경북으로 귀속된다(prefix 자르기 금지)", () => {
+    const sums = areaVisitorSums([row("27720", 400)], LDONG_TO_APP_AREA);
+    expect(sums.get(35)).toBe(400);
+    expect(sums.has(27)).toBe(false);
+  });
+
+  it("합산 결과가 areaWeights 의 1/√합 과 정합한다(같은 재료를 쓴다는 증명)", () => {
+    const rows = [row("11110", 900), row("28110", 100)];
+    const sums = areaVisitorSums(rows, LDONG_TO_APP_AREA);
+    const w = areaWeights(rows, LDONG_TO_APP_AREA);
+    expect(w.get(1)).toBeCloseTo(1 / Math.sqrt(sums.get(1)!), 12);
+    expect(w.get(2)).toBeCloseTo(1 / Math.sqrt(sums.get(2)!), 12);
+  });
+
+  it("빈 입력이면 빈 맵", () => {
+    expect(areaVisitorSums([], LDONG_TO_APP_AREA).size).toBe(0);
   });
 });
