@@ -29,6 +29,7 @@ import {
   type CourseSlotDef,
 } from "@/lib/course";
 import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
+import { isDrawablePlace } from "@/lib/placeFilter";
 import {
   narrowBySeasonal,
   seasonalItemsForArea,
@@ -432,6 +433,7 @@ export function weightedIndex(
  * exclude(contentId) 에 든 항목이 뽑히면 같은 루프 안에서 인덱스 재추첨(🧭 코스 중복 제외, §7.10).
  * accept(선택) 가 false 를 주면(🔭 좌표 검증 실패, §7.11) 같은 루프로 재추첨 — 빈 응답·exclude·
  *   accept 거부를 하나의 재시도 예산(MAX_INDEX_TRIES)으로 통합한다.
+ * 비여행지(생활·행정 시설, §6.10)도 같은 루프에서 재추첨 — 전 뽑기 경로가 여기를 지나는 초크포인트.
  */
 async function pickItemFrom(
   endpoint: string,
@@ -446,6 +448,7 @@ async function pickItemFrom(
     if (!item) continue; // stale count 로 빈 결과 → 재추첨
     if (exclude && exclude.has(item.contentid)) continue; // 앵커·기존 스텝 → 재추첨
     if (accept && !accept(item)) continue; // 🔭 좌표가 sigunguSet 밖 → 재추첨
+    if (!isDrawablePlace(item)) continue; // 비여행지(생활·행정 시설) → 재추첨 (§6.10)
     return item;
   }
   return null;
