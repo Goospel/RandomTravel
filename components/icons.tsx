@@ -119,6 +119,26 @@ const ICONS = {
       <path d="m14 13 3-6 3 6a3 3 0 0 1-6 0Z" />
     </>
   ),
+  // 🐕 반려동물 동반 — 발자국(패드 1 + 발가락 4)
+  paw: (
+    <>
+      <ellipse cx="12" cy="16" rx="4.2" ry="3.6" />
+      <ellipse cx="6.2" cy="10.5" rx="1.9" ry="2.4" />
+      <ellipse cx="17.8" cy="10.5" rx="1.9" ry="2.4" />
+      <ellipse cx="9.6" cy="6.2" rx="1.8" ry="2.3" />
+      <ellipse cx="14.4" cy="6.2" rx="1.8" ry="2.3" />
+    </>
+  ),
+  // ♿ 무장애 — 휠체어 픽토그램(머리 + 등 + 바퀴 + 발판)
+  accessible: (
+    <>
+      <circle cx="13" cy="4.5" r="1.8" />
+      <path d="M11 8h5" />
+      <path d="M11 8v5h5.5" />
+      <circle cx="13" cy="16.5" r="4.8" />
+      <path d="M17.5 13.5 20 20" />
+    </>
+  ),
   target: (
     <>
       <circle cx="12" cy="12" r="8" />

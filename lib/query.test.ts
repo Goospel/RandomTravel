@@ -518,3 +518,81 @@ describe("buildRandomQuery — ⚖️ 분산 모드(§6.9B)", () => {
     expect(diff).toEqual(["scatter"]); // 차집합 = {scatter}
   });
 });
+
+// ─── 🐕 반려동물 동반 · ♿ 무장애 (M25, §6.11) ────────────────────────
+
+describe("buildRandomQuery — 🐕 pet · ♿ barrierFree 대상 축(§6.11)", () => {
+  it("♿ 는 barrierFree=1 로 방출되고 지역·테마와 AND 조합", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set([12]), {
+        barrierFree: true,
+        quiet: true,
+      }),
+    );
+    expect(p.get("barrierFree")).toBe("1");
+    expect(p.get("areas")).toBe("32");
+    expect(p.get("types")).toBe("12");
+    expect(p.get("quiet")).toBe("1");
+  });
+
+  it("🐕 는 pet=1 만 방출 — 지역·테마는 싣지 않는다(1단계 전국 전용)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set([12]), { pet: true }),
+    );
+    expect(p.get("pet")).toBe("1");
+    expect(p.has("areas")).toBe(false);
+    expect(p.has("types")).toBe(false);
+  });
+
+  it("대상 축(🌊·🐕·♿)은 동시 1개만 방출 — 🌊 우선", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        seaside: true,
+        pet: true,
+        barrierFree: true,
+      }),
+    );
+    expect(p.get("seaside")).toBe("1");
+    expect(p.has("pet")).toBe(false);
+    expect(p.has("barrierFree")).toBe(false);
+  });
+
+  it("🐕+♿ 동시면 🐕 하나만(잔여 축 우선순위)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        pet: true,
+        barrierFree: true,
+      }),
+    );
+    expect(p.get("pet")).toBe("1");
+    expect(p.has("barrierFree")).toBe(false);
+  });
+
+  it("⚖️ 는 대상 축(🐕·♿)이 켜지면 미방출(🌊 관례 — 1단계 미적용)", () => {
+    const pet = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { pet: true, scatter: true }),
+    );
+    expect(pet.has("scatter")).toBe(false);
+    const bf = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), {
+        barrierFree: true,
+        scatter: true,
+      }),
+    );
+    expect(bf.has("scatter")).toBe(false);
+  });
+
+  it("끈 축은 파라미터에 안 넣는다(불변식)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set(), {}),
+    );
+    expect(p.has("pet")).toBe(false);
+    expect(p.has("barrierFree")).toBe(false);
+  });
+
+  it("순수 모드는 🐕·♿ 가 켜져도 빈 문자열", () => {
+    expect(
+      buildRandomQuery("pure", new Set(), new Set(), { pet: true, barrierFree: true }),
+    ).toBe("");
+  });
+});

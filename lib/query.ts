@@ -122,6 +122,10 @@ export function buildCourseQuery(
 /** 🌊 바다·🦀 제철·🎪 축제·☔ 날씨·🍃 한적 같은 추가 조건 플래그 + 📅 방문 시점(§6.8) */
 export interface RandomQueryOptions {
   seaside?: boolean;
+  /** 🐕 반려동물 동반(§6.11) — 대상 축. 1단계 전국 전용이라 지역·테마를 함께 방출하지 않는다. */
+  pet?: boolean;
+  /** ♿ 무장애 여행지(§6.11) — 대상 축. 지역·테마·지역 풀 필터와 그대로 AND 조합. */
+  barrierFree?: boolean;
   seasonal?: boolean;
   festival?: boolean;
   noRain?: boolean;
@@ -187,20 +191,32 @@ export function buildRandomQuery(
   const today = opts.todayYmd ?? kstYmd();
   const future = !!opts.dateYmd && opts.dateYmd > today;
 
-  if (a.length > 0) params.set("areas", a.join(","));
+  // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — UI 잠금이 보장하지만 빌더도 스스로 강제해
+  // "표시·전송·서버 동작 일치"를 지킨다. 우선순위는 기존 동작 보존 순(🌊 > 🐕 > ♿).
+  const target = opts.seaside
+    ? "seaside"
+    : opts.pet
+      ? "pet"
+      : opts.barrierFree
+        ? "barrierFree"
+        : null;
+
+  // 🐕 는 상류(detailPetTour2)가 지역·타입 필터를 안 받아 전국 전용 — 지역도 싣지 않는다.
+  if (a.length > 0 && target !== "pet") params.set("areas", a.join(","));
   // 🌊 바다면 타입이 관광지(12)로 고정돼 서버가 types 를 무시한다 → URL 에도 싣지 않아
-  // 표시·전송·서버 동작을 일치시킨다(선택 state 는 보존돼 바다를 끄면 복원).
-  if (t.length > 0 && !opts.seaside) params.set("types", t.join(","));
-  if (opts.seaside) params.set("seaside", "1");
+  // 표시·전송·서버 동작을 일치시킨다(선택 state 는 보존돼 바다를 끄면 복원). 🐕 도 같은 이유.
+  if (t.length > 0 && target !== "seaside" && target !== "pet")
+    params.set("types", t.join(","));
+  if (target) params.set(target, "1"); // 축 이름 = 파라미터 이름
   if (opts.seasonal) params.set("seasonal", "1");
   if (opts.festival) params.set("festivalOnly", "1");
   // ☔ 는 오늘 전용 — 미래 기준일이면 미방출(선택 state 보존, 오늘 복귀 시 복원). count 경로도
   //   같은 buildRandomQuery 라 noRain 미방출 → dynamic 강등 없음.
   if (opts.noRain && !future) params.set("noRain", "1");
   if (opts.quiet) params.set("quiet", "1");
-  // ⚖️ 는 🌊 바다 경로에 미적용(이미 count 가중이라 의미 충돌) → 🌊 ON 이면 미방출.
+  // ⚖️ 는 대상 축 경로(🌊·🐕·♿)에 미적용(§6.9B·§6.11 1단계) → 축이 켜지면 미방출.
   //   types 를 🌊 에서 빼는 것과 같은 관례(표시·전송·서버 동작 일치).
-  if (opts.scatter && !opts.seaside) params.set("scatter", "1");
+  if (opts.scatter && !target) params.set("scatter", "1");
   if (future) params.set("date", opts.dateYmd!);
   return params.toString();
 }
