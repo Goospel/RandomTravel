@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { DM_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -85,6 +86,16 @@ export default function RootLayout({
           </p>
           <p className="mt-[5px]">
             공공데이터를 활용한 개인 제작 서비스이며, 데이터 제공기관과 무관합니다.
+          </p>
+          {/* 📈 M26 — 임팩트 대시보드(§7.15)·익명 수집 안내(§12.4) 진입점. 홈 정면 노출은 후속. */}
+          <p className="mt-[7px] flex items-center justify-center gap-2">
+            <Link href="/impact" className="underline underline-offset-2 hover:text-g-primary">
+              임팩트 대시보드
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-g-primary">
+              수집 안내
+            </Link>
           </p>
         </footer>
         <ServiceWorkerRegister />

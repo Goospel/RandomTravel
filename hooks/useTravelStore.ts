@@ -74,6 +74,40 @@ function serverRemove(list: "saved" | "visited", contentId: string) {
   );
 }
 
+/**
+ * 📈 익명 이벤트 서버 전송(M26 · §12.6 P1) — sendBeacon 우선, 없으면 fetch keepalive.
+ *
+ * sendBeacon 을 먼저 쓰는 이유: 뽑기 직후 사용자가 카카오맵으로 이탈해도 브라우저가 전송을
+ * 마쳐 준다(일반 fetch 는 페이지 언로드에서 잘린다). **실패는 전부 조용히 무시**한다 —
+ * 로컬 기록(§12.6 P0)이 이미 끝난 뒤라 UX 에 영향이 없고, 수집 실패로 앱을 막을 이유가 없다.
+ */
+function sendEvent(ev: TravelEvent) {
+  const body = JSON.stringify(ev);
+  try {
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.sendBeacon?.(
+        "/api/events",
+        new Blob([body], { type: "application/json" }),
+      )
+    ) {
+      return;
+    }
+  } catch {
+    /* 무시 — 아래 fetch 로 폴백 */
+  }
+  try {
+    void fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* 무시 */
+  }
+}
+
 function load(key: string): SavedPlace[] {
   if (typeof window === "undefined") return [];
   return parseStored(window.localStorage.getItem(key));
@@ -315,6 +349,7 @@ export function useTravelStore(): UseTravelStore {
     } catch {
       /* 무시 */
     }
+    sendEvent(ev); // 📈 익명 서버 수집(M26) — 로컬 기록 뒤, 실패해도 무시
   }
 
   function toggleSave(place: Place) {

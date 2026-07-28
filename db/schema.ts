@@ -12,6 +12,7 @@ import {
   doublePrecision,
   primaryKey,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
@@ -126,4 +127,28 @@ export const visitorDaily = pgTable(
     touNum: doublePrecision("tou_num").notNull(),
   },
   (t) => [primaryKey({ columns: [t.sigunguCd, t.baseYmd, t.touDivCd] })],
+);
+
+// ─── 📈 익명 여행 행동 이벤트(M26 · §12.6 P1, plan.md §7.15) ─────────────────
+// POST /api/events 가 적재하고 GET /api/impact 가 집계만 읽는다.
+//
+// ⚠️ **users 참조를 두지 않는다** — 로그인 계정과 조인 불가를 스키마로 강제해 §12.4
+//   "익명정보(집계 통계)" 형태를 유지한다. sessionId 는 브라우저가 만든 익명 UUID다.
+//   (FK 를 넣는 순간 익명성은 코드 규율에만 의존하게 되고, 그 규율은 언젠가 샌다.)
+// 인덱스 (event, ts) — 집계가 event 로 좁히고, 후속 기간 필터가 ts 로 자른다.
+export const travelEvents = pgTable(
+  "travel_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    event: text("event").notNull(), // draw|redraw|like|navigate|visited (§12.5)
+    mode: text("mode"), // pure|filtered — draw·redraw 에만 유효
+    areaCode: integer("area_code"),
+    contentTypeId: integer("content_type_id"),
+    contentId: text("content_id"),
+    sessionId: text("session_id").notNull(), // 익명 UUID(기기·개인 식별 불가)
+    ts: bigint("ts", { mode: "number" }).notNull(), // 클라 발생 시각(epoch ms)
+  },
+  (t) => [index("travel_event_event_ts_idx").on(t.event, t.ts)],
 );
