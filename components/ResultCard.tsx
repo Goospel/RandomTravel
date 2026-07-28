@@ -6,6 +6,7 @@ import type { RandomResponse } from "@/types/tour";
 import { AREA_NAME, CONTENT_TYPE_NAME } from "@/lib/constants";
 import { kakaoMapLink, kakaoRouteLink } from "@/lib/mapLink";
 import { useKakaoShare } from "@/hooks/useKakaoShare";
+import { useOverview } from "@/hooks/useOverview";
 import { shareText } from "@/lib/kakaoShare";
 import { formatKm } from "@/lib/geo";
 import { fmtYmd } from "@/lib/kst";
@@ -60,6 +61,8 @@ export function ResultCard({
   const [imgError, setImgError] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const { share } = useKakaoShare();
+  // 📝 개요는 카드가 뜬 뒤 따로 받는다(§5.6) — 뽑기 응답에서 이 왕복을 뺀 대가.
+  const overview = useOverview(place.contentId, place.overview);
 
   const areaCode = place.areaCode ?? data.picked.areaCode;
   const areaName = areaCode != null ? AREA_NAME[areaCode] : undefined;
@@ -245,9 +248,9 @@ export function ResultCard({
         {place.address && (
           <p className="text-xs text-zinc-500 dark:text-zinc-400">{place.address}</p>
         )}
-        {place.overview && (
+        {overview && (
           <p className="line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            {place.overview}
+            {overview}
           </p>
         )}
         {/* 🔭 홈 히어로는 시·도 타일이라 이미 칠한 시·도 안의 빈 동네가 뽑혀도 모순 아님 —
