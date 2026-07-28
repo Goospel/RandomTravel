@@ -73,7 +73,8 @@ export default function Home() {
   const courseTokenRef = useRef(0);
   // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
   const [filledArea, setFilledArea] = useState<number | null>(null);
-  // 🔭 빈 곳에서 뽑기(§7.11) — 클릭~runDraw 진입 전 창(동적 import·exclude 계산) 이중 클릭 차단.
+  // 🔭 빈 곳에서 뽑기(§7.11) — /map CTA 신호를 처리하는 동안 재진입 차단.
+  //   홈에는 버튼이 없다(진입점은 /map 하나) — 이 창은 신호 소비~runDraw 진입 사이를 덮는다.
   const [emptySpotPending, setEmptySpotPending] = useState(false);
   // 🔭 /map → ?emptySpot=1 신호 1회 소비 가드(StrictMode 이중 실행·새로고침 재발화 차단).
   const emptySpotSignalRef = useRef(false);
@@ -85,19 +86,6 @@ export default function Home() {
     const t = window.setTimeout(() => setFilledArea(null), 1700);
     return () => window.clearTimeout(t);
   }, [filledArea]);
-
-  // 🔭 /map "빈 곳" CTA → router.push("/?emptySpot=1") 신호를 홈이 1회 소비(§7.11).
-  //   store.ready 후라야 exclude 정확. ref 로 StrictMode 이중 실행·새로고침 재발화 차단 + 즉시 URL 제거.
-  useEffect(() => {
-    // synced 까지 기다렸다 소비 — 병합 전 소비하면 exclude 가 비어 이미 방문한 곳이 뽑힐 수 있음.
-    if (emptySpotSignalRef.current || !store.ready || !store.synced) return;
-    const sp = new URLSearchParams(window.location.search);
-    if (sp.get("emptySpot") !== "1") return;
-    emptySpotSignalRef.current = true;
-    window.history.replaceState(null, "", window.location.pathname);
-    void runEmptySpot();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.ready, store.synced]);
 
   const toggleArea = (code: number) =>
     setAreas((prev) => {
@@ -210,6 +198,24 @@ export default function Home() {
       setEmptySpotPending(false);
     }
   }
+
+  // 🔭 /map "빈 곳" CTA → router.push("/?emptySpot=1") 신호를 홈이 1회 소비(§7.11).
+  //   store.ready 후라야 exclude 정확. ref 로 StrictMode 이중 실행·새로고침 재발화 차단 + 즉시 URL 제거.
+  //   ⚠️ 이 훅은 runEmptySpot **선언 뒤**에 있어야 한다 — 위로 올리면 선언 전 접근이라
+  //   react-hooks/immutability 가 막는다(홈 버튼이 없어져 다른 참조가 사라진 뒤로 실제 에러).
+  useEffect(() => {
+    // synced 까지 기다렸다 소비 — 병합 전 소비하면 exclude 가 비어 이미 방문한 곳이 뽑힐 수 있음.
+    if (emptySpotSignalRef.current || !store.ready || !store.synced) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("emptySpot") !== "1") return;
+    emptySpotSignalRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    // URL 신호(외부 상태)를 받아 뽑기를 시작하는 자리라 effect 안 setState 가 의도된 동작이다.
+    // ref 가드로 1회만 실행되므로 연쇄 렌더도 없다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void runEmptySpot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.ready, store.synced]);
 
   // 📍 결과 카드의 "주변에서 뽑기" — 현재 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
   function drawNearby() {
@@ -361,23 +367,22 @@ export default function Home() {
 
       <StoryBanner />
 
-      {/* 🎰 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
-      <MapHero
-        visited={store.visited}
-        storeReady={store.ready}
-        storeSynced={store.synced}
-        filledArea={filledArea}
-        onEmptySpot={runEmptySpot}
-        emptySpotPending={emptySpotPending}
-        spinning={loading}
-        landedLat={status.kind === "ok" ? status.data.place.lat : null}
-        landedLng={status.kind === "ok" ? status.data.place.lng : null}
-        drawSeq={seq}
-      />
+      {/* 지도(왼쪽)와 뽑기·결과(오른쪽)를 나란히 — 세로로 쌓으면 첫 화면이 너무 길어진다.
+          지도 SVG 는 max-w-[320px] 라 전폭일 때 좌우가 통째로 놀았다. lg 미만은 세로 스택. */}
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+        {/* 🎰 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
+        <MapHero
+          visited={store.visited}
+          storeReady={store.ready}
+          filledArea={filledArea}
+          spinning={loading}
+          landedLat={status.kind === "ok" ? status.data.place.lat : null}
+          landedLng={status.kind === "ok" ? status.data.place.lng : null}
+          drawSeq={seq}
+        />
 
-      <div className="mt-4 flex flex-wrap items-start gap-4">
         {/* 뽑기 덱 — raised sheet */}
-        <section className="min-w-[300px] flex-[1_1_360px] rounded-[22px_22px_20px_20px] border border-zinc-200 bg-white px-4 pb-5 pt-2 shadow-[0_12px_34px_-20px_rgba(20,40,30,0.4)] dark:border-zinc-800 dark:bg-zinc-900">
+        <section className="min-w-0 rounded-[22px_22px_20px_20px] border border-zinc-200 bg-white px-4 pb-5 pt-2 shadow-[0_12px_34px_-20px_rgba(20,40,30,0.4)] dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mx-auto mb-3.5 mt-1.5 h-1.5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700" />
 
           <ModeToggle mode={mode} onChange={setMode} />
@@ -472,18 +477,19 @@ export default function Home() {
             />
           )}
         </section>
+      </div>
 
-        <aside className="min-w-[280px] flex-[1_1_300px]">
-          <RecordPanel
-            saved={store.saved}
-            recent={store.recent}
-            visited={store.visited}
-            onRemove={store.remove}
-            onNavigate={store.logNavigate}
-            onDrawNearby={drawNearbyFrom}
-            onRate={store.setRating}
-          />
-        </aside>
+      {/* 기록(찜·최근·다녀옴) — 2열 아래 전폭. 지도가 오른쪽 자리를 가져가면서 여기로 내려왔다. */}
+      <div className="mt-4">
+        <RecordPanel
+          saved={store.saved}
+          recent={store.recent}
+          visited={store.visited}
+          onRemove={store.remove}
+          onNavigate={store.logNavigate}
+          onDrawNearby={drawNearbyFrom}
+          onRate={store.setRating}
+        />
       </div>
 
       <p className="mt-6 text-center text-[11.5px] leading-relaxed text-zinc-400">

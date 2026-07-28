@@ -40,10 +40,7 @@ function pinPercent(lat: number, lng: number): { left: string; top: string } {
 export function MapHero({
   visited,
   storeReady,
-  storeSynced,
   filledArea,
-  onEmptySpot,
-  emptySpotPending,
   spinning,
   landedLat,
   landedLng,
@@ -51,14 +48,8 @@ export function MapHero({
 }: {
   visited: SavedPlace[];
   storeReady: boolean;
-  /** 🔭 방문 목록 최종 여부(§7.11) — 로그인 사용자의 서버 병합 완료 후 true. 미완료면 버튼 비활성. */
-  storeSynced: boolean;
   /** 방금 정복한 시·도 code — 🎉 토스트 + 해당 타일 팝 애니메이션 */
   filledArea: number | null;
-  /** 🔭 빈 곳에서 뽑기 클릭(§7.11) — 홈이 동적 import·exclude 계산·runDraw 를 담당 */
-  onEmptySpot: () => void;
-  /** 🔭 클릭~runDraw 진입 전 창(동적 import·exclude 계산) 이중 클릭 차단 */
-  emptySpotPending: boolean;
   /** 🎰 뽑는 중(§7.12) — 정복 지도가 룰렛으로 돈다 */
   spinning: boolean;
   /** 🎰 결과 좌표 — 이 좌표의 시·군·구에 착지. 없으면 착지 없이 종료 */
@@ -98,33 +89,16 @@ export function MapHero({
       </div>
 
       {view === "conquer" ? (
-        <>
-          <HomeConquerMap
-            visited={visited}
-            storeReady={storeReady}
-            spinning={spinning}
-            landedLat={landedLat}
-            landedLng={landedLng}
-            drawSeq={drawSeq}
-          />
-          {/* 🔭 빈 곳에서 뽑기(§7.11) — 무수치 캡션(홈은 koreaMap·N 계산 미수신).
-              store.synced 게이트(로그인 사용자 기기 간 방문 병합 완료 후라야 exclude 정확). */}
-          <button
-            type="button"
-            onClick={onEmptySpot}
-            disabled={!storeReady || !storeSynced || emptySpotPending}
-            className="mt-3 w-full rounded-xl border border-indigo-300 bg-white/70 px-4 py-2.5 text-sm font-bold text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-800 dark:bg-zinc-900/60 dark:text-indigo-300 dark:hover:bg-indigo-950"
-          >
-            {emptySpotPending
-              ? "빈 곳을 찾는 중…"
-              : storeReady && !storeSynced
-                ? "동기화 중…"
-                : "🔭 빈 곳에서 뽑기"}
-          </button>
-          <p className="mt-1.5 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
-            아직 발도장 없는 한적한 동네에서
-          </p>
-        </>
+        /* 🔭 빈 곳에서 뽑기 CTA 는 여기 두지 않는다 — /map(전체 지도 크게 보기)에만 둬
+           같은 동작의 진입점이 두 곳으로 갈라지지 않게 한다. */
+        <HomeConquerMap
+          visited={visited}
+          storeReady={storeReady}
+          spinning={spinning}
+          landedLat={landedLat}
+          landedLng={landedLng}
+          drawSeq={drawSeq}
+        />
       ) : (
         <>
           <div className="relative h-[280px] overflow-hidden rounded-2xl border border-emerald-200 bg-[linear-gradient(170deg,#e0f2fe,#f0fdf4)] dark:border-emerald-900/50 dark:bg-zinc-900">
