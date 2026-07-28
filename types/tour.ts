@@ -38,12 +38,11 @@ export interface Place {
 /** 🌊 바다 배지(어느 바다 분류에서 나왔는지) */
 export interface SeasideBadge {
   category: string; // 해수욕장·섬·항구·해안절경
-  emoji: string;
 }
 
 /** 🦀 제철 배지(이 지역이 이번 달 산지인 품목들) */
 export interface SeasonalBadge {
-  items: { item: string; emoji: string }[];
+  items: { item: string }[];
 }
 
 /** 🎪 축제 배지(그 지역 진행 중 축제) */

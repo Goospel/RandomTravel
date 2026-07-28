@@ -14,10 +14,10 @@ import { SEASONAL_CALENDAR, type SeasonalItem } from "@/lib/constants";
 // (달력 내용이 §13 검수로 바뀌어도 로직 테스트는 안 깨진다.)
 // dish = 식당에서 먹는 것(회·해산물). 대게만 dish, 과일류는 dish 아님.
 const FIX: SeasonalItem[] = [
-  { item: "대게", emoji: "🦀", months: [11, 12, 1, 2], areaCodes: [35, 32], dish: true },
-  { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35], dish: false },
-  { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32], dish: false },
-  { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39], dish: false },
+  { item: "대게", months: [11, 12, 1, 2], areaCodes: [35, 32], dish: true },
+  { item: "참외", months: [5, 6, 7], areaCodes: [35], dish: false },
+  { item: "옥수수", months: [7, 8], areaCodes: [32], dish: false },
+  { item: "감귤", months: [11, 12, 1], areaCodes: [39], dish: false },
 ];
 
 describe("currentMonth — 항상 KST 기준(서버 UTC 월경계 방어)", () => {
