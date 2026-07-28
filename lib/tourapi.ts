@@ -79,6 +79,17 @@ export class TourApiError extends Error {
   }
 }
 
+/**
+ * 뽑기 **전체**를 1회 재실행할 오류인가(§6.5).
+ *
+ * apiFetch 의 "타임아웃은 같은 URL 재시도 금지"와 충돌하지 않는다 — 뽑기를 통째로 다시 굴리면
+ * 랜덤 인덱스·버킷이 새로 뽑혀 **다른 URL**을 때리므로 느린 상류를 곧바로 다시 기다리지 않는다.
+ * EMPTY_POOL(조건에 맞는 곳이 없음)·BAD_REQUEST 는 다시 굴려도 같은 결론이라 제외한다.
+ */
+export function isRetryableDrawError(e: unknown): boolean {
+  return e instanceof TourApiError && e.code === "UPSTREAM_ERROR";
+}
+
 interface TourBody {
   totalCount?: number;
   numOfRows?: number;

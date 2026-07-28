@@ -4,6 +4,8 @@ import {
   weightedIndex,
   buildDrawCombos,
   itemAreaCode,
+  isRetryableDrawError,
+  TourApiError,
 } from "@/lib/tourapi";
 import { ALL_AREA_CODES, AREA_TO_LDONG, LDONG_TO_AREA } from "@/lib/constants";
 import type { TourApiItem } from "@/types/tour";
@@ -187,5 +189,26 @@ describe("buildDrawCombos — 뽑기 조합 생성 (§6.9A)", () => {
       expect(c.slotAreaCode).toBe(c.areaCode); // 배지 귀속 = 그 지역
     }
     expect(combos.map((c) => c.areaCode)).toEqual([1, 39, 1, 39, 1, 39]);
+  });
+});
+
+describe("isRetryableDrawError — 뽑기 전체 1회 재추첨 판정 (§6.5)", () => {
+  it("UPSTREAM_ERROR TourApiError 만 재시도 대상", () => {
+    expect(isRetryableDrawError(new TourApiError("상류 죽음", "UPSTREAM_ERROR"))).toBe(true);
+  });
+
+  it("EMPTY_POOL 은 재시도해도 소용없다", () => {
+    expect(isRetryableDrawError(new TourApiError("빈 풀", "EMPTY_POOL"))).toBe(false);
+  });
+
+  it("BAD_REQUEST 는 재시도 안 함", () => {
+    expect(isRetryableDrawError(new TourApiError("잘못된 요청", "BAD_REQUEST"))).toBe(false);
+  });
+
+  it("일반 Error·비-Error 값은 전부 false", () => {
+    expect(isRetryableDrawError(new Error("x"))).toBe(false);
+    expect(isRetryableDrawError("UPSTREAM_ERROR")).toBe(false);
+    expect(isRetryableDrawError(null)).toBe(false);
+    expect(isRetryableDrawError(undefined)).toBe(false);
   });
 });
