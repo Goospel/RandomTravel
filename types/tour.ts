@@ -20,6 +20,12 @@ export interface TourApiItem {
   tel?: string;
   overview?: string; // detailCommon 보강 시
   dist?: string; // 📍 locationBasedList2 응답 — 기준점에서의 거리(m, M14)
+  // 🐕 detailPetTour2 목록 행의 동반 정보(§6.11). 이 행엔 title·좌표·이미지가 없어
+  //    contentid 로 detailCommon2 를 조인해 카드를 만든다(lib/petTour 가 소비).
+  acmpyTypeCd?: string; // 동반 유형("전구역 동반가능" 등)
+  acmpyPsblCpam?: string; // 동반 가능 동물
+  acmpyNeedMtr?: string; // 동반 시 필요사항
+  etcAcmpyInfo?: string; // 기타 안내
 }
 
 /** 카드 렌더용으로 정규화한 여행지 1건 */
@@ -67,6 +73,17 @@ export interface CongestionBadge {
   targetYmd: string;
 }
 
+/** 라벨-값 한 쌍 — 🐕 동반 정보·♿ 편의시설 칩 공용(§6.11) */
+export interface InfoChip {
+  label: string;
+  value: string;
+}
+
+/** 🐕 반려동물 동반 정보(§6.11) — 뽑기 응답에 동봉(지연 로드 없음) */
+export interface PetInfo {
+  chips: InfoChip[];
+}
+
 /** 이번 뽑기가 어떤 지역·타입·조건에서 나왔는지(디버그·배지 표시용) */
 export interface PickedInfo {
   areaCode: number | null;
@@ -74,6 +91,13 @@ export interface PickedInfo {
   totalCount: number;
   /** 🌊 바다 필터로 뽑혔을 때만. 아니면 null/생략 */
   seaside?: SeasideBadge | null;
+  /** 🐕 반려동물 동반으로 뽑혔을 때 동반 정보 칩(§6.11). 정보가 전무하면 null */
+  pet?: PetInfo | null;
+  /**
+   * ♿ 무장애 여행지 목록(KorWithService2)에서 뽑혔을 때 참 — "무장애 정보 보유" 정적 배지.
+   * 편의시설 상세 칩은 /api/overview?detail=with 로 지연 로드한다(§6.11).
+   */
+  barrierFree?: boolean | null;
   /** 🦀 제철 필터로 뽑혔고 그 지역이 산지일 때만. 아니면 null/생략 */
   seasonal?: SeasonalBadge | null;
   /** 🎪 축제 필터로 뽑혔을 때 그 지역 진행 중 축제. 아니면 null/생략 */

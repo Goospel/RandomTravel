@@ -20,7 +20,14 @@ export interface CountParams {
   festivalOnly: boolean;
   noRain: boolean;
   quiet: boolean;
+  /** 🐕 반려동물 동반(§6.11) — 전국 전용 단일 totalCount 경로 */
+  pet: boolean;
+  /** ♿ 무장애(§6.11) — 조합 계획은 그대로, 조회 서비스만 KorWithService2 로 */
+  barrierFree: boolean;
 }
+
+/** 후보 수를 어느 서비스에서 셀 것인가(§6.11) — countCandidates 가 엔드포인트로 번역한다. */
+export type CountSource = "kor" | "with";
 
 /** 조회할 한 조합 — areaBasedList2 파라미터로 매핑된다. */
 export interface Combo {
@@ -34,8 +41,10 @@ export type CountPlan =
   | { kind: "dynamic" }
   /** 제철 등으로 지역 풀이 비어 후보 0 확정 */
   | { kind: "empty" }
+  /** 🐕 — detailPetTour2 totalCount 1콜(전국 전용·조건 무관 단일 값, §6.11) */
+  | { kind: "pet" }
   /** 조회할 조합들. capped=예산 상한에 잘려 근사(≈ N곳+)임을 뜻함 */
-  | { kind: "combos"; combos: Combo[]; capped: boolean };
+  | { kind: "combos"; source: CountSource; combos: Combo[]; capped: boolean };
 
 /**
  * 조건 → 카운트 계획. month 는 제철 기준 월(호출부에서 주입, 테스트 결정성).
@@ -49,6 +58,13 @@ export function planCandidateCount(
   month: number,
   quietSet?: Set<number> | null,
 ): CountPlan {
+  // 🐕 대상 축(§6.11) — 상류가 지역·타입·조건 필터를 안 받는 전국 전용이라 다른 조건이
+  //   켜져 있어도 후보는 detailPetTour2 전체다. 그래서 dynamic 판정보다 **먼저** 반환한다
+  //   (서버 drawPet 이 조건을 적용하지 않는 사실과 배지를 일치시킨다).
+  //   🌊 가 켜져 있으면 buildRandomQuery 우선순위(🌊 > 🐕 > ♿)를 따라 여기 안 온다.
+  if (p.pet && !p.seaside) return { kind: "pet" };
+  const source: CountSource = p.barrierFree && !p.seaside ? "with" : "kor";
+
   // 동적 조건이 하나라도 켜지면 정확 집계 불가 → dynamic
   if (p.festivalOnly || p.noRain) return { kind: "dynamic" };
   // 🍃 한적 켜졌는데 배치 데이터가 없거나 stale → dynamic(countCandidates가 null 주입)
@@ -92,6 +108,7 @@ export function planCandidateCount(
   const capped = combos.length > COUNT_COMBO_BUDGET;
   return {
     kind: "combos",
+    source,
     combos: capped ? combos.slice(0, COUNT_COMBO_BUDGET) : combos,
     capped,
   };

@@ -19,6 +19,8 @@ function params(over: Partial<CountParams> = {}): CountParams {
     festivalOnly: false,
     noRain: false,
     quiet: false,
+    pet: false,
+    barrierFree: false,
     ...over,
   };
 }
@@ -145,5 +147,54 @@ describe("planCandidateCount", () => {
     if (plan.kind !== "combos") return;
     expect(plan.combos).toHaveLength(COUNT_COMBO_BUDGET);
     expect(plan.capped).toBe(true);
+  });
+});
+
+describe("planCandidateCount — 🐕 pet · ♿ barrierFree 대상 축(§6.11)", () => {
+  it("🐕 는 전용 kind — 조합이 아니라 detailPetTour2 totalCount 단일", () => {
+    expect(planCandidateCount(params({ pet: true }), 7)).toEqual({ kind: "pet" });
+  });
+
+  it("🐕 는 다른 조건이 켜져도 pet — 상류가 전국 전용이라 조건이 풀을 안 바꾼다", () => {
+    // 🎪·☔ 는 보통 dynamic 이지만 pet 경로는 그 조건을 아예 적용하지 않는다(서버 동작과 일치).
+    expect(
+      planCandidateCount(params({ pet: true, festivalOnly: true, areaCodes: [1] }), 7),
+    ).toEqual({ kind: "pet" });
+  });
+
+  it("♿ 는 조합 계획을 그대로 쓰고 source 만 with(엔드포인트 스왑)", () => {
+    const plan = planCandidateCount(
+      params({ barrierFree: true, areaCodes: [32], contentTypeIds: [12] }),
+      7,
+    );
+    if (plan.kind !== "combos") throw new Error("combos 여야 함");
+    expect(plan.source).toBe("with");
+    expect(plan.combos).toEqual([{ contentTypeId: 12, areaCode: 32 }]);
+  });
+
+  it("♿ 도 🍃 한적 교집합·empty 판정은 동일(AND 조합)", () => {
+    const plan = planCandidateCount(
+      params({ barrierFree: true, quiet: true, areaCodes: [1, 32] }),
+      7,
+      new Set([32]),
+    );
+    if (plan.kind !== "combos") throw new Error("combos 여야 함");
+    expect(plan.combos.every((c) => c.areaCode === 32)).toBe(true);
+  });
+
+  it("기본(축 없음)은 source=kor", () => {
+    const plan = planCandidateCount(params(), 7);
+    if (plan.kind !== "combos") throw new Error("combos 여야 함");
+    expect(plan.source).toBe("kor");
+  });
+
+  it("🌊 가 🐕·♿ 보다 우선(빌더 우선순위와 동일)", () => {
+    const plan = planCandidateCount(
+      params({ seaside: true, pet: true, barrierFree: true }),
+      7,
+    );
+    if (plan.kind !== "combos") throw new Error("combos 여야 함");
+    expect(plan.source).toBe("kor");
+    expect(plan.combos[0].cat3).toBeTruthy();
   });
 });
