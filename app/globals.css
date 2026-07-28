@@ -1,42 +1,136 @@
 @import "tailwindcss";
 
+/* ── Genesis 디자인 토큰 (designGuide.md 단일 출처) ────────────────────────
+   색·폰트는 전부 이 변수로만 참조한다. 다크는 클래스(`dark:`)가 아니라 **변수 스왑**이라
+   컴포넌트에서 라이트/다크를 짝으로 쓸 필요가 없다(한쪽만 써서 깨지는 실패 모드 제거).
+   토글 UI 가 없으므로 스왑 트리거는 OS 설정(prefers-color-scheme) 하나다. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* 1순위 패밀리는 next/font 가 <html> 에 심는 변수(app/layout.tsx) — 폴백이 실제
+     한글을 렌더한다(General Sans·DM Sans 는 한글 글리프 없음. 의도된 동작). */
+  --g-display: var(--font-general-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --g-body: var(--font-dm-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --g-bg: #fafafa;
+  --g-surface: #ffffff;
+  --g-surface-2: #f4f4f6;
+  --g-text: #0a0a0a;
+  --g-text-2: #6b6b6b;
+  --g-neutral: #9c9c9c;
+  --g-border: #e8e8ec;
+
+  --g-primary: #6366f1;
+  --g-primary-hover: #4f46e5;
+  --g-primary-soft: #eef0fe;
+  --g-primary-soft-border: #dde0fd;
+  --g-primary-text: #4f46e5;
+  --g-ring-track: #e4e5f6;
+
+  /* 채워진 indigo 위 잉크 — 다크에선 --g-primary 가 밝아져 흰 글자가 2.98:1 로 실패한다.
+     그래서 색이 아니라 **테마별 토큰**으로 둔다(라이트 4.47:1 / 다크 6.59:1). */
+  --g-on-primary: #ffffff;
+
+  --g-map-empty: #ededf1;
+  --g-map-stroke: #ffffff;
+  --g-sido-stroke: #c9c9d2;
+  --g-dot-alt: #818cf8;
+  --g-grid: #0000000a;
+
+  --g-success-soft: #ecfdf5;
+  --g-success-text: #047a55;
+  --g-warning-soft: #fffbeb;
+  --g-warning-text: #b45309;
+  --g-error-soft: #fef2f2;
+  --g-error-text: #dc2626;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --g-bg: #0b0b0e;
+    --g-surface: #141419;
+    --g-surface-2: #1c1c22;
+    --g-text: #fafafa;
+    --g-text-2: #a0a0a8;
+    --g-neutral: #71717a;
+    --g-border: #26262e;
+
+    --g-primary: #818cf8;
+    --g-primary-hover: #a5b4fc;
+    --g-primary-soft: #1d1d33;
+    --g-primary-soft-border: #33335e;
+    --g-primary-text: #a5b4fc;
+    --g-ring-track: #2a2a3f;
+
+    --g-on-primary: #0b0b0e;
+
+    --g-map-empty: #26262e;
+    --g-map-stroke: #0b0b0e;
+    --g-sido-stroke: #45455a;
+    --g-dot-alt: #4f46e5;
+    --g-grid: #ffffff12;
+
+    --g-success-soft: #06251c;
+    --g-success-text: #34d399;
+    --g-warning-soft: #2a1c05;
+    --g-warning-text: #fbbf24;
+    --g-error-soft: #2b0f10;
+    --g-error-text: #f87171;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tailwind 유틸리티로 노출 — `inline` 이라 유틸리티가 var(--g-*) 를 그대로 참조하므로
+   위 스왑이 런타임에 그대로 먹는다(bg-g-surface·text-g-text-2·border-g-border …). */
+@theme inline {
+  --font-display: var(--g-display);
+  --font-body: var(--g-body);
+
+  --color-g-bg: var(--g-bg);
+  --color-g-surface: var(--g-surface);
+  --color-g-surface-2: var(--g-surface-2);
+  --color-g-text: var(--g-text);
+  --color-g-text-2: var(--g-text-2);
+  --color-g-neutral: var(--g-neutral);
+  --color-g-border: var(--g-border);
+
+  --color-g-primary: var(--g-primary);
+  --color-g-primary-hover: var(--g-primary-hover);
+  --color-g-primary-soft: var(--g-primary-soft);
+  --color-g-primary-soft-border: var(--g-primary-soft-border);
+  --color-g-primary-text: var(--g-primary-text);
+  --color-g-ring-track: var(--g-ring-track);
+  --color-g-on-primary: var(--g-on-primary);
+
+  --color-g-map-empty: var(--g-map-empty);
+  --color-g-map-stroke: var(--g-map-stroke);
+  --color-g-sido-stroke: var(--g-sido-stroke);
+  --color-g-dot-alt: var(--g-dot-alt);
+
+  --color-g-success-soft: var(--g-success-soft);
+  --color-g-success-text: var(--g-success-text);
+  --color-g-warning-soft: var(--g-warning-soft);
+  --color-g-warning-text: var(--g-warning-text);
+  --color-g-error-soft: var(--g-error-soft);
+  --color-g-error-text: var(--g-error-text);
 }
 
-/* 키보드 포커스 가시성 — 커스텀 배경 버튼/링크에서 UA 기본 아웃라인이 약해
-   지는 문제 보완. 마우스 클릭(:focus)엔 안 뜨고 키보드(:focus-visible)에만.
-   outline 은 요소의 border-radius 를 따라가므로 둥근 모서리와도 맞는다. */
+body {
+  background: var(--g-bg);
+  color: var(--g-text);
+  font-family: var(--g-body);
+  text-wrap: pretty;
+}
+
+/* 키보드 포커스 가시성 — 커스텀 배경 버튼/링크에서 UA 기본 아웃라인이 약해지는 문제 보완.
+   마우스 클릭(:focus)엔 안 뜨고 키보드(:focus-visible)에만. outline 은 요소의
+   border-radius 를 따라가므로 둥근 모서리와도 맞는다. */
 :focus-visible {
-  outline: 2px solid #059669; /* emerald-600 — 탐험 로그(1C) 액센트 */
+  outline: 2px solid var(--g-primary);
   outline-offset: 2px;
 }
 
-/* ── M3 뽑기 애니메이션 + M16 탐험 로그 연출 ─────────────
-   슬롯 릴은 리스트를 2번 이어 붙인 컬럼을 -50%까지 밀어 무한 반복(이음새 없음).
-   카드 등장은 살짝 떠오르며 페이드인. fade-up=토스트/라벨, pop-in=핀 선택 강조.
-   (tile-pop=시·도 정복 타일은 M23에서 타일이 시·군·구 지도로 바뀌며 제거) */
+/* ── 모션 (Genesis 리스킨 4종) ─────────────────────────────
+   slot-spin: 릴 리스트를 2번 이어 붙인 컬럼을 -50%까지 밀어 이음새 없이 무한 반복.
+   card-reveal: 결과 카드·칩 등장. map-flick: 뽑는 중 지도 조각 번쩍임.
+   pin-pulse: 결과 마커 펄스 링(SVG 라 transform-box: fill-box 필수). */
 @keyframes slot-spin {
   from {
     transform: translateY(0);
@@ -57,6 +151,27 @@ body {
   }
 }
 
+@keyframes map-flick {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes pin-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -65,20 +180,6 @@ body {
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-@keyframes pop-in {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.2;
-  }
-  60% {
-    transform: scale(1.15);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
   }
 }
 
@@ -95,16 +196,19 @@ body {
   animation: fade-up 0.32s ease-out;
 }
 
-.animate-pop-in {
-  animation: pop-in 0.3s ease-out;
+.animate-map-flick {
+  animation: map-flick 0.9s ease-in-out infinite;
 }
 
-/* 접근성: 모션 최소화 설정이면 회전·등장 애니메이션을 끈다 */
+.animate-pin-pulse {
+  animation: pin-pulse 1.8s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* 접근성: 모션 최소화 설정이면 전부 끈다 */
 @media (prefers-reduced-motion: reduce) {
-  .animate-slot-spin,
-  .animate-card-reveal,
-  .animate-fade-up,
-  .animate-pop-in {
-    animation: none;
+  * {
+    animation: none !important;
   }
 }

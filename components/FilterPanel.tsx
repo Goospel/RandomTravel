@@ -5,39 +5,41 @@ import { buildRandomQuery } from "@/lib/query";
 import { dateChips } from "@/lib/tripDate";
 import { kstYmd } from "@/lib/kst";
 import { useCandidateCount } from "@/hooks/useCandidateCount";
+import { Icon, type IconName } from "@/components/icons";
 
-// 🎯 조건 패널(M16 탐험 로그) — emerald pill 칩 + 실시간 후보 수 배지 + 바다 잠금 인라인 설명.
+// 🎯 조건 패널(Genesis 리스킨) — indigo pill 칩 + 실시간 후보 수 배지 + 바다 잠금 인라인 설명.
 //   후보 수는 조건이 바뀔 때마다 /api/random/count 로 근사 집계(동적 조건은 정성 라벨).
 
+const CHIP_BASE =
+  "whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-medium leading-[1.2]";
+
 function chip(on: boolean): string {
-  return `whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+  return `${CHIP_BASE} ${
     on
-      ? "border-emerald-600 bg-emerald-600 text-white"
-      : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      ? "border-g-primary bg-g-primary text-g-on-primary"
+      : "border-g-border bg-g-surface text-g-text-2 hover:border-g-primary hover:text-g-primary"
   }`;
 }
+
+const GROUP_LABEL = "text-[12px] font-bold leading-none text-g-text-2";
 
 /** 실시간 후보 수 배지 — 조건이 얼마나 넓은지 투명하게 보여준다. */
 function CandidateBadge({ query }: { query: string }) {
   const count = useCandidateCount(query);
-  const pill = "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
+  const pill =
+    "whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3]";
+  const neutral = `${pill} border border-g-border bg-g-surface text-g-text-2`;
 
   if (count.status === "loading") {
     return (
-      <span
-        aria-live="polite"
-        className={`${pill} bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500`}
-      >
+      <span aria-live="polite" className={neutral}>
         후보 세는 중…
       </span>
     );
   }
   if (count.status === "dynamic") {
     return (
-      <span
-        aria-live="polite"
-        className={`${pill} bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300`}
-      >
+      <span aria-live="polite" className={neutral}>
         조건에 맞는 곳에서
       </span>
     );
@@ -47,17 +49,14 @@ function CandidateBadge({ query }: { query: string }) {
     return (
       <span
         aria-live="polite"
-        className={`${pill} bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300`}
+        className={`${pill} bg-g-warning-soft text-g-warning-text`}
       >
         조건이 좁아요 · 0곳
       </span>
     );
   }
   return (
-    <span
-      aria-live="polite"
-      className={`${pill} bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300`}
-    >
+    <span aria-live="polite" className={neutral}>
       ≈ {count.totalCount.toLocaleString("ko-KR")}곳{count.approx ? "+" : ""} 후보
     </span>
   );
@@ -67,29 +66,34 @@ function CandidateBadge({ query }: { query: string }) {
 function ExtraToggle({
   on,
   onToggle,
-  emoji,
+  icon,
   label,
   desc,
   locked = false,
 }: {
   on: boolean;
   onToggle: () => void;
-  emoji: string;
+  icon: IconName;
   label: string;
   desc: string;
   locked?: boolean;
 }) {
+  const card = "flex flex-col items-start gap-[3px] rounded-lg border px-3 py-2.5 text-left";
+  const title = "inline-flex items-center gap-1.5 text-[13px] font-bold leading-[1.3]";
+
   if (locked) {
     // 잠긴 토글은 눌리지 않은 것으로 취급(🌊 관례) — 선택 state 는 상위에서 보존, 오늘 복귀 시 복원.
     return (
       <div
         aria-disabled
-        className="flex cursor-not-allowed flex-col items-start gap-0.5 rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-2.5 text-left opacity-70 dark:border-zinc-700 dark:bg-zinc-800"
+        className={`${card} cursor-not-allowed border-g-border bg-g-surface-2 opacity-70`}
       >
-        <span className="text-sm font-bold text-zinc-400 dark:text-zinc-500">
-          {emoji} {label} 🔒
+        <span className={`${title} text-g-text-2`}>
+          <Icon name={icon} size={14} />
+          {label}
+          <Icon name="lock" size={12} />
         </span>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">{desc}</span>
+        <span className="text-[12px] leading-[1.5] text-g-text-2">{desc}</span>
       </div>
     );
   }
@@ -98,17 +102,28 @@ function ExtraToggle({
       type="button"
       onClick={onToggle}
       aria-pressed={on}
-      className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+      className={`${card} ${
         on
-          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50"
-          : "border-zinc-200 bg-white hover:border-emerald-300 dark:border-zinc-700 dark:bg-zinc-900"
+          ? "border-g-primary bg-g-primary-soft"
+          : "border-g-border bg-g-surface hover:border-g-primary"
       }`}
     >
-      <span className="text-sm font-bold">
-        {emoji} {label}
+      <span className={`${title} text-g-text`}>
+        <Icon name={icon} size={14} className={on ? "text-g-primary-text" : "text-g-text-2"} />
+        {label}
       </span>
-      <span className="text-xs text-zinc-500 dark:text-zinc-400">{desc}</span>
+      <span className="text-[12px] leading-[1.5] text-g-text-2">{desc}</span>
     </button>
+  );
+}
+
+/** 🔒 인라인 잠금 설명 — 바다/날씨가 왜 다른 칸을 잠갔는지. */
+function LockNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-1.5 rounded-lg bg-g-primary-soft px-3 py-2 text-[12px] leading-[1.6] text-g-primary-text">
+      <Icon name="lock" size={13} className="mt-0.5" />
+      <span>{children}</span>
+    </div>
   );
 }
 
@@ -193,17 +208,16 @@ export function FilterPanel({
   });
 
   return (
-    <div className="flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+    <div className="flex w-full flex-col gap-4 rounded-xl border border-g-border bg-g-surface-2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-extrabold">조건 고르기</span>
+        <span className="font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
+          조건 고르기
+        </span>
         <CandidateBadge query={countQuery} />
       </div>
 
       <section className="flex flex-col gap-2">
-        <h3
-          id="filter-area-label"
-          className="text-xs font-bold text-zinc-500 dark:text-zinc-400"
-        >
+        <h3 id="filter-area-label" className={GROUP_LABEL}>
           지역
         </h3>
         <div
@@ -226,10 +240,7 @@ export function FilterPanel({
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3
-          id="filter-type-label"
-          className="text-xs font-bold text-zinc-500 dark:text-zinc-400"
-        >
+        <h3 id="filter-type-label" className={GROUP_LABEL}>
           테마
         </h3>
         <div
@@ -249,12 +260,12 @@ export function FilterPanel({
                 disabled={seaside}
                 className={
                   seaside
-                    ? "cursor-not-allowed whitespace-nowrap rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-600"
+                    ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
                     : chip(on)
                 }
               >
                 {c.name}
-                {seaside ? " 🔒" : ""}
+                {seaside && <Icon name="lock" size={11} />}
               </button>
             );
           })}
@@ -264,9 +275,10 @@ export function FilterPanel({
       <section className="flex flex-col gap-2">
         <h3
           id="filter-date-label"
-          className="text-xs font-bold text-zinc-500 dark:text-zinc-400"
+          className={`inline-flex items-center gap-1.5 ${GROUP_LABEL}`}
         >
-          📅 언제 가요?
+          <Icon name="calendar" size={13} />
+          언제 가요?
         </h3>
         <div
           role="group"
@@ -291,41 +303,40 @@ export function FilterPanel({
           })}
         </div>
         {/* 상시 마이크로카피 — '날짜는 필터인가요?' 오해 선제 답변 + 칩 하이라이트/완전 랜덤 시각 모순 해소 */}
-        <p className="text-[11px] leading-relaxed text-zinc-400">
-          날짜는 조건을 판정할 <b>기준일</b>이에요 — 날짜만으론 후보가 줄지 않아요.
+        <p className="text-[11px] leading-[1.6] text-g-text-2">
+          날짜는 조건을 판정할 <b className="font-bold">기준일</b>이에요 — 날짜만으론
+          후보가 줄지 않아요.
         </p>
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
-          추가 조건
-        </h3>
+        <h3 className={GROUP_LABEL}>추가 조건</h3>
         <div className="grid grid-cols-2 gap-2">
           <ExtraToggle
             on={seaside}
             onToggle={onToggleSeaside}
-            emoji="🌊"
+            icon="wave"
             label="바다"
             desc="해수욕장·섬·항구·해안"
           />
           <ExtraToggle
             on={seasonal}
             onToggle={onToggleSeasonal}
-            emoji="🦀"
+            icon="pot"
             label="제철 산지"
             desc="이번 달 제철 재료 산지"
           />
           <ExtraToggle
             on={festival}
             onToggle={onToggleFestival}
-            emoji="🎪"
+            icon="tent"
             label="축제 중"
             desc="오늘 진행 중인 축제"
           />
           <ExtraToggle
             on={noRain}
             onToggle={onToggleNoRain}
-            emoji="☔"
+            icon="umbrella"
             label="비 안 오는 곳"
             desc="지금 비 안 오는 지역"
             locked={rainLocked}
@@ -333,7 +344,7 @@ export function FilterPanel({
           <ExtraToggle
             on={quiet}
             onToggle={onToggleQuiet}
-            emoji="🍃"
+            icon="leaf"
             label="한적한 곳"
             desc="관광지 집중률 예측 기반, 안 붐빌 곳"
           />
@@ -346,7 +357,7 @@ export function FilterPanel({
         <ExtraToggle
           on={scatter}
           onToggle={onToggleScatter}
-          emoji="⚖️"
+          icon="scales"
           label="분산 모드"
           // 🌊 로 잠겼으면 켜져 있어도 꺼진 것으로 취급(☔ 관례) → 설명도 OFF 쪽으로.
           desc={
@@ -359,32 +370,26 @@ export function FilterPanel({
       </section>
 
       {seaside && (
-        <div className="flex gap-1.5 rounded-xl bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-          <span aria-hidden>🔒</span>
-          <span>
-            바다를 켜면 테마는 <b>관광지로 고정</b>돼요 — 그래서 다른 테마 칸이
-            잠겼어요.
-          </span>
-        </div>
+        <LockNote>
+          바다를 켜면 테마는 <b className="font-bold">관광지로 고정</b>돼요 — 그래서
+          다른 테마 칸이 잠겼어요.
+        </LockNote>
       )}
 
       {rainLocked && (
-        <div className="flex gap-1.5 rounded-xl bg-sky-50 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-          <span aria-hidden>🔒</span>
-          <span>
-            ☔ <b>&lsquo;비 안 오는 곳&rsquo;</b>은 지금 날씨만 알 수 있어요 —
-            그래서 오늘 뽑기에서만 켤 수 있어요.
-          </span>
-        </div>
+        <LockNote>
+          <b className="font-bold">&lsquo;비 안 오는 곳&rsquo;</b>은 지금 날씨만 알 수
+          있어요 — 그래서 오늘 뽑기에서만 켤 수 있어요.
+        </LockNote>
       )}
 
-      <div className="text-xs text-zinc-400">
+      <div className="text-[12px] leading-none text-g-text-2">
         {/* 날짜만 골라도(hasAny=false) 초기화 대상은 있으므로 버튼 노출 — dateYmd 도 게이트(§6.8) */}
         {hasAny || dateYmd != null ? (
           <button
             type="button"
             onClick={onClear}
-            className="underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-200"
+            className="underline underline-offset-2 hover:text-g-primary"
           >
             선택 초기화
           </button>

@@ -6,6 +6,7 @@
 
 import { haversineM } from "@/lib/geo";
 import { CAFE_CAT3, MEAL_REJECT_CAT3, COURSE_DRIVE_HINT_M } from "@/lib/constants";
+import type { IconName } from "@/components/icons";
 
 export type CourseSlot = "sight" | "meal" | "cafe";
 
@@ -13,8 +14,8 @@ export interface CourseSlotDef {
   slot: CourseSlot;
   /** UI 라벨(볼거리·식사·카페) */
   label: string;
-  /** UI 이모지 */
-  emoji: string;
+  /** UI 선 아이콘 키(components/icons 조회) — 이모지 대신(Genesis 리스킨) */
+  icon: IconName;
   /** 뽑을 contentTypeId 들(셔플 순회) */
   contentTypeIds: number[];
   /** ☕ 카페 슬롯만 — cat3 직접 필터(음식점39 하위 카페·전통찻집). */
@@ -30,18 +31,18 @@ export interface CourseSlotDef {
  *  - 카페: 음식점39 + cat3=카페·전통찻집 직접 필터
  */
 export const COURSE_SLOTS: CourseSlotDef[] = [
-  { slot: "sight", label: "볼거리", emoji: "🏞️", contentTypeIds: [12, 14, 28] },
+  { slot: "sight", label: "볼거리", icon: "sight", contentTypeIds: [12, 14, 28] },
   {
     slot: "meal",
     label: "식사",
-    emoji: "🍚",
+    icon: "meal",
     contentTypeIds: [39],
     rejectCat3: MEAL_REJECT_CAT3,
   },
   {
     slot: "cafe",
     label: "카페",
-    emoji: "☕",
+    icon: "cafe",
     contentTypeIds: [39],
     cat3: CAFE_CAT3,
   },

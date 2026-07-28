@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type {
   RandomResponse,
   ErrorResponse,
@@ -14,10 +15,10 @@ import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
-import { MapHero } from "@/components/MapHero";
 import { StoryBanner } from "@/components/StoryBanner";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
+import { Icon } from "@/components/icons";
 import {
   CoursePanel,
   type CourseState,
@@ -32,8 +33,23 @@ import {
 // 🔭 visitedAreaCodes 는 koreaMap 비의존 경량 모듈에서(§7.11). conqueredSigunguCodes 는 홈에
 //    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
 import { visitedAreaCodes } from "@/lib/visitedAreas";
-import { AREA_CODES } from "@/lib/constants";
+import { AREA_NAME } from "@/lib/constants";
 import { useTravelStore } from "@/hooks/useTravelStore";
+
+// 정복 지도는 시·군·구 경계(~207KB)와 lib/conquer 를 싣는다 → 별도 청크로 분리해 홈 초기
+// 페인트를 막지 않는다(§7.11 번들 보호 — /map 의 ConquerMap 과 같은 처리).
+// 지도는 통합 카드의 룰렛 본체라 스탯 행까지 이 청크가 담당한다(정복 집계가 koreaMap 의존).
+const HomeConquerMap = dynamic(
+  () => import("@/components/HomeConquerMap").then((m) => m.HomeConquerMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[440px] items-center justify-center text-[13px] text-g-text-2">
+        지도 불러오는 중…
+      </div>
+    ),
+  },
+);
 
 type Status =
   | { kind: "idle" }
@@ -71,7 +87,7 @@ export default function Home() {
   // 🧭 반나절 코스(M20) — 별도 fetch 흐름. courseTokenRef 로 코스↔뽑기 교차 경합 차단(drawTokenRef 동형).
   const [course, setCourse] = useState<CourseState>({ kind: "idle" });
   const courseTokenRef = useRef(0);
-  // 🎉 방금 정복한 시·도 — 홈 히어로 토스트 + 타일 팝(§7.8). 1.7초 뒤 자동 해제.
+  // 🎉 방금 정복한 시·도 — 통합 카드 토스트(§7.8). 1.7초 뒤 자동 해제.
   const [filledArea, setFilledArea] = useState<number | null>(null);
   // 🔭 빈 곳에서 뽑기(§7.11) — /map CTA 신호를 처리하는 동안 재진입 차단.
   //   홈에는 버튼이 없다(진입점은 /map 하나) — 이 창은 신호 소비~runDraw 진입 사이를 덮는다.
@@ -335,152 +351,145 @@ export default function Home() {
     quiet ||
     scatter;
 
-  // 🧩 발 들인 시·도 정복 pill(헤더) — 홈 히어로 타일과 같은 출처(areaCode 기준).
-  const conqueredAreas = visitedAreaCodes(store.visited).size;
-  const conqueredPct = Math.round((conqueredAreas / AREA_CODES.length) * 100);
+  // 🎰 지도에 넘길 phase — 기존 draw lifecycle 에서 파생(새 상태 아님).
+  const mapPhase = loading ? "loading" : status.kind === "ok" ? "result" : "idle";
 
   return (
-    <main className="mx-auto w-full max-w-[1140px] flex-1 px-4 pb-16 pt-6 sm:px-5">
-      <div className="mb-3 flex items-center justify-end gap-2">
+    <main className="mx-auto w-full max-w-[720px] flex-1 px-5 pb-14 pt-6">
+      <div className="mb-5 flex items-center gap-2.5">
+        <h1 className="flex-1 font-display text-[24px] font-bold leading-[1.2] tracking-[-0.03em]">
+          어디든
+        </h1>
         <InstallButton />
         <AuthButtons />
       </div>
 
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[22px] font-extrabold tracking-tight">🎲 어디든</h1>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            어디 갈지 고민될 때, 운명에 맡겨 — 전국 어디든 같은 출발선.
-          </p>
-        </div>
-        <div
-          aria-live="polite"
-          className="flex flex-none items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3.5 py-2 text-xs font-bold text-emerald-700 shadow-sm dark:border-emerald-900 dark:bg-zinc-900 dark:text-emerald-300"
-        >
-          <span aria-hidden>🧩</span>
-          <span>
-            정복 <b className="text-sm">{conqueredAreas}</b>
-            <span className="font-semibold text-zinc-400"> / 17 · {conqueredPct}%</span>
-          </span>
-        </div>
-      </header>
-
       <StoryBanner />
 
-      {/* 지도(왼쪽)와 뽑기·결과(오른쪽)를 나란히 — 세로로 쌓으면 첫 화면이 너무 길어진다.
-          지도 SVG 는 max-w-[320px] 라 전폭일 때 좌우가 통째로 놀았다. lg 미만은 세로 스택. */}
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
-        {/* 🎰 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
-        <MapHero
+      {/* ■ 통합 카드 — 지도(룰렛 본체)와 뽑기가 한 카드 안에. 위→아래 한 흐름으로 읽힌다. */}
+      <section className="relative overflow-hidden rounded-xl border border-g-border bg-g-surface">
+        {/* 🎰 스탯 행 + 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
+        <HomeConquerMap
           visited={store.visited}
           storeReady={store.ready}
-          filledArea={filledArea}
-          spinning={loading}
+          phase={mapPhase}
           landedLat={status.kind === "ok" ? status.data.place.lat : null}
           landedLng={status.kind === "ok" ? status.data.place.lng : null}
-          drawSeq={seq}
         />
 
-        {/* 뽑기 덱 — raised sheet */}
-        <section className="min-w-0 rounded-[22px_22px_20px_20px] border border-zinc-200 bg-white px-4 pb-5 pt-2 shadow-[0_12px_34px_-20px_rgba(20,40,30,0.4)] dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mx-auto mb-3.5 mt-1.5 h-1.5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+        {loading && <SlotMachine />}
 
+        <div className="flex flex-col gap-3.5 border-t border-g-border px-5 pb-5 pt-4">
           <ModeToggle mode={mode} onChange={setMode} />
 
           {mode === "filtered" && (
-            <div className="mt-3.5">
-              <FilterPanel
-                selectedAreas={areas}
-                selectedTypes={types}
-                seaside={seaside}
-                seasonal={seasonal}
-                festival={festival}
-                noRain={noRain}
-                quiet={quiet}
-                scatter={scatter}
-                dateYmd={dateYmd}
-                onToggleArea={toggleArea}
-                onToggleType={toggleType}
-                onToggleSeaside={() => setSeaside((v) => !v)}
-                onToggleSeasonal={() => setSeasonal((v) => !v)}
-                onToggleFestival={() => setFestival((v) => !v)}
-                onToggleNoRain={() => setNoRain((v) => !v)}
-                onToggleQuiet={() => setQuiet((v) => !v)}
-                onToggleScatter={() => setScatter((v) => !v)}
-                onSelectDate={setDateYmd}
-                onClear={clearFilters}
-              />
-            </div>
+            <FilterPanel
+              selectedAreas={areas}
+              selectedTypes={types}
+              seaside={seaside}
+              seasonal={seasonal}
+              festival={festival}
+              noRain={noRain}
+              quiet={quiet}
+              scatter={scatter}
+              dateYmd={dateYmd}
+              onToggleArea={toggleArea}
+              onToggleType={toggleType}
+              onToggleSeaside={() => setSeaside((v) => !v)}
+              onToggleSeasonal={() => setSeasonal((v) => !v)}
+              onToggleFestival={() => setFestival((v) => !v)}
+              onToggleNoRain={() => setNoRain((v) => !v)}
+              onToggleQuiet={() => setQuiet((v) => !v)}
+              onToggleScatter={() => setScatter((v) => !v)}
+              onSelectDate={setDateYmd}
+              onClear={clearFilters}
+            />
           )}
 
-          {/* 유일한 전국 랜덤 뽑기 버튼 — 결과가 뜬 뒤엔 "다시 뽑기"로 라벨만 바뀐다
-              (결과 카드에 뽑기 버튼을 또 두지 않아 중복 제거). */}
+          {/* 유일한 전국 랜덤 뽑기 버튼 — 지도가 룰렛이 됐으므로 카피도 '굴리기'로.
+              결과가 뜬 뒤엔 "다시 굴리기"로 라벨만 바뀐다(결과 카드에 뽑기 버튼 중복 없음). */}
           <button
             type="button"
             onClick={() => draw(status.kind === "ok")}
             disabled={loading}
-            className="mt-3.5 w-full rounded-2xl bg-emerald-600 px-6 py-4 text-base font-extrabold text-white shadow-[0_12px_22px_-10px_rgba(5,150,105,0.6)] transition-colors hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60"
+            className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-g-primary text-[16px] font-medium text-g-on-primary hover:bg-g-primary-hover disabled:cursor-default disabled:opacity-60"
           >
-            {loading
-              ? "여행지를 뽑는 중…"
-              : status.kind === "ok"
-                ? "🎲 다시 뽑기"
-                : "🎲 여기서 한 곳 뽑기"}
+            {loading ? (
+              "지도를 굴리는 중…"
+            ) : (
+              <>
+                <Icon name="dice" size={18} />
+                {status.kind === "ok" ? "다시 굴리기" : "지도 굴리기"}
+              </>
+            )}
           </button>
 
-          {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내 */}
-          <div ref={resultRef} className="mt-3.5" aria-live="polite">
-            {status.kind === "loading" && <SlotMachine />}
-            {status.kind === "ok" && (
-              <ResultCard
-                key={seq}
-                data={status.data}
-                onDrawNearby={canDrawNearby ? drawNearby : null}
-                anchorTitle={anchor?.title ?? null}
-                onOpenCourse={
-                  status.data.place.lat != null &&
-                  status.data.place.lng != null
-                    ? openCourse
-                    : null
-                }
-                courseLoading={course.kind === "loading"}
-                saved={store.isSaved(status.data.place.contentId)}
-                visited={store.isVisited(status.data.place.contentId)}
-                onToggleSave={() => store.toggleSave(status.data.place)}
-                onToggleVisit={() => handleToggleVisit(status.data.place)}
-                onNavigate={() => store.logNavigate(status.data.place)}
-              />
-            )}
-            {status.kind === "error" && (
-              <ErrorPanel
-                error={status.error}
-                onClearConditions={
-                  mode === "filtered" && hasCondition ? clearFilters : null
-                }
-              />
-            )}
-            {status.kind === "idle" && (
-              <p className="px-2 py-3.5 text-center text-sm leading-relaxed text-zinc-400">
-                {mode === "pure"
-                  ? "버튼을 눌러 전국 어디든 랜덤으로 한 곳을 받아보세요."
-                  : "조건을 고르고 뽑거나, 아무것도 안 고르면 완전 랜덤이에요."}
-              </p>
-            )}
-          </div>
-
-          {/* 🧭 반나절 코스(M20) — 결과 aria-live 컨테이너 밖(중첩·통째 낭독 방지), 결과 있을 때만 */}
-          {status.kind === "ok" && course.kind !== "idle" && (
-            <CoursePanel
-              state={course}
-              onRedrawStep={redrawCourseStep}
-              onRetry={openCourse}
-            />
+          {status.kind === "idle" && (
+            <p className="text-center text-[13px] leading-[1.6] text-g-text-2">
+              {mode === "pure"
+                ? "버튼을 누르면 전국 250개 시·군·구 위에서 주사위가 굴러가요."
+                : "조건을 고르고 굴리거나, 아무것도 안 고르면 완전 랜덤이에요."}
+            </p>
           )}
-        </section>
+        </div>
+
+        {/* 🎉 방금 정복한 시·도 토스트(§7.8) — 통합 카드 우상단 */}
+        {store.ready && filledArea != null && (
+          <div className="animate-fade-up absolute right-3.5 top-3.5 rounded-full bg-g-primary px-3 py-1.5 text-[12px] font-bold text-g-on-primary">
+            {AREA_NAME[filledArea]} 정복! · 내 지도 +1
+          </div>
+        )}
+      </section>
+
+      {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내.
+          결과·에러 카드는 통합 카드 **밖** 아래로(카드는 지도+뽑기 전용). */}
+      <div ref={resultRef} aria-live="polite">
+        {status.kind === "ok" && (
+          <div className="mt-3">
+            <ResultCard
+              key={seq}
+              data={status.data}
+              onDrawNearby={canDrawNearby ? drawNearby : null}
+              anchorTitle={anchor?.title ?? null}
+              onOpenCourse={
+                status.data.place.lat != null && status.data.place.lng != null
+                  ? openCourse
+                  : null
+              }
+              courseLoading={course.kind === "loading"}
+              saved={store.isSaved(status.data.place.contentId)}
+              visited={store.isVisited(status.data.place.contentId)}
+              onToggleSave={() => store.toggleSave(status.data.place)}
+              onToggleVisit={() => handleToggleVisit(status.data.place)}
+              onNavigate={() => store.logNavigate(status.data.place)}
+            />
+          </div>
+        )}
+        {status.kind === "error" && (
+          <div className="mt-3">
+            <ErrorPanel
+              error={status.error}
+              onClearConditions={
+                mode === "filtered" && hasCondition ? clearFilters : null
+              }
+            />
+          </div>
+        )}
       </div>
 
-      {/* 기록(찜·최근·다녀옴) — 2열 아래 전폭. 지도가 오른쪽 자리를 가져가면서 여기로 내려왔다. */}
-      <div className="mt-4">
+      {/* 🧭 반나절 코스(M20) — 결과 aria-live 컨테이너 밖(중첩·통째 낭독 방지), 결과 있을 때만 */}
+      {status.kind === "ok" && course.kind !== "idle" && (
+        <div className="mt-3">
+          <CoursePanel
+            state={course}
+            onRedrawStep={redrawCourseStep}
+            onRetry={openCourse}
+          />
+        </div>
+      )}
+
+      {/* 기록(찜·최근·다녀옴) */}
+      <div className="mt-3">
         <RecordPanel
           saved={store.saved}
           recent={store.recent}
@@ -491,11 +500,6 @@ export default function Home() {
           onRate={store.setRating}
         />
       </div>
-
-      <p className="mt-6 text-center text-[11.5px] leading-relaxed text-zinc-400">
-        탐험 로그 · 뽑기·결과·지도가 한 화면 — <b>다녀왔어요</b>를 누르면 위 정복
-        지도가 바로 채워져요.
-      </p>
     </main>
   );
 }
@@ -511,19 +515,22 @@ function ErrorPanel({
   // '설정 고장'처럼 보여 사용자를 엉뚱한 곳으로 보낸다(§6.5).
   const isKeyIssue = error.error.includes("TOUR_API_KEY");
   return (
-    <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-      <p className="font-semibold">⚠️ {error.error}</p>
+    <div className="w-full rounded-xl bg-g-warning-soft p-4 text-center text-[13px] leading-[1.6] text-g-warning-text">
+      <p className="inline-flex items-center gap-1.5 font-medium">
+        <Icon name="warning" size={14} />
+        {error.error}
+      </p>
       {isKeyIssue && (
-        <p className="mt-2 text-amber-700 dark:text-amber-300">
-          서버의 <code className="font-mono">TOUR_API_KEY</code> 설정을 확인해
-          주세요. (<code className="font-mono">.env.local.example</code> 참고)
+        <p className="mt-2">
+          서버의 <code className="font-mono">TOUR_API_KEY</code> 설정을 확인해 주세요. (
+          <code className="font-mono">.env.local.example</code> 참고)
         </p>
       )}
       {onClearConditions && (
         <button
           type="button"
           onClick={onClearConditions}
-          className="mt-2.5 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+          className="mt-2.5 rounded-md border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium hover:bg-g-surface"
         >
           조건 초기화
         </button>

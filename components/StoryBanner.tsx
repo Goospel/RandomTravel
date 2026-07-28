@@ -6,6 +6,7 @@
 //   ⚠️ 알고리즘이 보장하는 것만 주장(§7.9 원칙 1): '시·도 균등'만 — 혼잡 회피 약속 금지.
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icons";
 
 const SEEN_KEY = "rt.storySeen.v1";
 
@@ -35,21 +36,19 @@ export function StoryBanner() {
   if (!show) return null;
 
   return (
-    <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200">
-      <span aria-hidden className="mt-0.5 text-base">
-        🎲
-      </span>
-      <p className="flex-1 leading-relaxed">
-        <b>어디든</b>은 유명한 곳에 쏠리지 않아요 — 전국 <b>모든 시·도</b>에 같은
-        주사위를 굴려요.
+    <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-g-primary-soft-border bg-g-primary-soft px-4 py-3 text-g-primary-text">
+      <Icon name="dice" size={16} className="mt-0.5" />
+      <p className="flex-1 text-[14px] leading-[1.6]">
+        <b className="font-bold">어디든</b>은 유명한 곳에 쏠리지 않아요 — 전국{" "}
+        <b className="font-bold">모든 시·도</b>에 같은 주사위를 굴려요.
       </p>
       <button
         type="button"
         onClick={dismiss}
         aria-label="안내 닫기"
-        className="-mr-1 -mt-0.5 flex-none rounded-lg px-1.5 py-0.5 text-emerald-500 transition-colors hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900"
+        className="-mr-1 flex h-6 w-6 flex-none items-center justify-center rounded-md hover:bg-g-primary-soft-border"
       >
-        ✕
+        <Icon name="close" size={13} />
       </button>
     </div>
   );

@@ -1,17 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { Providers } from "@/components/Providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Genesis 타이포 — display(숫자·제목) General Sans / body(본문·UI) DM Sans.
+// ⚠️ 둘 다 한글 글리프가 없다 → 실제 한글은 폴백("Apple SD Gothic Neo"·"Malgun Gothic")이
+//    렌더한다. 의도된 동작이다(Pretendard 등 추가 금지 — 사용자 결정).
+// General Sans 는 Fontshare 만 배포해 next/font/google 로 못 받는다 → woff2 를
+// public/fonts 에 셀프호스팅하고 next/font/local 로 연결(외부 요청 0).
+const generalSans = localFont({
+  src: [
+    { path: "../public/fonts/GeneralSans-400.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/GeneralSans-500.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/GeneralSans-600.woff2", weight: "600", style: "normal" },
+    { path: "../public/fonts/GeneralSans-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-general-sans",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,8 +42,8 @@ export const metadata: Metadata = {
 // themeColor 는 Next 15+ 에서 viewport 로 분리됨(상태바 틴트). 다크/라이트 각각 지정.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#059669" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0e" },
   ],
 };
 
@@ -41,19 +55,21 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // next/font 변수(--font-general-sans·--font-dm-sans)를 <html> 에 심는다 —
+      // globals.css 의 --g-display/--g-body 가 이 변수를 1순위 패밀리로 참조한다.
+      className={`${generalSans.variable} ${dmSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-g-bg font-body text-g-text">
         <Providers>{children}</Providers>
         {/* 데이터 출처 표시 — TourAPI 운영계정 전환 조건(공사 요청 2026-07-28). 모든 페이지 공통. */}
-        <footer className="border-t border-zinc-200 px-4 py-5 text-center text-[11px] leading-relaxed text-zinc-400 dark:border-zinc-800">
+        <footer className="border-t border-g-border px-4 py-5 text-center text-[11px] leading-[1.7] text-g-text-2">
           <p>
             관광 정보{" "}
             <a
               href="https://api.visitkorea.or.kr"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="underline underline-offset-2 hover:text-g-primary"
             >
               한국관광공사 TourAPI
             </a>{" "}
@@ -62,12 +78,12 @@ export default function RootLayout({
               href="https://www.data.go.kr/data/15084084/openapi.do"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="underline underline-offset-2 hover:text-g-primary"
             >
               기상청 단기예보 조회서비스
             </a>
           </p>
-          <p className="mt-1">
+          <p className="mt-[5px]">
             공공데이터를 활용한 개인 제작 서비스이며, 데이터 제공기관과 무관합니다.
           </p>
         </footer>

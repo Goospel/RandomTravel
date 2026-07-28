@@ -10,23 +10,45 @@ import { useOverview } from "@/hooks/useOverview";
 import { shareText } from "@/lib/kakaoShare";
 import { formatKm } from "@/lib/geo";
 import { fmtYmd } from "@/lib/kst";
+import { Icon, type IconName } from "@/components/icons";
 
-// 🎴 결과 카드(M16 탐험 로그) — 사진 위 오버레이 찜·다녀옴 토글 + 주요 2(다시뽑기·주변) /
-//   보조 4아이콘(지도·길찾기·공유·복사) 2단 계층. 데이터·공유 로직은 그대로 재사용.
+// 🎴 결과 카드(Genesis 리스킨) — 사진 위 오버레이 찜·다녀옴 토글 + 주요 2버튼(주변·코스) +
+//   보조 4타일(지도·길찾기·공유·복사). 데이터·공유 로직은 그대로 재사용.
+//   의미색은 🍃 한적(success)·notice(warning)만. 그 외는 전부 neutral/indigo 로 통일했다.
 
-const BADGE: Record<string, string> = {
-  area: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  type: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-  sea: "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  seasonal: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  festival: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
-  weather: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
-  congestion: "bg-lime-50 text-lime-700 dark:bg-lime-950 dark:text-lime-300",
-  dist: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  emptySpot: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300", // 🔭 (§7.11)
-};
-const pill =
-  "rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap";
+const BADGE_KIND = {
+  neutral: "bg-g-surface-2 text-g-text-2",
+  primary: "bg-g-primary-soft text-g-primary-text",
+  success: "bg-g-success-soft text-g-success-text",
+  warning: "bg-g-warning-soft text-g-warning-text",
+} as const;
+
+/** 뱃지 1개 — 아이콘(12px)은 있을 때만. */
+function Badge({
+  kind = "neutral",
+  icon,
+  title,
+  truncate = false,
+  children,
+}: {
+  kind?: keyof typeof BADGE_KIND;
+  icon?: IconName;
+  title?: string;
+  truncate?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3] ${
+        truncate ? "max-w-[15rem]" : "whitespace-nowrap"
+      } ${BADGE_KIND[kind]}`}
+    >
+      {icon && <Icon name={icon} size={12} />}
+      <span className={truncate ? "truncate" : undefined}>{children}</span>
+    </span>
+  );
+}
 
 export function ResultCard({
   data,
@@ -42,7 +64,7 @@ export function ResultCard({
 }: {
   data: RandomResponse;
   /** 📍 첫 여행지 주변에서 뽑기(M14) — 순수 모드+앵커 좌표 있을 때만 전달, 아니면 null.
-      전국 랜덤 재추첨은 상단 "다시 뽑기" 버튼이 담당하므로 카드엔 뽑기 버튼을 두지 않는다. */
+      전국 랜덤 재추첨은 카드 위 "다시 굴리기" 버튼이 담당하므로 카드엔 뽑기 버튼을 두지 않는다. */
   onDrawNearby: (() => void) | null;
   /** 주변 뽑기 기준점(첫 여행지) 이름 — 버튼·거리 배지 라벨용 */
   anchorTitle: string | null;
@@ -88,7 +110,7 @@ export function ResultCard({
       fallbackImage: `${origin}/icon-512.png`,
       congestion: data.picked.congestion, // 🍃 분산 서사(§7.9) — 공유 카드에 근거 1줄
     });
-    if (result === "copied") flash("링크가 복사됐어요 ✓");
+    if (result === "copied") flash("링크가 복사됐어요");
     else if (result === "failed") flash("공유를 열 수 없었어요.");
     else flash(null);
   }
@@ -99,7 +121,7 @@ export function ResultCard({
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(text);
-        flash("링크가 복사됐어요 ✓ — 카톡에 붙여넣어 보내세요");
+        flash("링크가 복사됐어요 — 카톡에 붙여넣어 보내세요");
         return;
       } catch {
         /* 다음 폴백 */
@@ -117,16 +139,17 @@ export function ResultCard({
     flash("이 브라우저에선 복사를 지원하지 않아요.");
   }
 
-  // 사진 위 오버레이 원형 토글 공통 클래스
+  // 사진 위 오버레이 원형 토글 — 40px(터치 타깃은 카드 여백으로 확보), border-first.
   const overlayBtn =
-    "flex h-10 w-10 items-center justify-center rounded-full text-lg shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-colors";
-  const iconTile =
-    "flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2.5 text-base";
-  const iconLabel = "text-[10.5px] font-semibold text-zinc-500 dark:text-zinc-400";
+    "flex h-10 w-10 items-center justify-center rounded-full border border-g-border";
+  // 보조 액션 타일 — 4등분, 아이콘 17px + 11px 라벨.
+  const tile =
+    "flex flex-1 flex-col items-center gap-[3px] rounded-lg bg-g-surface-2 py-2.5 text-g-text-2 hover:bg-g-primary-soft hover:text-g-primary-text";
+  const tileLabel = "text-[11px] font-medium leading-none";
 
   return (
-    <article className="animate-card-reveal w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_6px_20px_-14px_rgba(20,40,30,0.3)] dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="relative aspect-video w-full bg-zinc-100 dark:bg-zinc-800">
+    <article className="animate-card-reveal w-full overflow-hidden rounded-xl border border-g-border bg-g-surface">
+      <div className="relative aspect-video w-full bg-g-surface-2">
         {showImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -136,11 +159,11 @@ export function ResultCard({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl">
-            🏞️
+          <div className="flex h-full w-full items-center justify-center text-g-neutral">
+            <Icon name="image" size={40} />
           </div>
         )}
-        {/* 사진 위 오버레이 — 찜 ♥ / 다녀옴 ✔ */}
+        {/* 사진 위 오버레이 — 찜 / 다녀옴 */}
         <div className="absolute right-3 top-3 flex gap-2">
           <button
             type="button"
@@ -149,11 +172,11 @@ export function ResultCard({
             aria-label={saved ? "찜 해제" : "찜하기"}
             className={`${overlayBtn} ${
               saved
-                ? "bg-rose-600 text-white"
-                : "bg-white/95 text-rose-600 hover:bg-white"
+                ? "bg-g-error-soft text-g-error-text"
+                : "bg-g-surface text-g-error-text hover:bg-g-error-soft"
             }`}
           >
-            <span aria-hidden>{saved ? "♥" : "♡"}</span>
+            <Icon name="heart" size={18} className={saved ? "fill-current" : ""} />
           </button>
           <button
             type="button"
@@ -162,144 +185,145 @@ export function ResultCard({
             aria-label={visited ? "다녀옴 해제" : "다녀왔어요"}
             className={`${overlayBtn} ${
               visited
-                ? "bg-emerald-600 text-white"
-                : "bg-white/95 text-zinc-600 hover:bg-white"
+                ? "bg-g-primary-soft text-g-primary-text"
+                : "bg-g-surface text-g-text-2 hover:text-g-primary"
             }`}
           >
-            <span aria-hidden>{visited ? "✔" : "➕"}</span>
+            <Icon name={visited ? "check" : "plus"} size={18} />
           </button>
         </div>
       </div>
 
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
-          {areaName && <span className={`${pill} ${BADGE.area}`}>{areaName}</span>}
-          {typeName && <span className={`${pill} ${BADGE.type}`}>{typeName}</span>}
+          {areaName && <Badge>{areaName}</Badge>}
+          {typeName && <Badge>{typeName}</Badge>}
           {data.picked.seaside && (
-            <span className={`${pill} ${BADGE.sea}`}>
-              {data.picked.seaside.emoji} {data.picked.seaside.category}
-            </span>
+            <Badge icon="wave">{data.picked.seaside.category}</Badge>
           )}
           {data.picked.seasonal && data.picked.seasonal.items.length > 0 && (
-            <span className={`${pill} ${BADGE.seasonal}`}>
-              지금 제철{" "}
-              {data.picked.seasonal.items
-                .map((s) => `${s.emoji}${s.item}`)
-                .join(" · ")}
-            </span>
+            <Badge icon="pot">
+              지금 제철 {data.picked.seasonal.items.map((s) => s.item).join(" · ")}
+            </Badge>
           )}
           {data.picked.festival && (
-            <span
-              title={data.picked.festival.name}
-              className={`inline-block max-w-[15rem] truncate align-bottom ${pill} ${BADGE.festival}`}
-            >
-              🎪 {data.picked.festival.name}
+            <Badge icon="tent" truncate title={data.picked.festival.name}>
+              {data.picked.festival.name}
               {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
               {/* 📅 오늘 아닌 기준일이면 명시 — 시작 전 축제가 '진행 중'처럼 보이는 오해 방지(§6.8) */}
               {data.picked.festival.baseYmd &&
                 ` (${fmtYmd(data.picked.festival.baseYmd)} 기준)`}
-            </span>
+            </Badge>
           )}
           {data.picked.weather && (
-            <span className={`${pill} ${BADGE.weather}`}>
-              ☀️ 지금 비 안 와요
+            <Badge icon="sun">
+              지금 비 안 와요
               {data.picked.weather.temp != null &&
                 ` · ${Math.round(data.picked.weather.temp)}℃`}
-            </span>
+            </Badge>
           )}
-          {/* 🔭 지도에 없던 동네(§7.11) — 🍃 앞에 둬 "🔭 지도에 없던 동네 (+ 🍃 …)" 순서.
+          {/* 🔭 지도에 없던 동네(§7.11) — 🍃 앞에 둬 "지도에 없던 동네 (+ 🍃 …)" 순서.
               방문 0 사용자에게도 참(전부 없던 곳) — data.picked.emptySpot 만으로 게이트. */}
           {data.picked.emptySpot && (
-            <span className={`${pill} ${BADGE.emptySpot}`}>🔭 지도에 없던 동네</span>
+            <Badge kind="primary" icon="target">
+              지도에 없던 동네
+            </Badge>
           )}
           {data.picked.congestion && (
-            <span className={`${pill} ${BADGE.congestion}`}>
+            <Badge kind="success" icon="leaf">
               {/* 예측 대상일 선두(정상 경로=선택일). baseYmd < targetYmd(배치 지연)에만 데이터일 병기(§6.8) */}
-              🍃 {fmtYmd(data.picked.congestion.targetYmd)} 한적 예측 · 집중률 하위{" "}
+              {fmtYmd(data.picked.congestion.targetYmd)} 한적 예측 · 집중률 하위{" "}
               {data.picked.congestion.pctBelow}%
               {data.picked.congestion.baseYmd < data.picked.congestion.targetYmd &&
                 ` (${fmtYmd(data.picked.congestion.baseYmd)} 데이터)`}
-            </span>
+            </Badge>
           )}
           {distanceM != null && (
-            <span
-              title={anchorTitle ?? undefined}
-              className={`inline-block max-w-[15rem] truncate align-bottom ${pill} ${BADGE.dist}`}
-            >
-              📍 {anchorTitle ? `${anchorTitle}에서 ` : "주변 "}
+            <Badge icon="pin" truncate title={anchorTitle ?? undefined}>
+              {anchorTitle ? `${anchorTitle}에서 ` : "주변 "}
               {formatKm(distanceM)}
-            </span>
+            </Badge>
           )}
         </div>
         {/* ⚖️ 분산 모드로 실제 가중이 걸린 뽑기만(§6.9B) — 근거 없는 분포 변경이 안 보이는 것 방지.
             폴백(균등)으로 내려갔으면 표식이 안 붙고 아래 notice 로 사실이 나간다. */}
         {data.picked.scatter && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            ⚖️ 방문자 적은 시·도 가중으로 뽑음
+          <p className="inline-flex items-center gap-1.5 text-[12px] text-g-text-2">
+            <Icon name="scales" size={12} />
+            방문자 적은 시·도 가중으로 뽑음
           </p>
         )}
         {data.picked.notice && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            ⚠️ {data.picked.notice}
+          <p className="inline-flex items-center gap-1.5 text-[12px] text-g-warning-text">
+            <Icon name="warning" size={12} />
+            {data.picked.notice}
           </p>
         )}
 
-        <h2 className="text-lg font-extrabold leading-snug">{place.title}</h2>
+        <h2 className="font-display text-[18px] font-bold leading-[1.4] tracking-[-0.03em]">
+          {place.title}
+        </h2>
         {place.address && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{place.address}</p>
+          <p className="text-[12px] leading-[1.5] text-g-text-2">{place.address}</p>
         )}
         {overview && (
-          <p className="line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="line-clamp-3 text-[15px] leading-[1.7] text-g-text-2">
             {overview}
           </p>
         )}
-        {/* 🔭 홈 히어로는 시·도 타일이라 이미 칠한 시·도 안의 빈 동네가 뽑혀도 모순 아님 —
-            시·군·구 단위 확인은 /map 정복 지도에서(§7.11). */}
+        {/* 🔭 통합 카드 지도는 시·군·구 단위라 결과 칩으로 바로 확인되지만,
+            내 지도 전체 맥락은 /map 에서 본다(§7.11). */}
         {data.picked.emptySpot && (
           <Link
             href="/map"
-            className="text-xs font-semibold text-indigo-700/80 hover:text-indigo-800 dark:text-indigo-300/80 dark:hover:text-indigo-200"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-g-primary-text hover:text-g-primary"
           >
-            🗺️ 내 지도에서 확인 →
+            <Icon name="map" size={13} />
+            내 지도에서 확인
+            <Icon name="arrowRight" size={12} />
           </Link>
         )}
 
-        {/* 📍 주변에서 뽑기(M14) — 전국 랜덤 재추첨과 다른 별개 동작이라 카드에 유지.
-            뽑기(재추첨)는 상단 버튼 하나로 통합됨. */}
-        {onDrawNearby && (
-          <button
-            type="button"
-            onClick={onDrawNearby}
-            className="mt-2 w-full truncate rounded-xl border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
-          >
-            📍 {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
-          </button>
+        {/* 주요 2버튼 — 📍 주변에서 뽑기(secondary) · 🧭 반나절 코스(tertiary).
+            전국 랜덤 재추첨은 카드 위 버튼 하나가 담당하므로 여기 두지 않는다. */}
+        {(onDrawNearby || onOpenCourse) && (
+          <div className="mt-2 flex gap-2">
+            {onDrawNearby && (
+              <button
+                type="button"
+                onClick={onDrawNearby}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 truncate rounded-md border border-g-primary bg-transparent text-[15px] font-medium text-g-primary transition-transform duration-200 hover:-translate-y-px hover:bg-g-primary-soft"
+              >
+                <Icon name="pin" size={16} />
+                {anchorTitle ? `${anchorTitle} 주변에서 뽑기` : "주변에서 뽑기"}
+              </button>
+            )}
+            {onOpenCourse && (
+              <button
+                type="button"
+                onClick={onOpenCourse}
+                disabled={courseLoading}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 truncate rounded-md border border-g-border bg-transparent text-[15px] font-medium text-g-text-2 hover:border-g-primary hover:text-g-primary disabled:opacity-60"
+              >
+                <Icon name="clock" size={16} />
+                {courseLoading ? "코스를 짜는 중…" : "반나절 코스"}
+              </button>
+            )}
+          </div>
         )}
 
-        {/* 🧭 반나절 코스 만들기(M20) — 좌표 있을 때만. 재클릭 = 전체 재생성, 생성 중 disabled. */}
-        {onOpenCourse && (
-          <button
-            type="button"
-            onClick={onOpenCourse}
-            disabled={courseLoading}
-            className="mt-2 w-full truncate rounded-xl border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950"
-          >
-            🕒 {courseLoading ? "코스를 짜는 중…" : "반나절 코스 만들기"}
-          </button>
-        )}
-
-        {/* 보조 액션 — 지도 · 길찾기 · 공유 · 복사 (아이콘 + 라벨) */}
-        <div className="mt-2 flex gap-1.5">
+        {/* 보조 액션 — 지도 · 길찾기 · 공유 · 복사 */}
+        <div className="mt-1 flex gap-1.5">
           {mapHref && (
             <a
               href={mapHref}
               target="_blank"
               rel="noopener noreferrer"
               onClick={onNavigate}
-              className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
+              className={tile}
             >
-              <span aria-hidden>🗺️</span>
-              <span className={iconLabel}>지도</span>
+              <Icon name="map" size={17} />
+              <span className={tileLabel}>지도</span>
             </a>
           )}
           {routeHref && (
@@ -308,34 +332,23 @@ export function ResultCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onNavigate}
-              className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
+              className={tile}
             >
-              <span aria-hidden>🧭</span>
-              <span className={iconLabel}>길찾기</span>
+              <Icon name="compass" size={17} />
+              <span className={tileLabel}>길찾기</span>
             </a>
           )}
-          <button
-            type="button"
-            onClick={onShare}
-            className={`${iconTile} bg-[#FEE500] transition-[filter] hover:brightness-95`}
-          >
-            <span aria-hidden>💬</span>
-            <span className="text-[10.5px] font-bold text-[#7a6b00]">공유</span>
+          <button type="button" onClick={onShare} className={tile}>
+            <Icon name="share" size={17} />
+            <span className={tileLabel}>공유</span>
           </button>
-          <button
-            type="button"
-            onClick={onCopyLink}
-            className={`${iconTile} bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700`}
-          >
-            <span aria-hidden>🔗</span>
-            <span className={iconLabel}>복사</span>
+          <button type="button" onClick={onCopyLink} className={tile}>
+            <Icon name="link" size={17} />
+            <span className={tileLabel}>복사</span>
           </button>
         </div>
         {shareMsg && (
-          <p
-            aria-live="polite"
-            className="text-center text-xs text-zinc-500 dark:text-zinc-400"
-          >
+          <p aria-live="polite" className="text-center text-[12px] text-g-text-2">
             {shareMsg}
           </p>
         )}

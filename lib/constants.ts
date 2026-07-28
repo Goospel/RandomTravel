@@ -67,11 +67,12 @@ export const COURSE_DRIVE_HINT_M = 10000;
 /**
  * 📊 재방문 의향 평가(M15) — 다녀온 곳의 3단계 만족·재방문 의향.
  * value 는 저장/DB 값, short 는 버튼 라벨, full 은 aria-label(전체 문구).
+ * 이모지는 Genesis 리스킨에서 제거 — 3단계 구분은 라벨 + 의미색(error/warning/success)이 한다.
  */
 export const REVISIT_OPTIONS = [
-  { value: 1, emoji: "👎", short: "또 안 감", full: "또 갈 생각 없음" },
-  { value: 2, emoji: "😐", short: "그럭저럭", full: "나쁘지 않았음" },
-  { value: 3, emoji: "👍", short: "또 갈래", full: "또 갈 의향이 있음" },
+  { value: 1, short: "또 안 감", full: "또 갈 생각 없음" },
+  { value: 2, short: "그럭저럭", full: "나쁘지 않았음" },
+  { value: 3, short: "또 갈래", full: "또 갈 의향이 있음" },
 ] as const;
 
 /** code → 한글명 조회 */
