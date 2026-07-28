@@ -93,14 +93,13 @@ export const ALL_CONTENT_TYPE_CODES: number[] = CONTENT_TYPES.map((c) => c.code)
 export interface SeaCategory {
   cat3: string;
   name: string;
-  emoji: string;
 }
 
 export const SEA_CAT3: SeaCategory[] = [
-  { cat3: "A01011100", name: "해안절경", emoji: "🌅" },
-  { cat3: "A01011200", name: "해수욕장", emoji: "🏖️" },
-  { cat3: "A01011300", name: "섬", emoji: "🏝️" },
-  { cat3: "A01011400", name: "항구·포구", emoji: "⚓" },
+  { cat3: "A01011100", name: "해안절경" },
+  { cat3: "A01011200", name: "해수욕장" },
+  { cat3: "A01011300", name: "섬" },
+  { cat3: "A01011400", name: "항구·포구" },
 ];
 
 // ─── 🎪 축제 필터 (M7, plan.md §6.2) ────────────────────────────────
@@ -173,7 +172,6 @@ export const AREA_TO_LDONG: Record<number, string> = (() => {
 
 export interface SeasonalItem {
   item: string;
-  emoji: string;
   months: number[];
   areaCodes: number[];
   /**
@@ -186,30 +184,30 @@ export interface SeasonalItem {
 
 export const SEASONAL_CALENDAR: SeasonalItem[] = [
   // 겨울 (11~2월 걸침)
-  { item: "대게", emoji: "🦀", months: [11, 12, 1, 2, 3], areaCodes: [35, 32], dish: true }, // 경북(울진·영덕)·강원
-  { item: "방어", emoji: "🐟", months: [12, 1, 2], areaCodes: [39], dish: true }, // 제주(모슬포)
-  { item: "굴", emoji: "🦪", months: [11, 12, 1, 2], areaCodes: [36, 38], dish: true }, // 경남(통영)·전남(여수)
-  { item: "감귤", emoji: "🍊", months: [11, 12, 1], areaCodes: [39], dish: false }, // 제주
-  { item: "딸기", emoji: "🍓", months: [1, 2, 3, 4], areaCodes: [34, 36], dish: false }, // 충남(논산)·경남(진주)
-  { item: "사과", emoji: "🍎", months: [10, 11, 12], areaCodes: [35, 33], dish: false }, // 경북(청송)·충북(충주)
+  { item: "대게", months: [11, 12, 1, 2, 3], areaCodes: [35, 32], dish: true }, // 경북(울진·영덕)·강원
+  { item: "방어", months: [12, 1, 2], areaCodes: [39], dish: true }, // 제주(모슬포)
+  { item: "굴", months: [11, 12, 1, 2], areaCodes: [36, 38], dish: true }, // 경남(통영)·전남(여수)
+  { item: "감귤", months: [11, 12, 1], areaCodes: [39], dish: false }, // 제주
+  { item: "딸기", months: [1, 2, 3, 4], areaCodes: [34, 36], dish: false }, // 충남(논산)·경남(진주)
+  { item: "사과", months: [10, 11, 12], areaCodes: [35, 33], dish: false }, // 경북(청송)·충북(충주)
   // 봄 (3~5월)
-  { item: "주꾸미", emoji: "🐙", months: [3, 4], areaCodes: [34, 37], dish: true }, // 충남(서천)·전북(군산)
-  { item: "멸치", emoji: "🐟", months: [4, 5, 6], areaCodes: [6, 36], dish: true }, // 부산(기장)·경남(남해)
-  { item: "매실", emoji: "🟢", months: [6], areaCodes: [38], dish: false }, // 전남(광양)
+  { item: "주꾸미", months: [3, 4], areaCodes: [34, 37], dish: true }, // 충남(서천)·전북(군산)
+  { item: "멸치", months: [4, 5, 6], areaCodes: [6, 36], dish: true }, // 부산(기장)·경남(남해)
+  { item: "매실", months: [6], areaCodes: [38], dish: false }, // 전남(광양)
   // 여름 (6~8월)
-  { item: "참외", emoji: "🍈", months: [5, 6, 7], areaCodes: [35], dish: false }, // 경북(성주)
-  { item: "자두", emoji: "🟣", months: [6, 7], areaCodes: [35], dish: false }, // 경북(김천)
-  { item: "옥수수", emoji: "🌽", months: [7, 8], areaCodes: [32], dish: false }, // 강원(홍천·평창)
-  { item: "복숭아", emoji: "🍑", months: [7, 8], areaCodes: [35, 33], dish: false }, // 경북(청도)·충북(음성)
-  { item: "수박", emoji: "🍉", months: [7, 8], areaCodes: [34, 36], dish: false }, // 충남(부여)·경남(함안)
-  { item: "전복", emoji: "🐚", months: [6, 7, 8], areaCodes: [38], dish: true }, // 전남(완도)
+  { item: "참외", months: [5, 6, 7], areaCodes: [35], dish: false }, // 경북(성주)
+  { item: "자두", months: [6, 7], areaCodes: [35], dish: false }, // 경북(김천)
+  { item: "옥수수", months: [7, 8], areaCodes: [32], dish: false }, // 강원(홍천·평창)
+  { item: "복숭아", months: [7, 8], areaCodes: [35, 33], dish: false }, // 경북(청도)·충북(음성)
+  { item: "수박", months: [7, 8], areaCodes: [34, 36], dish: false }, // 충남(부여)·경남(함안)
+  { item: "전복", months: [6, 7, 8], areaCodes: [38], dish: true }, // 전남(완도)
   // 가을 (9~10월)
-  { item: "전어", emoji: "🐟", months: [9, 10, 11], areaCodes: [38, 34], dish: true }, // 전남(광양)·충남(서천)
-  { item: "포도", emoji: "🍇", months: [8, 9], areaCodes: [33, 35], dish: false }, // 충북(영동)·경북(상주)
-  { item: "갈치", emoji: "🐟", months: [8, 9, 10, 11], areaCodes: [39, 38], dish: true }, // 제주·전남(목포)
-  { item: "대하", emoji: "🦐", months: [9, 10], areaCodes: [34, 2], dish: true }, // 충남(태안)·인천(연평)
-  { item: "배", emoji: "🍐", months: [9, 10], areaCodes: [38], dish: false }, // 전남(나주)
-  { item: "오징어", emoji: "🦑", months: [8, 9, 10, 11], areaCodes: [32, 35], dish: true }, // 강원(속초)·경북(울릉)
+  { item: "전어", months: [9, 10, 11], areaCodes: [38, 34], dish: true }, // 전남(광양)·충남(서천)
+  { item: "포도", months: [8, 9], areaCodes: [33, 35], dish: false }, // 충북(영동)·경북(상주)
+  { item: "갈치", months: [8, 9, 10, 11], areaCodes: [39, 38], dish: true }, // 제주·전남(목포)
+  { item: "대하", months: [9, 10], areaCodes: [34, 2], dish: true }, // 충남(태안)·인천(연평)
+  { item: "배", months: [9, 10], areaCodes: [38], dish: false }, // 전남(나주)
+  { item: "오징어", months: [8, 9, 10, 11], areaCodes: [32, 35], dish: true }, // 강원(속초)·경북(울릉)
 ];
 
 // ─── ☔ 날씨 필터 (M11, plan.md §6.1) ────────────────────────────────

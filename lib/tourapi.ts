@@ -472,7 +472,6 @@ function seasonalBadge(
 ): PickedInfo["seasonal"] {
   const items = seasonalItemsForArea(areaCode, month).map((s) => ({
     item: s.item,
-    emoji: s.emoji,
   }));
   return items.length > 0 ? { items } : null;
 }
@@ -488,7 +487,7 @@ async function pickSeasonalRestaurant(
   month: number,
 ): Promise<{
   item: TourApiItem;
-  matched: { item: string; emoji: string };
+  matched: { item: string };
   count: number;
 } | null> {
   const dishItems = shuffle(dishSeasonalItemsForArea(areaCode, month));
@@ -502,7 +501,7 @@ async function pickSeasonalRestaurant(
     if (count <= 0) continue; // 이 품목 맛집 0건 → 다음 dish 품목
     const picked = await pickItemFrom("searchKeyword2", params, count);
     if (picked)
-      return { item: picked, matched: { item: s.item, emoji: s.emoji }, count };
+      return { item: picked, matched: { item: s.item }, count };
   }
   return null;
 }
@@ -882,7 +881,7 @@ async function drawSeaside(
         areaCode,
         contentTypeId: 12,
         totalCount: count,
-        seaside: sea ? { category: sea.name, emoji: sea.emoji } : null,
+        seaside: sea ? { category: sea.name } : null,
         ...buildBadges(areaCode, ctx, place.lat, place.lng),
       },
     };
