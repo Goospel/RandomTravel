@@ -44,17 +44,23 @@ powershell -File .claude/scripts/remove-worktree.ps1 .claude/worktrees/foo-abc12
 - **메인 워크트리** (메인은 절대 안 지움)
 - 이 repo에 등록되지 않은 워크트리
 - **현재 셸이 그 워크트리 안**일 때 — 자기가 선 폴더는 못 지우므로 **메인 워크트리 쪽에서** 실행하라.
+- **다른 프로세스가 그 폴더 안에 서 있을 때** — 위 cwd 가드는 *자기 셸*만 본다. `powershell -File`로 띄운 자식 프로세스의 cwd는 메인 워크트리라, 정작 그 워크트리 안에서 돌고 있는 **Claude Code 세션·터미널**은 가드를 그냥 통과한다. 그래서 삭제 직전에 **삭제 가능성 프로브**(폴더 이름을 바꿨다 즉시 되돌림 — 순변화 0이지만 삭제가 막힐 때 똑같이 막힌다)로 물어본다. 잠겨 있으면 **정션도 안 끊고** exit 3 + "안에서 돌고 있는 셸/세션을 먼저 닫으라" 안내. (이 프로브가 없으면 git이 내용 삭제·등록 해제까지 마친 **뒤** rmdir에서 실패해 반쯤 지워진 상태가 남는다 — 2026-07-28 실제 사고.)
+
+## 반쯤 지워진 상태 (등록 해제 + 빈 폴더 잔존)
+
+위 사고로 빈 폴더만 남았다면 **같은 명령을 그대로 다시 실행**하면 된다. 대상이 비어 있고 워크트리 루트가 아니면 "등록은 이미 해제됨 — 남은 빈 디렉터리만 정리" 로 인식해 폴더를 지우고 `git worktree prune`까지 한다(예전엔 여기서 상황과 무관한 `not a worktree root`가 났다). 폴더가 아직 잠겨 있으면 exit 3으로 "세션 먼저 닫으라" 안내 — 그 세션이 끝난 뒤 재실행하면 정리된다.
 
 ## 동작 순서
 
-1. 경로·소속·main·cwd 가드
-2. `node_modules`(root)·`frontend/node_modules`가 정션이면 링크만 끊기(타깃 보존). 일반 폴더면 건드리지 않음.
-3. `git worktree remove` (`-Force` 시 강제)
-4. 로컬 브랜치 `git branch -d` (미머지면 보존)
-5. **메인 워크트리의 main 최신화** — 베스트-에포트 `git pull --ff-only`. 머지분이 원격 main에 얹혀 로컬 main이 뒤처지므로 따라잡는다. **활성 작업을 절대 방해하지 않게** 4가드를 모두 통과할 때만 실행: ① 메인 워크트리가 `main`(또는 `master`) 브랜치일 때만(브랜치 강제 전환 안 함) ② 추적 파일 미커밋 변경이 없을 때만 ③ upstream이 있을 때만 ④ fast-forward만(diverge 시 경고만). 어느 가드에 걸리거나 pull이 실패해도 **워크트리 삭제 성공은 유지**(fail-open, `-NoPull`로 끔).
+1. 경로·소속·main·cwd 가드 (빈 폴더 잔존 상태면 여기서 정리하고 종료)
+2. **삭제 가능성 프로브** — 이름 변경 후 즉시 원복. 실패하면 아무것도 안 건드리고 exit 3.
+3. `node_modules`(root)·`frontend/node_modules`가 정션이면 링크만 끊기(타깃 보존). 일반 폴더면 건드리지 않음.
+4. `git worktree remove` (`-Force` 시 강제)
+5. 로컬 브랜치 `git branch -d` (미머지면 보존)
+6. **메인 워크트리의 main 최신화** — 베스트-에포트 `git pull --ff-only`. 머지분이 원격 main에 얹혀 로컬 main이 뒤처지므로 따라잡는다. **활성 작업을 절대 방해하지 않게** 4가드를 모두 통과할 때만 실행: ① 메인 워크트리가 `main`(또는 `master`) 브랜치일 때만(브랜치 강제 전환 안 함) ② 추적 파일 미커밋 변경이 없을 때만 ③ upstream이 있을 때만 ④ fast-forward만(diverge 시 경고만). 어느 가드에 걸리거나 pull이 실패해도 **워크트리 삭제 성공은 유지**(fail-open, `-NoPull`로 끔).
 
 ## 관련
 
 - 스크립트: `.claude/scripts/remove-worktree.ps1`
-- 테스트: `.claude/scripts/tests/test-remove-worktree.ps1` (정션 타깃 보존 + 안전가드 회귀방지, self-contained)
+- 테스트: `.claude/scripts/tests/test-remove-worktree.ps1` (정션 타깃 보존 + 안전가드 회귀방지 10건, self-contained — 잠금 케이스는 실제로 자식 프로세스를 워크트리 안에 띄워 검증)
 - 유래: BookTimer의 동명 스킬(`frontend/node_modules` 정션 삭제 사고 T-110 방어)에서 이식.
