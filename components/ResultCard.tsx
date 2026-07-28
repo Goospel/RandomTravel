@@ -237,7 +237,8 @@ export function ResultCard({
             <Badge icon="wave">{data.picked.seaside.category}</Badge>
           )}
           {/* 🐕·♿ 대상 축 배지(§6.11) — 소스 자체가 근거라 추가 조회 없이 붙는다. */}
-          {data.picked.pet && <Badge icon="paw">반려동물 동반</Badge>}
+          {/* '동반 가능' — 여행지라는 주장이 아니라 '함께 갈 수 있다'는 사실만 말한다(§6.11). */}
+          {data.picked.pet && <Badge icon="paw">반려동물 동반 가능</Badge>}
           {data.picked.barrierFree && (
             <Badge icon="accessible">무장애 정보 보유</Badge>
           )}

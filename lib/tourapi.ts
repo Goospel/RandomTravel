@@ -31,7 +31,7 @@ import {
 } from "@/lib/course";
 import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
 import { isDrawablePlace } from "@/lib/placeFilter";
-import { normalizePetInfo } from "@/lib/petTour";
+import { normalizePetInfo, isPreferredPetType, pickPreferred } from "@/lib/petTour";
 import { normalizeWithFacilities } from "@/lib/barrierFree";
 import { stripTags } from "@/lib/text";
 import {
@@ -464,6 +464,12 @@ const COMBO_BUDGET = 34; // 상류 getTotalCount 호출 상한 (대부분 24h �
 const MAX_INDEX_TRIES = 3;
 const EMPTY_SPOT_CELL_TRIES = 3; // 🔭 셀 순회 상한(§7.11) — 워스트 3셀×(count 5+item 3), 개요는 별도(§5.6)
 const RESTAURANT_TYPE = 39; // 🍽️ 음식점 contentTypeId — 🦀 제철과 조합 시 품목-맛집 키워드 매칭 대상
+/**
+ * 🐕 시도 예산(§6.11) — **시도 1회당 상류 2콜**(목록 1 + detailCommon2 조인 1)이라 워스트 8콜.
+ * 관광지성 비율이 낮아(표본 12건 중 0건) 3회로는 편향이 거의 안 걸리고, 5회 이상은 워스트
+ * 10콜로 뽑기 지연이 눈에 띈다 — 4회가 "체감 지연 안 늘리면서 편향이 실제로 걸리는" 지점.
+ */
+const PET_DRAW_TRIES = 4;
 
 /** count 가중 랜덤 인덱스 — 큰 풀일수록 뽑힐 확률↑ (개수 적은 분류로의 쏠림 방지, §6.3) */
 export function weightedIndex(
@@ -989,35 +995,43 @@ async function drawPet(params: DrawParams): Promise<DrawResult> {
   }
 
   const notice = petIgnoredNotice(params);
-  for (let t = 0; t < MAX_INDEX_TRIES; t++) {
-    const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
-    const row = await getItemAt(PET_ENDPOINT, {}, index);
-    if (!row) continue; // stale count → 재추첨
-    const detail = await detailCommonItem(row.contentid);
-    if (!detail) continue; // 상세가 없는 contentid → 재추첨
-    if (!isDrawablePlace(detail)) continue; // 비여행지(용품점 등) → 재추첨 (§6.10)
-
-    const place = normalizePlace(
-      detail,
-      detail.overview ? stripTags(detail.overview) : null,
+  // 관광지성(12·14·25·28) 우선 소프트 편향 — 상업 항목이면 재추첨하되 예산이 끝나면 수용(§6.11).
+  const picked = await pickPreferred(
+    PET_DRAW_TRIES,
+    async () => {
+      const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
+      const row = await getItemAt(PET_ENDPOINT, {}, index);
+      if (!row) return null; // stale count → 재추첨
+      const detail = await detailCommonItem(row.contentid);
+      if (!detail) return null; // 상세가 없는 contentid → 재추첨
+      if (!isDrawablePlace(detail)) return null; // 비여행지(생활·행정 시설) → 재추첨 (§6.10)
+      return { row, detail };
+    },
+    ({ detail }) => isPreferredPetType(Number(detail.contenttypeid)),
+  );
+  if (!picked) {
+    throw new TourApiError(
+      "이번엔 못 찾았어요 — 한 번 더 뽑아보세요.",
+      "EMPTY_POOL",
     );
-    return {
-      place,
-      picked: {
-        // 귀속: areacode 가 공백인 항목이 실재("마더피아" 실측) → lDong 폴백(§6.9A).
-        areaCode: itemAreaCode(detail),
-        contentTypeId: place.contentTypeId,
-        totalCount,
-        pet: normalizePetInfo(row),
-        notice,
-      },
-    };
   }
 
-  throw new TourApiError(
-    "이번엔 못 찾았어요 — 한 번 더 뽑아보세요.",
-    "EMPTY_POOL",
+  const { row, detail } = picked;
+  const place = normalizePlace(
+    detail,
+    detail.overview ? stripTags(detail.overview) : null,
   );
+  return {
+    place,
+    picked: {
+      // 귀속: areacode 가 공백인 항목이 실재("마더피아" 실측) → lDong 폴백(§6.9A).
+      areaCode: itemAreaCode(detail),
+      contentTypeId: place.contentTypeId,
+      totalCount,
+      pet: normalizePetInfo(row),
+      notice,
+    },
+  };
 }
 
 export interface NearbyParams {

@@ -351,8 +351,10 @@ export function FilterPanel({
             on={pet}
             onToggle={onTogglePet}
             icon="paw"
-            label="반려동물 동반"
-            desc="반려동물과 함께 갈 수 있는 곳 (전국)"
+            label="반려동물과 함께"
+            // 풀에 매장·카페·숙소가 섞여 있다(관광지성 우선이지만 하드 제외는 아님, §6.11) —
+            // '여행지'라고 하면 과장이라 '갈 수 있는 곳'으로 정직하게 적는다(§7.9 카피 원칙).
+            desc="함께 갈 수 있는 명소·카페·숙소·매장 (전국)"
             locked={!pet && targetOn}
           />
           <ExtraToggle
@@ -415,8 +417,8 @@ export function FilterPanel({
 
       {targetOn && (
         <LockNote>
-          <b className="font-bold">바다·반려동물 동반·무장애</b>는 서로 다른 목록에서
-          뽑아요 — 한 번에 하나만 골라요.
+          <b className="font-bold">바다·반려동물·무장애</b>는 서로 다른 목록에서 뽑아요
+          — 한 번에 하나만 골라요.
         </LockNote>
       )}
 
@@ -430,7 +432,8 @@ export function FilterPanel({
       {pet && (
         <LockNote>
           <b className="font-bold">반려동물 동반 목록</b>은 지역·테마로 나눠 받을 수
-          없어요 — 그래서 전국에서 통째로 뽑고 지역·테마 칸이 잠겼어요.
+          없어요 — 그래서 전국에서 통째로 뽑고 지역·테마 칸이 잠겼어요. 명소를 먼저
+          보여드리지만 카페·숙소·매장도 함께 나와요.
         </LockNote>
       )}
 
