@@ -45,6 +45,32 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        {/* 데이터 출처 표시 — TourAPI 운영계정 전환 조건(공사 요청 2026-07-28). 모든 페이지 공통. */}
+        <footer className="border-t border-zinc-200 px-4 py-5 text-center text-[11px] leading-relaxed text-zinc-400 dark:border-zinc-800">
+          <p>
+            관광 정보{" "}
+            <a
+              href="https://api.visitkorea.or.kr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              한국관광공사 TourAPI
+            </a>{" "}
+            · 날씨{" "}
+            <a
+              href="https://www.data.go.kr/data/15084084/openapi.do"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              기상청 단기예보 조회서비스
+            </a>
+          </p>
+          <p className="mt-1">
+            공공데이터를 활용한 개인 제작 서비스이며, 데이터 제공기관과 무관합니다.
+          </p>
+        </footer>
         <ServiceWorkerRegister />
       </body>
     </html>
