@@ -32,10 +32,10 @@ describe("COURSE_SLOTS — 볼거리→식사→카페 3슬롯 정의", () => {
     expect(cafe.contentTypeIds).toEqual([39]);
     expect(cafe.cat3).toBe(CAFE_CAT3);
   });
-  it("모든 슬롯에 라벨·이모지가 있다(UI 렌더용)", () => {
+  it("모든 슬롯에 라벨·아이콘 키가 있다(UI 렌더용)", () => {
     for (const s of COURSE_SLOTS) {
       expect(s.label.length).toBeGreaterThan(0);
-      expect(s.emoji.length).toBeGreaterThan(0);
+      expect(s.icon.length).toBeGreaterThan(0);
     }
   });
 });

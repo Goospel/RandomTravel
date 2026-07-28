@@ -4,16 +4,15 @@
 // 로그인: 표시이름·아바타 + '로그아웃'. 세션은 useSession(SessionProvider) 로 반응형.
 
 import { useSession, signIn, signOut } from "next-auth/react";
+import { Icon } from "@/components/icons";
+import { pillButton } from "@/components/InstallButton";
 
 export function AuthButtons() {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
     return (
-      <div
-        className="h-8 w-20 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800"
-        aria-hidden
-      />
+      <div className="h-8 w-20 animate-pulse rounded-full bg-g-surface-2" aria-hidden />
     );
   }
 
@@ -31,14 +30,8 @@ export function AuthButtons() {
             referrerPolicy="no-referrer"
           />
         ) : null}
-        <span className="max-w-[8rem] truncate text-sm text-zinc-600 dark:text-zinc-300">
-          {label}
-        </span>
-        <button
-          type="button"
-          onClick={() => signOut()}
-          className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
-        >
+        <span className="max-w-[8rem] truncate text-[13px] text-g-text-2">{label}</span>
+        <button type="button" onClick={() => signOut()} className={pillButton}>
           로그아웃
         </button>
       </div>
@@ -46,11 +39,8 @@ export function AuthButtons() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => signIn()}
-      className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-300 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-700 dark:hover:text-emerald-400"
-    >
+    <button type="button" onClick={() => signIn()} className={pillButton}>
+      <Icon name="user" size={14} />
       로그인
     </button>
   );

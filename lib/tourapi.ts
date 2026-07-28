@@ -569,7 +569,8 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
   // ☔ 는 오늘 전용(초단기실황=현재 관측만). 미래 기준일이면 서버가 무시 + notice(직접 URL 방어 —
   //   정상 UI 경로는 buildRandomQuery 가 noRain 을 미방출해 여기 안 옴). §6.8.
   if (params.noRain && params.dateYmd && params.dateYmd > todayYmd) {
-    notices.push("오늘이 아닌 날짜라 ☔ 조건은 건너뛰었어요.");
+    // 이모지 대신 조건 이름으로 — UI 는 선 아이콘만 쓴다(Genesis 리스킨, designGuide.md).
+    notices.push("오늘이 아닌 날짜라 ‘비 안 오는 곳’ 조건은 건너뛰었어요.");
   } else if (params.noRain) {
     try {
       weatherObs = await getWeatherByArea(areaPool, params.now);
@@ -619,7 +620,7 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     }
     const nowMs = (params.now ?? new Date()).getTime();
     if (!day || congestionStale(day.maxFetchedAt, nowMs)) {
-      notices.push("혼잡도 데이터를 못 불러와 🍃 조건은 건너뛰었어요.");
+      notices.push("혼잡도 데이터를 못 불러와 ‘한적한 곳’ 조건은 건너뛰었어요.");
     } else {
       const ranked = rankDaily(day.ranks);
       const narrowed = narrowByQuiet(areaPool, quietAreaCodes(ranked, QUIET_AREA_CUT));

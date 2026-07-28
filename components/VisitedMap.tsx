@@ -1,6 +1,6 @@
 "use client";
 
-// 🗺️ 내 여행 지도 핀 뷰 (M8 + M16 리디자인) — 실제 카카오맵 마커 + 하단 다녀온 곳 리스트.
+// 🗺️ 내 여행 지도 핀 뷰 (Genesis 리스킨) — 실제 카카오맵 마커 + 하단 다녀온 곳 리스트.
 //   지도 SDK 로드는 hooks/useKakaoLoader, 순수 계산은 lib/mapView. 리스트는 카카오/네이버 딥링크.
 
 import { useEffect, useRef, useState } from "react";
@@ -9,15 +9,10 @@ import { visitedWithCoords, DEFAULT_LEVEL, SINGLE_LEVEL } from "@/lib/mapView";
 import { AREA_NAME, REVISIT_OPTIONS } from "@/lib/constants";
 import { kakaoMapLink, naverMapLink } from "@/lib/mapLink";
 import { relativeDay } from "@/lib/relativeDate";
-import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
+import { Icon, type IconName } from "@/components/icons";
+import { RATING_SELECTED, RowThumb } from "@/components/RecordPanel";
+import type { SavedPlace } from "@/lib/travelStore";
 import type { KakaoInfoWindow } from "@/types/kakao";
-
-// 📊 재방문 의향 배지 색(다녀온 곳 리스트) — 선택 시 rose/amber/emerald.
-const RATING_BADGE: Record<RevisitRating, string> = {
-  1: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
-  2: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  3: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-};
 
 export function VisitedMap({
   visited,
@@ -86,8 +81,8 @@ export function VisitedMap({
   const sorted = [...visited].sort((a, b) => b.savedAt - a.savedAt);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative h-[60vh] min-h-[320px] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-col gap-5">
+      <div className="relative h-[420px] w-full overflow-hidden rounded-xl border border-g-border bg-g-surface">
         {showMap ? (
           <div ref={containerRef} className="h-full w-full" />
         ) : (
@@ -96,11 +91,11 @@ export function VisitedMap({
       </div>
 
       {storeReady && sorted.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="border-b border-zinc-100 px-4 py-3 text-sm font-extrabold dark:border-zinc-800">
-            다녀온 곳 <span className="text-zinc-400">{sorted.length}</span>
+        <section className="overflow-hidden rounded-xl border border-g-border bg-g-surface">
+          <div className="px-4 py-3.5 font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
+            다녀온 곳 <span className="font-medium text-g-neutral">{sorted.length}</span>
           </div>
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ul>
             {sorted.map((p) => (
               <VisitedRow key={p.contentId} place={p} now={now} />
             ))}
@@ -118,60 +113,46 @@ function VisitedRow({ place, now }: { place: SavedPlace; now: number }) {
   const rating = place.rating ?? null;
   const opt = rating != null ? REVISIT_OPTIONS.find((o) => o.value === rating) : null;
   const dateText = now > 0 ? relativeDay(place.savedAt, now) : "";
+  const extLink =
+    "inline-flex h-8 items-center gap-1.5 rounded-md border border-g-border bg-g-surface px-2.5 text-[12px] font-medium text-g-text-2 hover:border-g-primary hover:text-g-primary";
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <div className="h-[46px] w-[46px] flex-none overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-        {place.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={place.image} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-lg">
-            🏞️
-          </div>
-        )}
-      </div>
+    <li className="flex items-center gap-3 border-t border-g-border px-4 py-3">
+      <RowThumb image={place.image} />
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-bold">{place.title}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[15px] font-medium leading-[1.4]">{place.title}</p>
           <span
-            className={`flex-none rounded-full px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap ${
-              opt
-                ? RATING_BADGE[opt.value]
-                : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+            className={`flex-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              opt ? RATING_SELECTED[opt.value] : "bg-g-surface-2 text-g-neutral"
             }`}
           >
-            {opt ? `${opt.emoji} ${opt.short}` : "평가 전"}
+            {opt ? opt.short : "평가 전"}
           </span>
         </div>
-        <p className="mt-0.5 text-[11.5px] text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-[12px] leading-[1.5] text-g-text-2">
           {areaName}
           {areaName && dateText ? " · " : ""}
           {dateText}
         </p>
       </div>
 
-      {kakaoHref && (
-        <a
-          href={kakaoHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-none rounded-lg bg-[#FEE500] px-2.5 py-1.5 text-[11.5px] font-bold text-[#3d3000]"
-        >
-          🗺️ 카카오
-        </a>
-      )}
-      {naverHref && (
-        <a
-          href={naverHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-none rounded-lg bg-[#03c75a] px-2.5 py-1.5 text-[11.5px] font-bold text-white"
-        >
-          N 네이버
-        </a>
-      )}
+      <div className="flex flex-none gap-1.5">
+        {kakaoHref && (
+          <a href={kakaoHref} target="_blank" rel="noopener noreferrer" className={extLink}>
+            {/* 모바일은 라벨을 숨겨 아이콘 버튼으로 — 좁은 폭에서 두 링크가 제목을 밀어낸다 */}
+            <span className="hidden sm:inline">카카오맵</span>
+            <Icon name="externalLink" size={11} />
+          </a>
+        )}
+        {naverHref && (
+          <a href={naverHref} target="_blank" rel="noopener noreferrer" className={extLink}>
+            <span className="hidden sm:inline">네이버지도</span>
+            <Icon name="externalLink" size={11} />
+          </a>
+        )}
+      </div>
     </li>
   );
 }
@@ -185,31 +166,29 @@ function MapMessage({
   storeReady: boolean;
   empty: boolean;
 }) {
-  let icon = "🗺️";
+  let icon: IconName = "map";
   let title = "지도를 불러오는 중…";
   let desc = "";
 
   if (status === "no-key") {
-    icon = "🔑";
+    icon = "key";
     title = "지도 키가 설정되지 않았어요.";
     desc = "환경변수 NEXT_PUBLIC_KAKAO_MAP_KEY 를 확인해 주세요.";
   } else if (status === "error") {
-    icon = "⚠️";
+    icon = "warning";
     title = "지도를 불러오지 못했어요.";
     desc = "카카오 개발자 콘솔에 이 사이트 도메인이 등록됐는지 확인해 주세요.";
   } else if (storeReady && status === "ready" && empty) {
-    icon = "📍";
+    icon = "pin";
     title = "아직 다녀온 곳이 없어요.";
-    desc = "여행지를 뽑고 '다녀왔어요 ✔'를 체크하면 여기 핀이 쌓여요.";
+    desc = "여행지를 뽑고 '다녀왔어요'를 체크하면 여기 핀이 쌓여요.";
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-      <span className="text-4xl">{icon}</span>
-      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{title}</p>
-      {desc && (
-        <p className="max-w-xs text-xs text-zinc-500 dark:text-zinc-400">{desc}</p>
-      )}
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-6 text-center text-g-neutral">
+      <Icon name={icon} size={36} />
+      <p className="text-[15px] font-medium text-g-text">{title}</p>
+      {desc && <p className="max-w-xs text-[12px] leading-[1.6] text-g-text-2">{desc}</p>}
     </div>
   );
 }

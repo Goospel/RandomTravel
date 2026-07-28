@@ -7,6 +7,7 @@ import {
   conquerStats,
   conquerByArea,
   visitedAreaCodes,
+  ringsCentroid,
   TOTAL_SIGUNGU,
 } from "@/lib/conquer";
 import { KOREA_PROJECTION, KOREA_SIGUNGU } from "@/lib/koreaMap";
@@ -173,5 +174,41 @@ describe("visitedAreaCodes — 발 들인 시·도(M16, areaCode 기준)", () =>
     const set = visitedAreaCodes(v);
     expect(set.size).toBe(1);
     expect(set.has(32)).toBe(true);
+  });
+});
+
+describe("ringsCentroid — 조각 좌표 평균(결과 마커 위치)", () => {
+  it("단일 링의 좌표 평균을 낸다", () => {
+    // 정사각형 (0,0)-(10,0)-(10,10)-(0,10) → 중심 (5,5)
+    expect(ringsCentroid([[0, 0, 10, 0, 10, 10, 0, 10]])).toEqual({ x: 5, y: 5 });
+  });
+
+  it("여러 링(섬 포함)은 모든 점을 한 평균으로 합친다", () => {
+    // 4점(평균 0,0) + 2점(평균 30,30) → 전체 6점 평균 (10,10)
+    const rings = [
+      [-1, -1, 1, -1, 1, 1, -1, 1],
+      [30, 30, 30, 30],
+    ];
+    expect(ringsCentroid(rings)).toEqual({ x: 10, y: 10 });
+  });
+
+  it("점이 없으면 null(마커 미렌더)", () => {
+    expect(ringsCentroid([])).toBeNull();
+    expect(ringsCentroid([[]])).toBeNull();
+  });
+
+  it("홀수 길이 꼬리는 짝이 없어 무시한다(x,y 쌍만 집계)", () => {
+    expect(ringsCentroid([[0, 0, 4, 4, 99]])).toEqual({ x: 2, y: 2 });
+  });
+
+  it("실데이터 조각의 중심은 그 조각 bbox 안에 있다", () => {
+    const sg = KOREA_SIGUNGU[0];
+    const c = ringsCentroid(sg.rings)!;
+    const xs = sg.rings.flatMap((r) => r.filter((_, i) => i % 2 === 0));
+    const ys = sg.rings.flatMap((r) => r.filter((_, i) => i % 2 === 1));
+    expect(c.x).toBeGreaterThanOrEqual(Math.min(...xs));
+    expect(c.x).toBeLessThanOrEqual(Math.max(...xs));
+    expect(c.y).toBeGreaterThanOrEqual(Math.min(...ys));
+    expect(c.y).toBeLessThanOrEqual(Math.max(...ys));
   });
 });

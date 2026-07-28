@@ -9,7 +9,7 @@ describe("explorerLevel — 정복 수 → 레벨", () => {
   it("0곳이면 여행 새싹", () => {
     const lv = explorerLevel(0);
     expect(lv.name).toBe("여행 새싹");
-    expect(lv.emoji).toBe("🌱");
+    expect(lv.icon).toBe("sprout");
     expect(lv.base).toBe(0);
     expect(lv.next).toBe(1);
     expect(lv.remaining).toBe(1);
@@ -19,7 +19,7 @@ describe("explorerLevel — 정복 수 → 레벨", () => {
   it("1곳이면 동네 탐험가로 승급", () => {
     const lv = explorerLevel(1);
     expect(lv.name).toBe("동네 탐험가");
-    expect(lv.emoji).toBe("🧭");
+    expect(lv.icon).toBe("compass");
     expect(lv.base).toBe(1);
     expect(lv.next).toBe(10);
     expect(lv.remaining).toBe(9);
@@ -38,7 +38,7 @@ describe("explorerLevel — 정복 수 → 레벨", () => {
   it("10곳이면 전국 여행가", () => {
     const lv = explorerLevel(10);
     expect(lv.name).toBe("전국 여행가");
-    expect(lv.emoji).toBe("🚶");
+    expect(lv.icon).toBe("route");
     expect(lv.base).toBe(10);
     expect(lv.next).toBe(30);
     expect(lv.remaining).toBe(20);
@@ -48,7 +48,7 @@ describe("explorerLevel — 정복 수 → 레벨", () => {
   it("30곳이면 정복가", () => {
     const lv = explorerLevel(30);
     expect(lv.name).toBe("정복가");
-    expect(lv.emoji).toBe("🏴");
+    expect(lv.icon).toBe("flag");
     expect(lv.base).toBe(30);
     expect(lv.next).toBe(100);
   });
@@ -64,7 +64,7 @@ describe("explorerLevel — 정복 수 → 레벨", () => {
   it("100곳이면 정복왕(최고 레벨) — next는 null, 진행률 100", () => {
     const lv = explorerLevel(100);
     expect(lv.name).toBe("정복왕");
-    expect(lv.emoji).toBe("👑");
+    expect(lv.icon).toBe("crown");
     expect(lv.base).toBe(100);
     expect(lv.next).toBeNull();
     expect(lv.remaining).toBe(0);

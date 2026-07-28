@@ -8,6 +8,11 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { installMode, isIOS } from "@/lib/pwaInstall";
+import { Icon } from "@/components/icons";
+
+/** Genesis pill — 헤더의 앱 설치·로그인 공용(h-8 · 13px · rounded-full). */
+export const pillButton =
+  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-g-border bg-g-surface px-3 text-[13px] font-medium text-g-text-2 hover:border-g-primary hover:text-g-primary";
 
 // beforeinstallprompt 는 표준 lib.dom 타입에 없어 최소 형태만 선언한다.
 interface BeforeInstallPromptEvent extends Event {
@@ -110,20 +115,20 @@ export function InstallButton() {
         onClick={handleClick}
         aria-label="이 앱을 홈 화면에 설치"
         aria-expanded={mode === "ios-guide" ? guideOpen : undefined}
-        className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-300 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-700 dark:hover:text-emerald-400"
+        className={pillButton}
       >
-        📲 앱 설치
+        <Icon name="download" size={14} />
+        앱 설치
       </button>
 
       {mode === "ios-guide" && guideOpen && (
         <div
           role="dialog"
           aria-label="홈 화면에 추가하는 방법"
-          className="absolute right-0 top-full z-20 mt-2 w-60 rounded-2xl border border-zinc-200 bg-white p-3.5 text-left text-xs leading-relaxed text-zinc-600 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          // 떠 있는 팝오버는 Genesis 에서도 shadow 허용(정적 요소만 border-first).
+          className="absolute right-0 top-full z-20 mt-2 w-60 rounded-xl border border-g-border bg-g-surface p-3.5 text-left text-xs leading-relaxed text-g-text-2 shadow-lg"
         >
-          <p className="font-semibold text-zinc-800 dark:text-zinc-100">
-            홈 화면에 추가하기
-          </p>
+          <p className="font-semibold text-g-text">홈 화면에 추가하기</p>
           <p className="mt-1.5">
             사파리 하단의 <ShareIcon /> <b>공유</b> 버튼을 누른 뒤{" "}
             <b>‘홈 화면에 추가’</b>를 선택하면 앱처럼 쓸 수 있어요.
@@ -134,22 +139,13 @@ export function InstallButton() {
   );
 }
 
-// iOS 공유 아이콘(네모 상자 + 위로 향한 화살표) — 인라인 SVG.
+// iOS 공유 아이콘(네모 상자 + 위로 향한 화살표) — 본문에 인라인으로 섞이므로 정렬 보정.
 function ShareIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden
-      className="mx-0.5 inline-block h-3.5 w-3.5 -translate-y-px align-middle"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 3v12" />
-      <path d="M8 7l4-4 4 4" />
-      <path d="M6 12v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7" />
-    </svg>
+    <Icon
+      name="share"
+      size={14}
+      className="mx-0.5 inline-block -translate-y-px align-middle"
+    />
   );
 }

@@ -4,42 +4,43 @@ import { useState, type KeyboardEvent } from "react";
 import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
 import { AREA_NAME, REVISIT_OPTIONS } from "@/lib/constants";
 import { kakaoMapLink } from "@/lib/mapLink";
+import { Icon, type IconName } from "@/components/icons";
 
 type TabKey = "saved" | "recent" | "visited";
 
-// 📊 재방문 의향 평가(M15) — 선택된 칸 색(라이트/다크). 미선택은 muted zinc.
-const RATING_SELECTED: Record<RevisitRating, string> = {
-  1: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
-  2: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  3: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+// 📊 재방문 의향 평가(M15) — 선택된 칸 의미색. 이모지 없이 라벨 + 색으로만 3단계를 구분한다.
+export const RATING_SELECTED: Record<RevisitRating, string> = {
+  1: "bg-g-error-soft text-g-error-text",
+  2: "bg-g-warning-soft text-g-warning-text",
+  3: "bg-g-success-soft text-g-success-text",
 };
 
 const TABS: {
   key: TabKey;
   label: string;
-  emoji: string;
-  emptyEmoji: string;
+  icon: IconName;
+  emptyIcon: IconName;
   empty: string;
 }[] = [
   {
     key: "saved",
     label: "찜",
-    emoji: "♥",
-    emptyEmoji: "♡",
+    icon: "heart",
+    emptyIcon: "heart",
     empty: "마음에 든 곳의 하트를 누르면 여기 모여요.",
   },
   {
     key: "recent",
     label: "최근",
-    emoji: "🕘",
-    emptyEmoji: "🎲",
+    icon: "clock",
+    emptyIcon: "dice",
     empty: "위에서 한 곳 뽑으면 최근 본 곳이 쌓여요.",
   },
   {
     key: "visited",
     label: "다녀옴",
-    emoji: "✔",
-    emptyEmoji: "🧩",
+    icon: "check",
+    emptyIcon: "grid",
     empty: "다녀온 곳을 체크하면 위 정복 지도가 채워져요.",
   },
 ];
@@ -86,13 +87,13 @@ export function RecordPanel({
   }
 
   return (
-    <section className="w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <section className="w-full overflow-hidden rounded-xl border border-g-border bg-g-surface">
       <h2 className="sr-only">내 기록</h2>
       <div
         role="tablist"
         aria-label="내 기록"
         onKeyDown={onKeyDown}
-        className="flex border-b border-zinc-100 dark:border-zinc-800"
+        className="flex border-b border-g-border"
       >
         {TABS.map((t) => {
           const count = lists[t.key].length;
@@ -107,16 +108,15 @@ export function RecordPanel({
               aria-controls={`rt-panel-${t.key}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setTab(t.key)}
-              className={`flex-1 px-3 py-3 text-sm font-bold transition-colors ${
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-[13px] text-[14px] font-medium ${
                 selected
-                  ? "border-b-2 border-emerald-600 text-emerald-700 dark:text-emerald-300"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  ? "border-g-primary text-g-primary-text"
+                  : "border-transparent text-g-text-2 hover:text-g-text"
               }`}
             >
-              <span aria-hidden>{t.emoji}</span> {t.label}
-              {count > 0 && (
-                <span className="ml-1 text-xs text-zinc-400">{count}</span>
-              )}
+              <Icon name={t.icon} size={14} />
+              {t.label}
+              {count > 0 && <span className="font-normal text-g-neutral">{count}</span>}
             </button>
           );
         })}
@@ -124,14 +124,12 @@ export function RecordPanel({
 
       <div role="tabpanel" id={panelId} aria-labelledby={tabId} tabIndex={0}>
         {active.length === 0 ? (
-          <div className="px-6 py-9 text-center text-zinc-400">
-            <div className="mb-2 text-3xl" aria-hidden>
-              {activeMeta.emptyEmoji}
-            </div>
-            <p className="text-sm leading-relaxed">{activeMeta.empty}</p>
+          <div className="flex flex-col items-center px-6 py-9 text-center text-g-neutral">
+            <Icon name={activeMeta.emptyIcon} size={34} className="mb-2.5" />
+            <p className="text-[13px] leading-[1.6] text-g-text-2">{activeMeta.empty}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ul>
             {active.map((p) => (
               <PlaceRow
                 key={p.contentId}
@@ -147,6 +145,20 @@ export function RecordPanel({
         )}
       </div>
     </section>
+  );
+}
+
+/** 기록 행 공통 썸네일(46px · radius 8) — /map 다녀온 곳 리스트와 같은 규격. */
+export function RowThumb({ image }: { image?: string | null }) {
+  return (
+    <div className="flex h-[46px] w-[46px] flex-none items-center justify-center overflow-hidden rounded-lg bg-g-surface-2 text-g-neutral">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <Icon name="image" size={18} />
+      )}
+    </div>
   );
 }
 
@@ -172,23 +184,14 @@ function PlaceRow({
   const rating = place.rating ?? null;
 
   return (
-    <li className="px-4 py-3">
+    <li className="border-t border-g-border px-4 py-3 first:border-t-0">
       <div className="flex items-center gap-3">
-        <div className="h-[46px] w-[46px] flex-none overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-          {place.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={place.image} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg">
-              🏞️
-            </div>
-          )}
-        </div>
+        <RowThumb image={place.image} />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{place.title}</p>
+          <p className="truncate text-[15px] font-medium leading-[1.4]">{place.title}</p>
           {areaName && (
-            <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400">{areaName}</p>
+            <p className="mt-1 text-[12px] leading-[1.4] text-g-text-2">{areaName}</p>
           )}
         </div>
 
@@ -196,10 +199,11 @@ function PlaceRow({
           <button
             type="button"
             onClick={onDrawNearby}
-            className="flex-none whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1.5 text-[11.5px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"
+            className="inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border border-g-primary-soft-border bg-g-primary-soft px-2.5 text-[12px] font-medium text-g-primary-text hover:border-g-primary"
             aria-label={`${place.title} 주변에서 뽑기`}
           >
-            📍 주변 뽑기
+            <Icon name="pin" size={12} />
+            주변 뽑기
           </button>
         )}
         {mapHref && (
@@ -208,19 +212,19 @@ function PlaceRow({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onNavigate}
-            className="flex-none rounded-lg px-2 py-1 text-base transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-g-neutral hover:bg-g-surface-2 hover:text-g-primary"
             aria-label={`${place.title} 지도에서 보기`}
           >
-            🗺️
+            <Icon name="map" size={14} />
           </a>
         )}
         <button
           type="button"
           onClick={onRemove}
-          className="flex-none rounded-lg px-2 py-1 text-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+          className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-g-neutral hover:bg-g-surface-2 hover:text-g-text-2"
           aria-label={`${place.title} 목록에서 제거`}
         >
-          ✕
+          <Icon name="close" size={13} />
         </button>
       </div>
 
@@ -229,7 +233,7 @@ function PlaceRow({
         <div
           role="group"
           aria-label={`${place.title} 재방문 의향 평가`}
-          className="mt-2.5 flex divide-x divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800"
+          className="mt-2.5 flex overflow-hidden rounded-md border border-g-border"
         >
           {REVISIT_OPTIONS.map((opt) => {
             const selected = rating === opt.value;
@@ -240,13 +244,13 @@ function PlaceRow({
                 onClick={() => onRate(selected ? null : opt.value)}
                 aria-pressed={selected}
                 aria-label={`${place.title} — ${opt.full}`}
-                className={`flex-1 px-1.5 py-2 text-xs font-semibold transition-colors ${
+                className={`flex-1 border-l border-g-border px-1.5 py-2 text-[12px] font-medium first:border-l-0 ${
                   selected
                     ? RATING_SELECTED[opt.value]
-                    : "text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    : "text-g-text-2 hover:bg-g-surface-2"
                 }`}
               >
-                <span aria-hidden>{opt.emoji}</span> {opt.short}
+                {opt.short}
               </button>
             );
           })}

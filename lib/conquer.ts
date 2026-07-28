@@ -123,6 +123,24 @@ export function sigunguAt(lat: number, lng: number): Sigungu | null {
   return nearestWithin(x, y);
 }
 
+/**
+ * 조각 링들의 좌표 평균 — 결과 마커(펄스 링·점)를 얹을 대략 중심(§7.13 Genesis 리스킨).
+ * 무게중심(폴리곤 면적 가중)이 아니라 **정점 평균**이다: 마커는 "이 조각이다"를 가리키는
+ * 장식이라 정확한 중심이 필요 없고, 정점 평균은 섬·홀이 섞인 다중 링에도 그냥 동작한다.
+ * 점이 없으면 null(호출부는 마커를 안 그린다). x,y 쌍이 안 되는 꼬리 값은 무시.
+ */
+export function ringsCentroid(rings: number[][]): { x: number; y: number } | null {
+  let sx = 0, sy = 0, n = 0;
+  for (const r of rings) {
+    for (let i = 0; i + 1 < r.length; i += 2) {
+      sx += r[i];
+      sy += r[i + 1];
+      n++;
+    }
+  }
+  return n ? { x: sx / n, y: sy / n } : null;
+}
+
 /** 정복한 시·군·구 code 집합. 방문 좌표가 유효하고 어느 시·군·구에 속하면 정복. */
 export function conqueredSigunguCodes(visited: SavedPlace[]): Set<string> {
   const set = new Set<string>();

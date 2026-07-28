@@ -11,6 +11,7 @@ import {
 import { formatKm } from "@/lib/geo";
 import { fmtYmd } from "@/lib/kst";
 import { kakaoMapLink } from "@/lib/mapLink";
+import { Icon, type IconName } from "@/components/icons";
 
 // 🧭 반나절 코스 타임라인(M20, §7.10) — 표시 전용. 상태(생성 lifecycle·경합 가드)는 page 소유,
 //   패널은 콜백 주입. 스텝 재뽑기의 그 행 로딩·에러만 패널 로컬(전역 상태로 끌어올릴 이유 없음).
@@ -30,11 +31,21 @@ export type CourseState =
   | { kind: "ok"; anchor: CourseAnchor; data: CourseResponse }
   | { kind: "error"; message: string };
 
-const slotMeta = (slot: string) =>
-  COURSE_SLOTS.find((s) => s.slot === slot) ?? {
-    label: "장소",
-    emoji: "📍",
-  };
+const slotMeta = (slot: string): { label: string; icon: IconName } =>
+  COURSE_SLOTS.find((s) => s.slot === slot) ?? { label: "장소", icon: "pin" };
+
+/** 스텝·출발 아이콘 타일(32px 원) — 출발만 primary-soft, 스텝은 surface-2. */
+function StepIcon({ icon, anchor = false }: { icon: IconName; anchor?: boolean }) {
+  return (
+    <span
+      className={`flex h-8 w-8 flex-none items-center justify-center rounded-full ${
+        anchor ? "bg-g-primary-soft text-g-primary-text" : "bg-g-surface-2 text-g-text-2"
+      }`}
+    >
+      <Icon name={icon} size={15} />
+    </span>
+  );
+}
 
 export function CoursePanel({
   state,
@@ -70,9 +81,6 @@ export function CoursePanel({
 
   if (state.kind === "idle") return null;
 
-  const wrap =
-    "mt-4 w-full rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_6px_20px_-14px_rgba(20,40,30,0.3)] dark:border-zinc-800 dark:bg-zinc-900";
-
   async function handleRedraw(i: number) {
     setBusy(i);
     setRowErr(null);
@@ -94,31 +102,20 @@ export function CoursePanel({
   }
 
   return (
-    <section className={wrap}>
+    <section className="animate-card-reveal w-full rounded-xl border border-g-border bg-g-surface p-4">
       {/* 컨테이너 밖(page 결과 aria-live) 이라 중첩 아님 — 코스 준비·재뽑기·에러만 통지 */}
       <p className="sr-only" aria-live="polite">
         {live}
       </p>
 
       {state.kind === "loading" && (
-        <div className="flex items-center gap-2 py-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-2 py-1 text-[13px] font-medium text-g-text-2">
           <Spinner />
           반나절 코스를 짜는 중…
         </div>
       )}
 
-      {state.kind === "error" && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          <p className="font-semibold">⚠️ {state.message}</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-2 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          >
-            다시 시도
-          </button>
-        </div>
-      )}
+      {state.kind === "error" && <CourseError message={state.message} onRetry={onRetry} />}
 
       {state.kind === "ok" && (
         <Timeline
@@ -132,6 +129,25 @@ export function CoursePanel({
         />
       )}
     </section>
+  );
+}
+
+/** 코스 생성 실패 — warning 톤 + 전체 재생성 버튼. */
+function CourseError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-lg bg-g-warning-soft p-3 text-center text-[13px] text-g-warning-text">
+      <p className="inline-flex items-center gap-1.5 font-medium">
+        <Icon name="warning" size={13} />
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-2 block w-full rounded-md border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium hover:bg-g-surface"
+      >
+        다시 시도
+      </button>
+    </div>
   );
 }
 
@@ -161,44 +177,45 @@ function Timeline({
   const total = courseTotalM(legs);
   const drive = needsDriveHint(total);
   const c = data.congestion;
+  const badge =
+    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3]";
 
   return (
     <div>
       {/* 헤더 — 시점 표현 금지(§7.9 원칙 5). 🍃 배지 + 총 이동거리(+🚗 힌트) */}
-      <h3 className="text-base font-extrabold leading-snug">
+      <h3 className="font-display text-[16px] font-bold leading-[1.4] tracking-[-0.03em]">
         {anchorTitle}에서의 반나절 코스
       </h3>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c && (
-          <span className="rounded-full bg-lime-50 px-2.5 py-1 font-bold text-lime-700 dark:bg-lime-950 dark:text-lime-300">
-            🍃 {c.sigunguName} · {fmtYmd(c.targetYmd)} 한적 예측 · 집중률 하위{" "}
-            {c.pctBelow}%
+          <span className={`${badge} bg-g-success-soft text-g-success-text`}>
+            <Icon name="leaf" size={12} />
+            {c.sigunguName} · {fmtYmd(c.targetYmd)} 한적 예측 · 집중률 하위 {c.pctBelow}%
             {c.baseYmd < c.targetYmd && ` (${fmtYmd(c.baseYmd)} 데이터)`}
           </span>
         )}
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          총 {formatKm(total)}
-          {drive && " · 🚗 차로 이동 기준"}
+        <span className={`${badge} bg-g-surface-2 text-g-text-2`}>
+          <Icon name="car" size={12} />총 {formatKm(total)}
+          {drive && " · 차로 이동 기준"}
         </span>
       </div>
 
       {data.notice && (
-        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          ⚠️ {data.notice}
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-g-warning-text">
+          <Icon name="warning" size={12} />
+          {data.notice}
         </p>
       )}
 
       {/* 앵커 행 — 고정 출발점 */}
-      <ol className="mt-3">
+      <ol className="mt-3.5">
         <li className="flex items-center gap-2.5 py-1.5">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-100 text-sm dark:bg-emerald-950">
-            🚩
-          </span>
+          <StepIcon icon="start" anchor />
           <div className="min-w-0">
-            <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-              출발
+            <p className="text-[11px] font-bold leading-[1.3] text-g-primary-text">출발</p>
+            <p className="mt-0.5 truncate text-[15px] font-medium leading-[1.4]">
+              {anchorTitle}
             </p>
-            <p className="truncate text-sm font-semibold">{anchorTitle}</p>
           </div>
         </li>
 
@@ -211,20 +228,18 @@ function Timeline({
           return (
             <li key={`${step.slot}-${step.place.contentId}`}>
               {leg != null && (
-                <div className="ml-4 flex items-center gap-1 py-0.5 text-[11px] font-semibold text-zinc-400">
-                  <span aria-hidden>↓</span> {formatKm(leg)}
+                <div className="ml-4 py-0.5 text-[11px] font-medium leading-[1.4] text-g-text-2">
+                  ↓ {formatKm(leg)}
                 </div>
               )}
               <div
-                className={`flex items-center gap-2.5 rounded-xl py-1.5 pl-0 pr-1 ${
-                  isErr ? "bg-amber-50 dark:bg-amber-950/40" : ""
+                className={`flex items-center gap-2.5 rounded-lg py-1.5 pl-0 pr-1 ${
+                  isErr ? "bg-g-warning-soft" : ""
                 }`}
               >
-                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-zinc-100 text-sm dark:bg-zinc-800">
-                  {meta.emoji}
-                </span>
+                <StepIcon icon={meta.icon} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] font-bold leading-[1.3] text-g-text-2">
                     {meta.label}
                   </p>
                   {mapHref ? (
@@ -232,24 +247,22 @@ function Timeline({
                       href={mapHref}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block truncate text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                      className="mt-0.5 block truncate text-[15px] font-medium leading-[1.4] text-g-primary hover:underline"
                     >
                       {step.place.title}
                     </a>
                   ) : (
-                    <p className="truncate text-sm font-semibold">
+                    <p className="mt-0.5 truncate text-[15px] font-medium leading-[1.4]">
                       {step.place.title}
                     </p>
                   )}
                   {step.place.address && (
-                    <p className="line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-0.5 line-clamp-1 text-[12px] leading-[1.5] text-g-text-2">
                       {step.place.address}
                     </p>
                   )}
                   {isErr && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      {rowErr.msg}
-                    </p>
+                    <p className="text-[12px] text-g-warning-text">{rowErr.msg}</p>
                   )}
                 </div>
                 <button
@@ -257,9 +270,9 @@ function Timeline({
                   onClick={() => onRedraw(i)}
                   disabled={isBusy}
                   aria-label={`${meta.label} 다시 뽑기`}
-                  className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-base text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-60 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-g-text-2 hover:bg-g-surface-2 hover:text-g-primary disabled:opacity-60"
                 >
-                  {isBusy ? <Spinner /> : <span aria-hidden>↻</span>}
+                  {isBusy ? <Spinner /> : <Icon name="refresh" size={17} />}
                 </button>
               </div>
             </li>
@@ -274,7 +287,7 @@ function Spinner() {
   return (
     <span
       aria-hidden
-      className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"
+      className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-g-primary border-t-transparent"
     />
   );
 }
