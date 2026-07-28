@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
     festivalOnly: parseBool(sp.get("festivalOnly")),
     noRain: parseBool(sp.get("noRain")),
     quiet: parseBool(sp.get("quiet")),
+    pet: parseBool(sp.get("pet")), // 🐕 (§6.11) — 전국 전용 단일 totalCount
+    barrierFree: parseBool(sp.get("barrierFree")), // ♿ (§6.11) — 엔드포인트 스왑
   };
 
   try {

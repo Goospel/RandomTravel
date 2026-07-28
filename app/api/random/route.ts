@@ -77,12 +77,25 @@ export async function GET(request: NextRequest) {
   const areaCodes = parseAreaCodes(areasRaw); // 정수·양수·화이트리스트·중복제거
   const contentTypeIds = parseContentTypeIds(typesRaw);
   const seaside = parseBool(sp.get("seaside")); // 🌊 바다 (§6.3)
+  const pet = parseBool(sp.get("pet")); // 🐕 반려동물 동반 (§6.11)
+  const barrierFree = parseBool(sp.get("barrierFree")); // ♿ 무장애 (§6.11)
   const seasonal = parseBool(sp.get("seasonal")); // 🦀 제철 (§6.4)
   const festivalOnly = parseBool(sp.get("festivalOnly")); // 🎪 축제 (§6.2)
   const noRain = parseBool(sp.get("noRain")); // ☔ 날씨 (§6.1)
   const quiet = parseBool(sp.get("quiet")); // 🍃 한적 (§6.7)
   const scatter = parseBool(sp.get("scatter")); // ⚖️ 분산 모드 (§6.9B)
   const dateYmd = parseDateYmd(sp.get("date"), now) ?? undefined; // 📅 방문 시점 (§6.8)
+
+  // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11). 정상 UI 경로는 buildRandomQuery 가 하나만 방출하므로
+  // 여기 오는 건 직접 URL 뿐 — 어느 쪽을 무시해도 "동반 가능/무장애"의 의미가 조용히 바뀌므로
+  // 무시+notice 가 아니라 명시적으로 거부한다.
+  if ([seaside, pet, barrierFree].filter(Boolean).length > 1) {
+    const body: ErrorResponse = {
+      error: "바다·반려동물 동반·무장애는 한 번에 하나만 고를 수 있어요.",
+      code: "BAD_REQUEST",
+    };
+    return Response.json(body, { status: 400 });
+  }
 
   // 파라미터에 '내용'이 있는데 유효 코드가 하나도 없으면(조작된 URL 등) 잘못된 요청 —
   // 상류 API 호출을 낭비하지 않고 400으로 명확히 응답한다.
@@ -110,6 +123,8 @@ export async function GET(request: NextRequest) {
           areaCodes,
           contentTypeIds,
           seaside,
+          pet,
+          barrierFree,
           seasonal,
           festivalOnly,
           noRain,

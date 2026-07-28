@@ -13,6 +13,7 @@ import type {
   PickedInfo,
   CountResponse,
   CourseStep,
+  InfoChip,
 } from "@/types/tour";
 import {
   RANDOM_DEFAULT_TYPES,
@@ -30,6 +31,9 @@ import {
 } from "@/lib/course";
 import { planCandidateCount, type CountParams } from "@/lib/candidateCount";
 import { isDrawablePlace } from "@/lib/placeFilter";
+import { normalizePetInfo } from "@/lib/petTour";
+import { normalizeWithFacilities } from "@/lib/barrierFree";
+import { stripTags } from "@/lib/text";
 import {
   narrowBySeasonal,
   seasonalItemsForArea,
@@ -66,7 +70,13 @@ import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
 import { fetchWithTimeout } from "@/lib/apiFetch";
 
-const BASE = "https://apis.data.go.kr/B551011/KorService2";
+const SERVICE_ROOT = "https://apis.data.go.kr/B551011";
+/** 기본 서비스. endpoint 에 "/" 가 없으면 이 서비스의 오퍼레이션으로 본다. */
+const DEFAULT_SERVICE = "KorService2";
+/** ♿ 무장애 여행 정보 서비스(§6.11) — 활용신청 별개(쿼터 독립), 응답 스키마는 KorService2 와 동일. */
+export const WITH_SERVICE = "KorWithService2";
+/** 🐕 반려동물 동반여행 오퍼레이션(§6.11) — KorService2 에 통합돼 있어 추가 신청 불필요. */
+const PET_ENDPOINT = "detailPetTour2";
 
 export type TourErrorCode = "UPSTREAM_ERROR" | "EMPTY_POOL" | "BAD_REQUEST";
 
@@ -102,11 +112,22 @@ interface TourEnvelope {
     header?: { resultCode?: string; resultMsg?: string };
     body?: TourBody;
   };
+  // 일부 오퍼레이션은 파라미터 오류를 **평평한** 봉투로 준다(실측: detailPetTour2 에
+  // areaCode 를 넘기면 `{resultCode:"10", resultMsg:"INVALID_REQUEST_PARAMETER_ERROR"}`,
+  // response.header 없음). 성공 판정은 header 기준이라 이미 실패로 잡히지만, 메시지가
+  // "알 수 없는 오류"로 뭉개지지 않게 여기서 읽는다.
+  resultCode?: string;
+  resultMsg?: string;
 }
 
 /** 캐싱 정책: 24시간 재검증 or 캐시 안 함 */
 type Caching = { revalidate: number } | "no-store";
 
+/**
+ * @param endpoint 오퍼레이션명(`areaBasedList2`) 또는 `서비스/오퍼레이션`(`KorWithService2/areaBasedList2`).
+ *   서비스를 앞에 붙이는 방식이라 getTotalCount·getItemAt·pickItemFrom 에 인자를 더 뚫지 않아도
+ *   되고, **URL 이 서비스별로 갈려 24h count 캐시가 자동 분리**된다(§6.11).
+ */
 async function tourFetch(
   endpoint: string,
   params: Record<string, string | number>,
@@ -128,7 +149,8 @@ async function tourFetch(
   sp.set("_type", "json");
   for (const [k, v] of Object.entries(params)) sp.set(k, String(v));
 
-  const url = `${BASE}/${endpoint}?${sp.toString()}`;
+  const path = endpoint.includes("/") ? endpoint : `${DEFAULT_SERVICE}/${endpoint}`;
+  const url = `${SERVICE_ROOT}/${path}?${sp.toString()}`;
   const init: RequestInit =
     caching === "no-store"
       ? { cache: "no-store" }
@@ -159,9 +181,10 @@ async function tourFetch(
     );
   }
 
-  const code = json.response?.header?.resultCode;
+  const code = json.response?.header?.resultCode ?? json.resultCode;
   if (code !== "0000") {
-    const msg = json.response?.header?.resultMsg ?? "알 수 없는 오류";
+    const msg =
+      json.response?.header?.resultMsg ?? json.resultMsg ?? "알 수 없는 오류";
     throw new TourApiError(`관광 데이터 오류: ${msg} (code ${code ?? "?"})`);
   }
   return json.response?.body ?? {};
@@ -233,27 +256,41 @@ async function getItemAt(
  */
 export async function getOverview(contentId: string): Promise<string | null> {
   try {
-    const body = await tourFetch(
-      "detailCommon2",
-      { contentId },
-      { revalidate: 86400 },
-    );
-    const ov = itemsOf(body)[0]?.overview;
+    const ov = (await detailCommonItem(contentId))?.overview;
     return ov ? stripTags(ov) : null;
   } catch {
     return null;
   }
 }
 
-function stripTags(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+/** detailCommon2 1건 원본 — 개요만 쓰는 getOverview 와 카드 전체를 쓰는 🐕 조인(§6.11)이 공유. */
+async function detailCommonItem(contentId: string): Promise<TourApiItem | null> {
+  const body = await tourFetch(
+    "detailCommon2",
+    { contentId },
+    { revalidate: 86400 },
+  );
+  return itemsOf(body)[0] ?? null;
+}
+
+/**
+ * ♿ detailWithTour2 무장애 편의시설 칩(§6.11) — 개요와 같은 지연 로드 경로에서 best-effort.
+ * 항목마다 **채워진 필드만** 오므로 없는 시설은 "없음"이 아니라 정보 없음이다(lib/barrierFree).
+ */
+export async function getWithFacilities(contentId: string): Promise<InfoChip[]> {
+  try {
+    const body = await tourFetch(
+      `${WITH_SERVICE}/detailWithTour2`,
+      { contentId },
+      { revalidate: 86400 },
+    );
+    const item = itemsOf(body)[0];
+    return item
+      ? normalizeWithFacilities(item as unknown as Record<string, string | undefined>)
+      : [];
+  } catch {
+    return []; // 부가 정보 — 카드를 죽이지 않는다(getOverview 계약 동형)
+  }
 }
 
 /**
@@ -331,6 +368,10 @@ export interface DrawParams {
   contentTypeIds?: number[];
   /** 🌊 바다: 대상을 바다 관광지(cat3 4종·타입 12)로 한정 (§6.3) */
   seaside?: boolean;
+  /** 🐕 반려동물 동반: detailPetTour2 전국 목록에서 뽑고 detailCommon2 로 카드 구성 (§6.11) */
+  pet?: boolean;
+  /** ♿ 무장애: 같은 조합 경로를 KorWithService2 로 갈아 끼운다(지역·테마·필터와 AND, §6.11) */
+  barrierFree?: boolean;
   /** 🦀 제철: 지역 풀을 이번 달 제철 산지로 교집합 (§6.4) */
   seasonal?: boolean;
   /** 🎪 축제: 지역 풀을 오늘 진행 중 축제가 있는 지역으로 교집합 (§6.2) */
@@ -518,6 +559,11 @@ async function pickSeasonalRestaurant(
  *    최대 24h 노출이 지연될 수 있다(허용 트레이드오프).
  */
 export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
+  // 🐕 반려동물 동반(§6.11) — 상류가 지역·타입 필터를 안 받는 **전국 전용 소경로**라
+  //   아래 지역 풀 파이프라인(🎪·☔·🦀·🍃)을 통째로 건너뛴다. 위에서 분기해야 적용되지도
+  //   않을 조건 때문에 상류 왕복이 낭비되지 않는다.
+  if (params.pet) return drawPet(params);
+
   // 📅 방문 시점(§6.8) — 켜진 조건의 판정 날짜만 바꾼다. 요청당 단일 시계(todayYmd)로 일관.
   const todayYmd = kstYmd(params.now);
   const month = resolveMonth(params); // 명시 month > dateYmd 파생 > 현재 월
@@ -664,7 +710,7 @@ export async function drawRandom(params: DrawParams = {}): Promise<DrawResult> {
     congestionTargetYmd,
   };
 
-  // 7) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로
+  // 7) 🌊 바다면 cat3 가중 경로, 아니면 기존 타입 경로(♿ 는 같은 경로 + 서비스만 스왑)
   const result = params.seaside
     ? await drawSeaside(areaPool, ctx)
     : await drawByType(params, areaPool, ctx, areaWeightMap);
@@ -742,6 +788,12 @@ async function drawByType(
       ? params.contentTypeIds
       : RANDOM_DEFAULT_TYPES;
 
+  // ♿ 는 조합·순회·재추첨을 전부 재사용하고 **조회 서비스만** 갈아 끼운다(§6.11).
+  //   lDongRegnCd 지원이 실측 확인돼 무지역 lDong 버킷(§6.9A)도 그대로 유효하다.
+  const listEndpoint = params.barrierFree
+    ? `${WITH_SERVICE}/areaBasedList2`
+    : "areaBasedList2";
+
   const built = buildDrawCombos(typePool, areaPool);
   const combos = weights
     ? orderByWeightedArea(built, weights, Math.random)
@@ -754,7 +806,14 @@ async function drawByType(
 
     // 🦀+🍽️ 제철 음식점: 제철 품목명으로 그 지역 맛집을 실제 검색해 재료-식당을 맞춘다(§6.4).
     //   회·해산물 산지는 대게집·갈치집을 뽑고, 수박 같은 농산물 산지는 매칭이 없어 아래로 폴백.
-    if (ctx.seasonal && q.contentTypeId === RESTAURANT_TYPE && q.areaCode != null) {
+    //   ♿ 경로에선 건너뛴다 — searchKeyword2 는 KorService2 풀이라 무장애 목록 밖으로 새어
+    //   "무장애 정보 있음"을 근거 없이 주장하게 된다(§6.11 조용한 대체 금지).
+    if (
+      ctx.seasonal &&
+      !params.barrierFree &&
+      q.contentTypeId === RESTAURANT_TYPE &&
+      q.areaCode != null
+    ) {
       const linked = await pickSeasonalRestaurant(q.areaCode, ctx.month);
       if (linked) {
         const place = normalizePlace(linked.item, null); // 개요는 카드 노출 뒤(§5.6)
@@ -779,11 +838,13 @@ async function drawByType(
       // 매칭 실패(농산물 산지·키워드 0건) → 아래 일반 음식점 경로로 폴백.
     }
 
-    const params = queryParams(q);
-    const totalCount = await getTotalCount("areaBasedList2", params);
+    // ⚠️ 이름을 listParams 로 — 바깥 params(DrawParams)를 같은 블록에서 가리면
+    //    루프 앞부분의 params 참조가 TDZ 로 죽는다.
+    const listParams = queryParams(q);
+    const totalCount = await getTotalCount(listEndpoint, listParams);
     if (totalCount <= 0) continue; // 빈 조합 → 다음 조합
 
-    const item = await pickItemFrom("areaBasedList2", params, totalCount);
+    const item = await pickItemFrom(listEndpoint, listParams, totalCount);
     if (!item) continue;
 
     const place = normalizePlace(item, null); // 개요는 카드 노출 뒤(§5.6)
@@ -801,6 +862,8 @@ async function drawByType(
         contentTypeId: q.contentTypeId,
         totalCount,
         ...badges,
+        // ♿ 무장애 목록에서 나온 뽑기만 표식(정적 배지 트리거 — 소스 자체가 근거, §6.11).
+        ...(params.barrierFree ? { barrierFree: true } : {}),
         // ⚖️ 실제로 가중이 걸린 뽑기만 표식 — 폴백(균등)으로 내려간 경우는 붙이지 않는다
         //   (근거 없는 분포 변경 주장 금지. 폴백 사실은 notice 로 따로 나간다).
         ...(weights ? { scatter: true } : {}),
@@ -889,6 +952,70 @@ async function drawSeaside(
 
   throw new TourApiError(
     "바다 여행지를 찾지 못했어요. 다시 시도해 주세요.",
+    "EMPTY_POOL",
+  );
+}
+
+// ─── 🐕 반려동물 동반 (M25, §6.11) ──────────────────────────────────
+
+/** 🐕 경로가 무시하는 조건들 — 켜져 있으면 그 사실을 notice 로 알린다(조용한 무시 금지, §6.5). */
+function petIgnoredNotice(params: DrawParams): string | null {
+  const ignored: string[] = [];
+  if ((params.areaCodes?.length ?? 0) > 0 || (params.contentTypeIds?.length ?? 0) > 0)
+    ignored.push("지역·테마");
+  if (params.festivalOnly) ignored.push("축제 중");
+  if (params.noRain) ignored.push("비 안 오는 곳");
+  if (params.seasonal) ignored.push("제철 산지");
+  if (params.quiet) ignored.push("한적한 곳");
+  if (ignored.length === 0) return null;
+  return `반려동물 동반 목록은 전국에서 통째로 뽑아 ${ignored.join("·")} 조건은 적용하지 못했어요.`;
+}
+
+/**
+ * 🐕 반려동물 동반 뽑기(§6.11) — detailPetTour2 전국 목록에서 1건.
+ *  - 목록 행에는 동반 정보만 있고 title·좌표·이미지가 없다 → contentid 로 detailCommon2 조인.
+ *    카드 구성에 어차피 필요한 왕복이라 **개요가 공짜로 온다** = /api/overview 지연 로드 예외(§5.6).
+ *  - 풀에 용품점 등 상업시설(type 38·39)이 실재 → 조인한 상세로 §6.10 비여행지 거부 판정 후 재추첨.
+ *  - 상류가 areaCode·contentTypeId·lDongRegnCd 를 **안 받는다**(넘기면 파라미터 오류) → 파라미터 없음.
+ *  - 소스 장애는 그대로 던진다 — 일반 풀로의 조용한 대체 금지(§6.11 장애 의미론).
+ */
+async function drawPet(params: DrawParams): Promise<DrawResult> {
+  const totalCount = await getTotalCount(PET_ENDPOINT, {});
+  if (totalCount <= 0) {
+    throw new TourApiError(
+      "반려동물 동반 가능한 여행지를 찾지 못했어요. 잠시 후 다시 뽑아보세요.",
+      "EMPTY_POOL",
+    );
+  }
+
+  const notice = petIgnoredNotice(params);
+  for (let t = 0; t < MAX_INDEX_TRIES; t++) {
+    const index = Math.floor(Math.random() * totalCount) + 1; // 1..totalCount 폐구간
+    const row = await getItemAt(PET_ENDPOINT, {}, index);
+    if (!row) continue; // stale count → 재추첨
+    const detail = await detailCommonItem(row.contentid);
+    if (!detail) continue; // 상세가 없는 contentid → 재추첨
+    if (!isDrawablePlace(detail)) continue; // 비여행지(용품점 등) → 재추첨 (§6.10)
+
+    const place = normalizePlace(
+      detail,
+      detail.overview ? stripTags(detail.overview) : null,
+    );
+    return {
+      place,
+      picked: {
+        // 귀속: areacode 가 공백인 항목이 실재("마더피아" 실측) → lDong 폴백(§6.9A).
+        areaCode: itemAreaCode(detail),
+        contentTypeId: place.contentTypeId,
+        totalCount,
+        pet: normalizePetInfo(row),
+        notice,
+      },
+    };
+  }
+
+  throw new TourApiError(
+    "이번엔 못 찾았어요 — 한 번 더 뽑아보세요.",
     "EMPTY_POOL",
   );
 }
@@ -1101,10 +1228,17 @@ export async function countCandidates(
   const plan = planCandidateCount(params, month, quietSet);
   if (plan.kind === "dynamic") return { dynamic: true };
   if (plan.kind === "empty") return { totalCount: 0, approx: false };
+  // 🐕 는 전국 전용 단일 값(§6.11) — 조합 없이 detailPetTour2 totalCount 1콜(24h 캐시).
+  if (plan.kind === "pet") {
+    return { totalCount: await getTotalCount(PET_ENDPOINT, {}), approx: false };
+  }
 
+  // ♿ 는 조합 계획을 그대로 쓰고 **엔드포인트만** 스왑(§6.11) — URL 이 갈려 캐시도 자동 분리.
+  const endpoint =
+    plan.source === "with" ? `${WITH_SERVICE}/areaBasedList2` : "areaBasedList2";
   let total = 0;
   for (const combo of plan.combos) {
-    total += await getTotalCount("areaBasedList2", queryParams(combo));
+    total += await getTotalCount(endpoint, queryParams(combo));
   }
   return { totalCount: total, approx: plan.capped };
 }
