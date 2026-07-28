@@ -10,12 +10,19 @@
 #   `frontend/node_modules` (BookTimer). A real folder (not a junction) is left for git.
 #
 # Guards (refuse with exit 3): non-existent path, not a worktree root, the MAIN worktree,
-#   a path not registered as a worktree of this repo, or a current directory inside the
-#   target (you cannot delete the folder your shell stands in).
+#   a path not registered as a worktree of this repo, a current directory inside the
+#   target (you cannot delete the folder your shell stands in), or a folder ANOTHER
+#   process stands in - the cwd guard only sees this shell, so a Claude Code session or
+#   terminal living inside the worktree slips past it (that is exactly how the folder
+#   ends up half-removed). Step 6 probes actual removability before anything is touched.
+#
+# A worktree left half-removed by an earlier run (contents deleted + deregistered, empty
+#   folder stuck behind) is recognized in step 2b and finished off, instead of reporting
+#   the misleading "not a worktree root".
 #
 # After removal it also fast-forwards the MAIN worktree's main branch (git pull), so the
 # local main catches up to the merge that just landed on origin. This is best-effort and
-# only runs when the main worktree is idle on main and clean (see step 10); -NoPull skips it.
+# only runs when the main worktree is idle on main and clean (see step 11); -NoPull skips it.
 #
 # Usage:
 #   powershell -File .claude/scripts/remove-worktree.ps1 <worktree-path>
@@ -54,7 +61,24 @@ $abs = & $norm (Resolve-Path $Path).Path
 $top = (git -C $abs rev-parse --show-toplevel 2>$null)
 if (-not $top) { fail "not inside a git repo: $abs" 3 }
 $topNorm = & $norm (Resolve-Path $top).Path
-if ($topNorm -ine $abs) { fail "path is not a worktree root (repo top = $topNorm)" 3 }
+if ($topNorm -ine $abs) {
+  # 2b. leftover of a PARTIALLY removed worktree: `git worktree remove` deletes the contents
+  #     and drops the registration first, then fails to rmdir the folder itself when another
+  #     process stands in it (Windows). What survives is an empty directory that is no longer
+  #     a worktree root - so the plain "not a worktree root" below would name the wrong
+  #     problem. Recognize the state and finish the job instead.
+  if (@(Get-ChildItem $abs -Recurse -Force).Count -eq 0) {
+    info "registration is already gone - only an empty leftover directory remains (an earlier removal was cut short)"
+    if ($DryRun) { info "(dry-run) would remove leftover empty directory: $abs"; exit 0 }
+    try { [IO.Directory]::Delete($abs) }
+    catch { fail "leftover directory is still in use - close the shell/session running inside it, then retry: $abs" 3 }
+    info "leftover directory removed: $abs"
+    git -C $topNorm worktree prune 2>$null   # drop any stale admin entry left behind
+    info "done."
+    exit 0
+  }
+  fail "path is not a worktree root (repo top = $topNorm)" 3
+}
 
 # 3. locate the main worktree; refuse to remove it
 $commonDir = (git -C $abs rev-parse --path-format=absolute --git-common-dir 2>$null)
@@ -79,10 +103,24 @@ if ($cwd -ieq $abs -or $cwd.ToLower().StartsWith(($abs.ToLower() + '\'))) {
   fail "current directory is inside the target; run from elsewhere (e.g. the main worktree): $abs" 3
 }
 
-# 6. remember the branch (for optional deletion after removal)
+# 6. removability probe - the guard the cwd check cannot be. A directory another process
+#    holds as its current directory can be neither renamed nor deleted on Windows, and
+#    step 5 only sees THIS shell: a Claude Code session or terminal standing inside the
+#    worktree passes it. Ask the filesystem instead, by renaming the folder and undoing it
+#    right away - net zero, but it fails exactly when a delete would. Without this, git
+#    wipes the contents and deregisters the worktree before hitting the rmdir it cannot do.
+$probe = "$abs.rmprobe-$PID"
+try { [IO.Directory]::Move($abs, $probe) }
+catch {
+  fail "cannot remove - folder is in use: close any shell or Claude Code session running inside this worktree, then retry: $abs" 3
+}
+try { [IO.Directory]::Move($probe, $abs) }
+catch { fail "probe rename could not be undone - the worktree now sits at: $probe (rename it back to $abs)" 1 }
+
+# 7. remember the branch (for optional deletion after removal)
 $branch = (git -C $abs rev-parse --abbrev-ref HEAD 2>$null)
 
-# 7. cut any node_modules junction FIRST (link only -> target preserved).
+# 8. cut any node_modules junction FIRST (link only -> target preserved).
 #    Checks both layouts: root 'node_modules' (RandomTravel) and 'frontend\node_modules'
 #    (BookTimer). Only junctions are cut; a real folder is left for git to remove.
 foreach ($rel in @('node_modules', 'frontend\node_modules')) {
@@ -99,7 +137,7 @@ foreach ($rel in @('node_modules', 'frontend\node_modules')) {
   }
 }
 
-# 8. remove the worktree
+# 9. remove the worktree
 if ($DryRun) {
   $msg = "(dry-run) would run: git worktree remove `"$abs`""
   if ($Force) { $msg += ' --force' }
@@ -115,7 +153,7 @@ else {
   info "worktree removed: $abs"
 }
 
-# 9. delete the local branch (optional, safe -d only)
+# 10. delete the local branch (optional, safe -d only)
 if (-not $KeepBranch -and $branch -and $branch -ne 'HEAD') {
   if ($DryRun) { info "(dry-run) would delete local branch (if merged): $branch" }
   else {
@@ -127,7 +165,7 @@ if (-not $KeepBranch -and $branch -and $branch -ne 'HEAD') {
   }
 }
 
-# 10. refresh the MAIN worktree's main branch (best-effort; never disrupt active work).
+# 11. refresh the MAIN worktree's main branch (best-effort; never disrupt active work).
 #     After a merged worktree is removed, the local main is usually behind origin/main
 #     (the merge landed on the remote). Bring it current - but only when the main worktree
 #     is idle on main and clean, and only via fast-forward. Any failure here is non-fatal:

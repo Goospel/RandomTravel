@@ -84,6 +84,25 @@ function New-FixtureWithOrigin {
   return @{ Origin = $origin; Main = $main; Wt = $wt }
 }
 
+# worktree nested INSIDE the main worktree (.claude/worktrees/<name>), mirroring the
+# real repo layout - needed by the "leftover empty dir" case, whose only remaining
+# clue is that the directory still sits inside the repo.
+function New-NestedFixture {
+  param([string]$name)
+  $main = Join-Path $root "$name-main"
+  New-Item -ItemType Directory $main | Out-Null
+  Push-Location $main
+  try {
+    git init -q
+    git config user.email 't@t.t'; git config user.name 'tester'
+    Set-Content -Path (Join-Path $main 'README.md') -Value 'x'
+    git add -A; git commit -qm init | Out-Null
+    $wt = Join-Path $main ".claude\worktrees\$name"
+    git worktree add -q $wt -b "$name-br" | Out-Null
+  } finally { Pop-Location }
+  return @{ Main = $main; Wt = $wt }
+}
+
 # push a new commit ($file) to origin/main from a throwaway clone, so the
 # fixture's main worktree becomes exactly 1 behind origin/main.
 function Advance-Origin {
@@ -157,6 +176,33 @@ $f = New-FixtureWithOrigin 'nopull'
 Advance-Origin $f 'NEWFILE.txt' 'from-origin'
 & $target -Path $f.Wt -NoPull | Out-Null
 check (-not (Test-Path (Join-Path $f.Main 'NEWFILE.txt'))) "-NoPull leaves main un-refreshed"
+
+Write-Host "== test 9: target locked by another process's cwd -> refuse, change NOTHING =="
+# The real failure (2026-07-28): a session was running INSIDE the worktree while the
+# script ran from the main worktree, so the cwd guard (which only sees THIS shell) passed.
+# git then deleted the contents + deregistered but could not rmdir the folder -> half-removed.
+$f = New-Fixture 'locked'
+$holder = Start-Process powershell -ArgumentList '-NoProfile', '-Command', 'Start-Sleep -Seconds 60' `
+  -WorkingDirectory $f.Wt -PassThru -WindowStyle Hidden
+try {
+  Start-Sleep -Seconds 1   # let the child actually enter the directory
+  & $target -Path $f.Wt -Force 2>$null | Out-Null
+  $ec = $LASTEXITCODE
+} finally { $holder | Stop-Process -Force -ErrorAction SilentlyContinue }
+check ($ec -eq 3) "locked worktree rejected (exit 3)"
+check (Test-Path $f.Wt) "locked worktree preserved"
+check ((Get-Item $f.WtNm -Force).LinkType -eq 'Junction') "*** junction NOT cut when locked ***"
+check (Test-Path (Join-Path $f.Wt '.git')) "worktree still registered (.git file intact)"
+
+Write-Host "== test 10: leftover empty dir (already deregistered) is recognized + cleaned =="
+$f = New-NestedFixture 'leftover'
+Get-ChildItem $f.Wt -Force | Remove-Item -Recurse -Force   # git's partial success: contents gone
+Push-Location $f.Main; git worktree prune; Pop-Location    # ... and registration already dropped
+$out = (& $target -Path $f.Wt 2>&1) -join "`n"
+$ec = $LASTEXITCODE
+check ($ec -eq 0) "leftover state handled (exit 0)"
+check (-not (Test-Path $f.Wt)) "leftover empty dir removed"
+check ($out -notmatch 'not a worktree root') "no misleading 'not a worktree root' message"
 
 Set-Location $env:TEMP
 Reset-Root
