@@ -62,7 +62,9 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-g-bg font-body text-g-text">
         <Providers>{children}</Providers>
-        {/* 데이터 출처 표시 — TourAPI 운영계정 전환 조건(공사 요청 2026-07-28). 모든 페이지 공통. */}
+        {/* 데이터 출처 표시 — 운영계정 전환 조건(공사 요청 2026-07-28). 모든 페이지 공통.
+            표기 문안은 공사 회신 2026-07-29 지침을 따른다: "ⓒ한국관광공사"(또는 "ⓒ한국관광콘텐츠랩")로 적고
+            "TourAPI"로는 출처를 표기하지 않는다. */}
         <footer className="border-t border-g-border px-4 py-5 text-center text-[11px] leading-[1.7] text-g-text-2">
           <p>
             관광 정보{" "}
@@ -72,7 +74,7 @@ export default function RootLayout({
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-g-primary"
             >
-              한국관광공사 TourAPI
+              ⓒ한국관광공사
             </a>{" "}
             · 날씨{" "}
             <a
