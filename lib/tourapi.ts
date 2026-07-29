@@ -137,7 +137,7 @@ async function tourFetch(
   const key = process.env.TOUR_API_KEY;
   if (!key) {
     throw new TourApiError(
-      "서버에 TourAPI 키(TOUR_API_KEY)가 설정되지 않았어요.",
+      "서버에 관광 데이터 키(TOUR_API_KEY)가 설정되지 않았어요.",
       "UPSTREAM_ERROR",
     );
   }
@@ -174,7 +174,7 @@ async function tourFetch(
     // 인증·쿼터 오류는 게이트웨이가 XML 봉투로 준다 (_type=json 무시)
     if (/LIMITED_NUMBER_OF_SERVICE_REQUESTS|returnReasonCode>22</.test(text)) {
       throw new TourApiError(
-        "TourAPI 요청 한도를 초과했어요. 잠시 후 다시 시도해 주세요.",
+        "관광 데이터 요청 한도를 초과했어요. 잠시 후 다시 시도해 주세요.",
       );
     }
     throw new TourApiError(
