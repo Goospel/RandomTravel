@@ -36,6 +36,13 @@
       "when": 1785243393355,
       "tag": "0004_mighty_microbe",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785403943388,
+      "tag": "0005_fuzzy_triathlon",
+      "breakpoints": true
     }
   ]
 }

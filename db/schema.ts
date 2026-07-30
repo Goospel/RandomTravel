@@ -26,6 +26,10 @@ export const users = pgTable("user", {
   email: text("email"),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
+  // 🏠 거주지 시·군·구 통계청 5자리(M28 §7.17A) — 미설정은 null(회원이어도 선택).
+  //   좌표가 아니라 **코드**를 저장한다: 뽑기·exclude·only 가 전부 이 축이라 변환 지점이 안 생기고,
+  //   집 주소 수준의 위치정보를 보관하지 않아도 된다(§12.4 최소 수집).
+  homeSigungu: text("home_sigungu"),
 });
 
 export const accounts = pgTable(

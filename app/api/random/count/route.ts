@@ -3,13 +3,14 @@
 //   ⚠️ 부가 정보라 실패해도 앱을 막지 않는다 — 오류 시 dynamic 폴백(UI는 정성 라벨).
 
 import { type NextRequest } from "next/server";
-import { countCandidates, countEmptySpot } from "@/lib/tourapi";
+import { countCandidates, countEmptySpot, countHomeRange } from "@/lib/tourapi";
 import {
   parseAreaCodes,
   parseContentTypeIds,
   parseBool,
   parseDateYmd,
   parseSigunguCodes,
+  parseHomeRange,
 } from "@/lib/query";
 import { KOREA_SIGUNGU } from "@/lib/koreaMap";
 import type { CountResponse } from "@/types/tour";
@@ -31,6 +32,26 @@ export async function GET(request: NextRequest) {
       return Response.json(result);
     } catch (e) {
       console.error("[/api/random/count] 빈 곳 후보 수 계산 실패:", e);
+      const fallback: CountResponse = { dynamic: true };
+      return Response.json(fallback);
+    }
+  }
+
+  // 🏠 거주지 반경 후보 수(M28) — 반경 내 시·군·구 수(TourAPI 0콜). 🔭 와 같은 단위(동네 수).
+  //    이 분기가 없으면 fromHome 이 무시돼 **전국 후보 수**가 배지에 떠 거짓말이 된다.
+  const home = parseHomeRange(sp.get("fromHome"), sp.get("within"), VALID_SIGUNGU);
+  if (home) {
+    try {
+      const result = await countHomeRange({
+        code: home.code,
+        km: home.km,
+        quiet: parseBool(sp.get("quiet")),
+        dateYmd,
+        now,
+      });
+      return Response.json(result);
+    } catch (e) {
+      console.error("[/api/random/count] 거주지 반경 후보 수 계산 실패:", e);
       const fallback: CountResponse = { dynamic: true };
       return Response.json(fallback);
     }

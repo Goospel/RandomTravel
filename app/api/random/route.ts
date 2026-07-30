@@ -8,6 +8,7 @@ import {
   drawNearby,
   drawEmptySpot,
   drawOnlySigungu,
+  drawFromHome,
   TourApiError,
   isRetryableDrawError,
 } from "@/lib/tourapi";
@@ -20,6 +21,7 @@ import {
   parseDateYmd,
   parseSigunguCodes,
   parseOnlySigungu,
+  parseHomeRange,
 } from "@/lib/query";
 import { KOREA_SIGUNGU } from "@/lib/koreaMap";
 import type { ErrorResponse } from "@/types/tour";
@@ -82,6 +84,29 @@ export async function GET(request: NextRequest) {
     try {
       const result = await retryOnce(
         () => drawOnlySigungu({ code: only, now }),
+        isRetryableDrawError,
+      );
+      return Response.json(result);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+
+  // 🏠 집에서 갈 만한 곳(M28) — fromHome+within 이 둘 다 유효하면 거주지 반경 셀 경로(§7.17D).
+  //    🍃 quiet 만 함께 본다(유일하게 조합 가능한 조건). 나머지 파라미터는 near·emptySpot 처럼 무시.
+  //    둘 중 하나라도 무효면 null → 아래 일반 뽑기로 그대로 흘러간다(400 아님, 경계 정리 관례).
+  const home = parseHomeRange(sp.get("fromHome"), sp.get("within"), VALID_SIGUNGU);
+  if (home) {
+    try {
+      const result = await retryOnce(
+        () =>
+          drawFromHome({
+            code: home.code,
+            km: home.km,
+            quiet: parseBool(sp.get("quiet")),
+            dateYmd: parseDateYmd(sp.get("date"), now) ?? undefined,
+            now,
+          }),
         isRetryableDrawError,
       );
       return Response.json(result);
