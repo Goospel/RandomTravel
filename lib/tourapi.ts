@@ -68,6 +68,7 @@ import { areaWeights, orderByWeightedArea } from "@/lib/scatter";
 import { LDONG_TO_APP_AREA } from "@/lib/congestionCodes";
 import { sigunguAt } from "@/lib/conquer";
 import { emptySpotSigunguSet, eligibleCells } from "@/lib/emptySpot";
+import { homeRangeSigunguSet } from "@/lib/homeRange";
 import type { TourSigunguCell } from "@/lib/tourSigungu";
 import { fetchWithTimeout } from "@/lib/apiFetch";
 
@@ -1209,6 +1210,87 @@ async function drawFromCells(
     }
   }
   return null;
+}
+
+// ─── 🏠 집에서 갈 만한 곳 (M28, §7.17) ──────────────────────────────
+
+export interface HomeRangeParams {
+  /** 거주지 시·군·구 통계청 code(parseHomeRange 산출) */
+  code: string;
+  /** 거리 밴드(km · 직선거리) */
+  km: number;
+  /** 🍃 한적 조건 동시 적용 여부 — 🏠 와 조합 가능한 유일한 조건(§7.17E) */
+  quiet: boolean;
+  /** 📅 기준일 YYYYMMDD(§6.8 축 대칭). 1단계 UI 미배선 — 라우트가 오늘을 넘김. */
+  dateYmd?: string;
+  now?: Date;
+}
+
+/**
+ * 🏠 거주지 반경에서 뽑기(M28) — 반경 내(∩ 한적) 시·군·구 셀에서 랜덤 1건 + 좌표 검증.
+ *  - 구조는 🔭 drawEmptySpot 그대로다. 차이는 **집합을 만드는 규칙 하나**(미방문∩한적 → 반경∩한적).
+ *  - 🍃 를 안 켰으면 혼잡도를 아예 조회하지 않는다(0콜) — 거리 판정은 지도 데이터만으로 끝난다.
+ *  - 좌표 검증(drawFromCells)이 "약속한 반경 안"을 보장하는 유일한 장치 — 셀은 N:1 이라
+ *    셀 단위로만 좁히면 반경 밖 구가 섞일 수 있다.
+ */
+export async function drawFromHome(params: HomeRangeParams): Promise<DrawResult> {
+  const now = params.now ?? new Date();
+  const targetYmd = params.dateYmd ?? kstYmd(now);
+
+  // 🍃 미사용이면 조회 자체를 생략 — ranks=null 이 여기선 '성능저하'가 아니라 '한적 조건 없음'이다.
+  const day = params.quiet
+    ? await emptySpotDay(targetYmd, now.getTime())
+    : { ranks: null, baseYmd: null };
+  const degraded = params.quiet && day.ranks === null;
+
+  const sigunguSet = homeRangeSigunguSet(params.code, params.km, day.ranks);
+  if (sigunguSet.size === 0) {
+    throw new TourApiError(
+      params.quiet
+        ? `집에서 ${params.km}km 안에 한적할 것으로 예측되는 동네가 지금은 없어요. 거리를 넓히거나 한적 조건을 꺼보세요.`
+        : `집에서 ${params.km}km 안에서 뽑을 동네를 찾지 못했어요. 거리를 넓혀보세요.`,
+      "EMPTY_POOL",
+    );
+  }
+
+  const ctx: BadgeCtx = {
+    month: 0,
+    seasonal: false,
+    festivalMap: null,
+    festivalBaseYmd: null,
+    weatherObs: null,
+    sigunguRanks: day.ranks, // 🍃 배지는 ranks 가 있을 때만(quiet 미사용이면 자연 억제)
+    congestionBaseYmd: day.baseYmd,
+    congestionTargetYmd: targetYmd,
+  };
+  const notice = degraded
+    ? "혼잡도 데이터를 못 불러와 이번엔 거리 조건으로만 뽑았어요."
+    : null;
+
+  const cells = shuffle(eligibleCells(sigunguSet)).slice(0, EMPTY_SPOT_CELL_TRIES);
+  const result = await drawFromCells(cells, sigunguSet, ctx, notice);
+  if (result) return result;
+
+  // 시도 소진 — 반경 안이 비었다는 뜻이 아니다(오귀속 금지, 🔭 ④-b 동형).
+  throw new TourApiError("이번엔 못 찾았어요 — 한 번 더 뽑아보세요.", "EMPTY_POOL");
+}
+
+/**
+ * 🏠 후보 수(§7.17) — 반경 내(∩ 한적) **시·군·구 수**. TourAPI 0콜.
+ * 🔭 countEmptySpot 과 같은 단위(동네 수)라 UI 도 같은 문구 축을 쓴다.
+ */
+export async function countHomeRange(
+  params: Omit<HomeRangeParams, "now"> & { now?: Date },
+): Promise<CountResponse> {
+  const now = params.now ?? new Date();
+  const targetYmd = params.dateYmd ?? kstYmd(now);
+  let ranks: Map<string, number> | null = null;
+  if (params.quiet) {
+    ranks = (await emptySpotDay(targetYmd, now.getTime())).ranks;
+    if (ranks === null) return { dynamic: true }; // 혼잡도 확인 불가 → 정성 라벨
+  }
+  const set = homeRangeSigunguSet(params.code, params.km, ranks);
+  return { totalCount: set.size, approx: false };
 }
 
 // ─── 🍃 오늘 한적 TOP5 칩 원샷 뽑기 (M27, §7.16A) ────────────────────

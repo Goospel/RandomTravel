@@ -1,6 +1,10 @@
 // 쿼리 파라미터 파싱·조립 — 순수 함수 (테스트 대상, plan.md §8)
 
-import { ALL_AREA_CODES, ALL_CONTENT_TYPE_CODES } from "@/lib/constants";
+import {
+  ALL_AREA_CODES,
+  ALL_CONTENT_TYPE_CODES,
+  HOME_RANGE_VALUES,
+} from "@/lib/constants";
 import { kstYmd, ymdOffset } from "@/lib/kst";
 
 /**
@@ -138,6 +142,11 @@ export interface RandomQueryOptions {
    * 첫 의도적 예외 — 넣으면 같은 풀에 대해 count URL 만 갈라져 캐시가 무의미하게 쪼개진다.
    */
   scatter?: boolean;
+  /**
+   * 🏠 거주지 반경(§7.17) — 켜지면 **이 축만** 방출한다(🍃 한적 제외).
+   * 뽑기 경로가 시·군·구 셀 단위로 갈라져 지역·테마·나머지 조건과 같은 파이프라인에 얹히지 않는다.
+   */
+  home?: HomeRange | null;
   /** 📅 선택된 기준일 YYYYMMDD. null/오늘/과거는 생략(기준일=오늘과 동일, §6.8). 미래만 방출 */
   dateYmd?: string | null;
   /** 비교 기준 오늘(YYYYMMDD). 기본 kstYmd() — 테스트·단일 시계 주입용 */
@@ -185,6 +194,18 @@ export function buildRandomQuery(
 ): string {
   if (mode !== "filtered") return "";
   const params = new URLSearchParams();
+
+  // 🏠 거주지 반경(§7.17) — 켜지면 여기서 끝난다. 뽑기가 시·군·구 셀 경로(drawFromHome)로
+  //   갈라지므로 지역·테마·나머지 조건은 서버가 어차피 안 본다 → URL 에도 싣지 않아
+  //   "표시·전송·서버 동작 일치"를 지킨다(🐕 가 지역·테마를 빼는 것과 같은 관례).
+  //   🍃 한적만 예외로 함께 실린다 — 유일하게 조합 가능한 조건(§7.17E).
+  if (opts.home) {
+    params.set("fromHome", opts.home.code);
+    params.set("within", String(opts.home.km));
+    if (opts.quiet) params.set("quiet", "1");
+    return params.toString();
+  }
+
   const a = [...areas];
   const t = [...types];
   // 미래 기준일만 방출 — 과거(자정 통과 stale)·오늘은 '오늘 뽑기'와 동일해 생략.
@@ -277,6 +298,33 @@ export function parseOnlySigungu(
 ): string | null {
   const codes = parseSigunguCodes(raw, valid);
   return codes.length === 1 ? codes[0] : null;
+}
+
+// ─── 🏠 집에서 갈 만한 곳 (M28, §7.17) ──────────────────────────────
+
+/** 🏠 거주지 반경 조건 — 거주지 시·군·구(통계청 code) + 거리 밴드(km). */
+export interface HomeRange {
+  code: string;
+  km: number;
+}
+
+/**
+ * 🏠 `?fromHome=<통계청 5자리>&within=<프리셋 km>` → {code, km}. 둘 다 유효할 때만.
+ * - code 판정은 `parseOnlySigungu` 재사용(정확히 1개·화이트리스트) — 복수·무효는 null.
+ * - km 은 **프리셋 값만**(HOME_RANGE_VALUES) 받는다. 임의 km 을 허용하면 같은 풀에 대해
+ *   fetch·count 캐시 URL 이 무한히 쪼개지고, 검증도 범위 검사로 늘어난다.
+ * - null = 조건 없음(400 아님 — 경계 정리 관례). 거주지만 있고 밴드가 없으면 필터가 성립하지 않는다.
+ */
+export function parseHomeRange(
+  codeRaw: string | null,
+  withinRaw: string | null,
+  valid: ReadonlySet<string>,
+): HomeRange | null {
+  const code = parseOnlySigungu(codeRaw, valid);
+  if (!code || !withinRaw) return null;
+  const km = Number(withinRaw.trim());
+  if (!HOME_RANGE_VALUES.includes(km)) return null;
+  return { code, km };
 }
 
 /** 시연 딥링크로 초기 ON 할 수 있는 토글 — 화이트리스트(§7.16C). */

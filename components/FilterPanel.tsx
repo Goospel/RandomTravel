@@ -1,11 +1,20 @@
 "use client";
 
-import { AREA_CODES, CONTENT_TYPES } from "@/lib/constants";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { AREA_CODES, CONTENT_TYPES, HOME_RANGE_KM } from "@/lib/constants";
 import { buildRandomQuery } from "@/lib/query";
 import { dateChips } from "@/lib/tripDate";
 import { kstYmd } from "@/lib/kst";
 import { useCandidateCount } from "@/hooks/useCandidateCount";
+import type { HomeSigungu } from "@/hooks/useHomeSigungu";
 import { Icon, type IconName } from "@/components/icons";
+
+// 🏠 거주지 목록(~20KB)은 고를 때만 필요하다 — 홈 초기 번들에 넣지 않는다(§7.17E).
+const HomePicker = dynamic(() => import("@/components/HomePicker"), {
+  ssr: false,
+  loading: () => <span className="text-[12px] text-g-text-2">불러오는 중…</span>,
+});
 
 // 🎯 조건 패널(Genesis 리스킨) — indigo pill 칩 + 실시간 후보 수 배지 + 바다 잠금 인라인 설명.
 //   후보 수는 조건이 바뀔 때마다 /api/random/count 로 근사 집계(동적 조건은 정성 라벨).
@@ -23,8 +32,12 @@ function chip(on: boolean): string {
 
 const GROUP_LABEL = "text-[12px] font-bold leading-none text-g-text-2";
 
-/** 실시간 후보 수 배지 — 조건이 얼마나 넓은지 투명하게 보여준다. */
-function CandidateBadge({ query }: { query: string }) {
+/**
+ * 실시간 후보 수 배지 — 조건이 얼마나 넓은지 투명하게 보여준다.
+ * unit: 🏠 거주지 반경은 서버가 **동네 수**를 센다(🔭 와 같은 단위) — "곳"이라고 쓰면
+ *   관광지 수로 읽혀 거짓말이 된다(§7.17E).
+ */
+function CandidateBadge({ query, unit = "곳" }: { query: string; unit?: string }) {
   const count = useCandidateCount(query);
   const pill =
     "whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3]";
@@ -51,13 +64,15 @@ function CandidateBadge({ query }: { query: string }) {
         aria-live="polite"
         className={`${pill} bg-g-warning-soft text-g-warning-text`}
       >
-        조건이 좁아요 · 0곳
+        조건이 좁아요 · 0{unit}
       </span>
     );
   }
   return (
     <span aria-live="polite" className={neutral}>
-      ≈ {count.totalCount.toLocaleString("ko-KR")}곳{count.approx ? "+" : ""} 후보
+      ≈ {count.totalCount.toLocaleString("ko-KR")}
+      {unit}
+      {count.approx ? "+" : ""} 후보
     </span>
   );
 }
@@ -139,6 +154,11 @@ export function FilterPanel({
   quiet,
   scatter,
   dateYmd,
+  home,
+  homeKm,
+  homeSaving,
+  onSelectHomeKm,
+  onSaveHome,
   onToggleArea,
   onToggleType,
   onToggleSeaside,
@@ -167,6 +187,13 @@ export function FilterPanel({
   scatter: boolean;
   /** 📅 선택 기준일 YYYYMMDD(§6.8). null = 오늘(기본) */
   dateYmd: string | null;
+  /** 🏠 거주지(§7.17). null = 비로그인 → 섹션 자체를 감춘다(회원 전용) */
+  home: HomeSigungu | null;
+  /** 🏠 선택한 거리 밴드 km. null = 제한 없음(기본) */
+  homeKm: number | null;
+  homeSaving: boolean;
+  onSelectHomeKm: (km: number | null) => void;
+  onSaveHome: (code: string) => void;
   onToggleArea: (code: number) => void;
   onToggleType: (code: number) => void;
   onToggleSeaside: () => void;
@@ -180,8 +207,16 @@ export function FilterPanel({
   onSelectDate: (ymd: string | null) => void;
   onClear: () => void;
 }) {
+  // 🏠 거주지 변경 UI 노출(로컬 UI 상태 — 저장값은 서버가 단일 출처).
+  const [editingHome, setEditingHome] = useState(false);
+
+  // 🏠 거주지 반경(§7.17) — 거주지 + 밴드가 둘 다 있어야 켜진 것. 켜지면 뽑기 경로가
+  //   시·군·구 셀로 갈라져 지역·테마·나머지 조건이 서버에서 무시된다 → UI 도 잠근다.
+  const homeOn = !!home?.code && homeKm != null;
+
   // ⚖️ 는 후보를 안 줄이지만 '기본과 다른 상태'라 초기화 대상 — 📅 날짜 칩과 같은 취급.
   const hasAny =
+    homeOn ||
     selectedAreas.size > 0 ||
     selectedTypes.size > 0 ||
     seaside ||
@@ -196,8 +231,8 @@ export function FilterPanel({
   // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — 하나 켜지면 나머지 둘은 잠긴다(잠긴 토글은
   //   눌리지 않은 것으로 취급 = ☔ 관례). 🐕 는 상류가 지역·타입을 안 받아 지역·테마까지 잠근다.
   const targetOn = seaside || pet || barrierFree;
-  const areaLocked = pet; // 🐕 = 전국 전용
-  const typeLocked = seaside || pet; // 🌊 = 관광지 고정 · 🐕 = 전국·전 타입
+  const areaLocked = pet || homeOn; // 🐕 = 전국 전용 · 🏠 = 거주지 반경이 지역을 정한다
+  const typeLocked = seaside || pet || homeOn; // 🌊 = 관광지 고정 · 🐕·🏠 = 전 타입
 
   // 📅 방문 시점 칩(§6.8) — 조건 모드 진입은 마운트 후(pure 기본)라 렌더 시 new Date() 안전(SSR 아님).
   //    선택 ymd 가 현재 칩에 없으면(자정 통과·과거화) '오늘'로 간주 — 소리 없는 날짜 변경 방지.
@@ -208,13 +243,15 @@ export function FilterPanel({
     dateYmd && dateYmd !== todayYmd && chips.some((c) => c.ymd === dateYmd)
       ? dateYmd
       : null;
-  const rainLocked = activeYmd != null; // 미래 기준일 → ☔ 오늘 전용 잠금
+  const rainLocked = activeYmd != null || homeOn; // 미래 기준일 → ☔ 오늘 전용 잠금(🏠 도 잠금)
 
   // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
   //   activeYmd(stale 정리분)를 넘겨 count 경로도 date 방출/noRain 미방출을 뽑기와 일치시킨다.
   // ⚠️ scatter 는 **일부러 안 넘긴다**(§6.9B) — ⚖️ 는 풀이 아니라 분포만 바꾸므로 후보 수가
   //   같아야 하고(불변식), 넣으면 같은 풀의 count URL 이 갈라져 캐시만 쪼개진다.
   //   "뽑기·count 쿼리 일치" 관례의 유일한 의도적 예외. 여기에 scatter 를 추가하지 말 것.
+  //   🏠 는 풀을 실제로 좁히므로(분포 축인 ⚖️ 와 다르다) count 에도 그대로 넘긴다 —
+  //   안 넘기면 배지가 전국 후보 수를 띄워 거짓말이 된다(§7.17E).
   const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
     seaside,
     pet,
@@ -223,6 +260,7 @@ export function FilterPanel({
     festival,
     noRain,
     quiet,
+    home: homeOn ? { code: home!.code!, km: homeKm! } : null,
     dateYmd: activeYmd,
     todayYmd,
   });
@@ -233,8 +271,76 @@ export function FilterPanel({
         <span className="font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
           조건 고르기
         </span>
-        <CandidateBadge query={countQuery} />
+        <CandidateBadge query={countQuery} unit={homeOn ? "개 동네" : "곳"} />
       </div>
+
+      {/* 🏠 집에서 갈 만한 곳(§7.17E) — 회원 전용이라 home=null(비로그인)이면 섹션이 없다. */}
+      {home && (
+        <section className="flex flex-col gap-2">
+          <h3
+            id="filter-home-label"
+            className={`inline-flex items-center gap-1.5 ${GROUP_LABEL}`}
+          >
+            <Icon name="home" size={13} />
+            집에서 얼마나?
+          </h3>
+
+          {home.code && !editingHome ? (
+            <>
+              <div
+                role="group"
+                aria-labelledby="filter-home-label"
+                className="flex flex-wrap gap-1.5"
+              >
+                {[
+                  { km: null, label: "제한 없음" },
+                  { km: HOME_RANGE_KM.light, label: `가볍게 ${HOME_RANGE_KM.light}km` },
+                  {
+                    km: HOME_RANGE_KM.dayTrip,
+                    label: `당일치기 ${HOME_RANGE_KM.dayTrip}km`,
+                  },
+                ].map((b) => (
+                  <button
+                    key={b.label}
+                    type="button"
+                    onClick={() => onSelectHomeKm(b.km)}
+                    aria-pressed={homeKm === b.km}
+                    className={chip(homeKm === b.km)}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] leading-[1.6] text-g-text-2">
+                <b className="font-bold">{home.name}</b> 기준 <b className="font-bold">직선거리</b>
+                예요 — 실제 이동 시간은 길·교통편에 따라 달라져요.{" "}
+                <button
+                  type="button"
+                  onClick={() => setEditingHome(true)}
+                  className="underline underline-offset-2 hover:text-g-primary"
+                >
+                  사는 곳 바꾸기
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <HomePicker
+                current={home.code}
+                saving={homeSaving}
+                onSelect={(code) => {
+                  onSaveHome(code);
+                  setEditingHome(false);
+                }}
+              />
+              <p className="text-[11px] leading-[1.6] text-g-text-2">
+                사는 곳을 저장해 두면 <b className="font-bold">집에서 갈 만한 거리</b>로 좁혀
+                뽑을 수 있어요.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 id="filter-area-label" className={GROUP_LABEL}>
@@ -321,10 +427,17 @@ export function FilterPanel({
                 key={c.key}
                 type="button"
                 onClick={() => onSelectDate(c.key === "today" ? null : c.ymd)}
-                aria-pressed={active}
-                className={chip(active)}
+                // 🏠 는 오늘 기준 뽑기라 기준일이 무시된다 — 눌림을 보고하지 않는다(☔ 관례).
+                aria-pressed={homeOn ? undefined : active}
+                disabled={homeOn}
+                className={
+                  homeOn
+                    ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
+                    : chip(active)
+                }
               >
                 {c.label}
+                {homeOn && <Icon name="lock" size={11} />}
               </button>
             );
           })}
@@ -345,7 +458,7 @@ export function FilterPanel({
             icon="wave"
             label="바다"
             desc="해수욕장·섬·항구·해안"
-            locked={!seaside && targetOn}
+            locked={homeOn || (!seaside && targetOn)}
           />
           <ExtraToggle
             on={pet}
@@ -355,7 +468,7 @@ export function FilterPanel({
             // 풀에 매장·카페·숙소가 섞여 있다(관광지성 우선이지만 하드 제외는 아님, §6.11) —
             // '여행지'라고 하면 과장이라 '갈 수 있는 곳'으로 정직하게 적는다(§7.9 카피 원칙).
             desc="함께 갈 수 있는 명소·카페·숙소·매장 (전국)"
-            locked={!pet && targetOn}
+            locked={homeOn || (!pet && targetOn)}
           />
           <ExtraToggle
             on={barrierFree}
@@ -363,7 +476,7 @@ export function FilterPanel({
             icon="accessible"
             label="무장애 여행"
             desc="휠체어·보조견 등 무장애 정보가 있는 곳"
-            locked={!barrierFree && targetOn}
+            locked={homeOn || (!barrierFree && targetOn)}
           />
           <ExtraToggle
             on={seasonal}
@@ -371,6 +484,7 @@ export function FilterPanel({
             icon="pot"
             label="제철 산지"
             desc="이번 달 제철 재료 산지"
+            locked={homeOn}
           />
           <ExtraToggle
             on={festival}
@@ -378,6 +492,7 @@ export function FilterPanel({
             icon="tent"
             label="축제 중"
             desc="오늘 진행 중인 축제"
+            locked={homeOn}
           />
           <ExtraToggle
             on={noRain}
@@ -411,25 +526,33 @@ export function FilterPanel({
               ? "방문자 적은 시·도가 더 자주 나와요 (약 1~2개월 전 공공 방문자 집계 기준)"
               : "끄면 17개 시·도 같은 확률"
           }
-          locked={targetOn}
+          locked={targetOn || homeOn}
         />
       </section>
 
-      {targetOn && (
+      {homeOn && (
+        <LockNote>
+          <b className="font-bold">집에서 갈 만한 거리</b>로 뽑을 땐 사는 곳 주변
+          시·군·구에서 통째로 뽑아요 — 그래서 지역·테마·다른 조건 칸이 잠겼어요.{" "}
+          <b className="font-bold">한적한 곳</b>만 함께 켤 수 있어요.
+        </LockNote>
+      )}
+
+      {targetOn && !homeOn && (
         <LockNote>
           <b className="font-bold">바다·반려동물·무장애</b>는 서로 다른 목록에서 뽑아요
           — 한 번에 하나만 골라요.
         </LockNote>
       )}
 
-      {seaside && (
+      {seaside && !homeOn && (
         <LockNote>
           바다를 켜면 테마는 <b className="font-bold">관광지로 고정</b>돼요 — 그래서
           다른 테마 칸이 잠겼어요.
         </LockNote>
       )}
 
-      {pet && (
+      {pet && !homeOn && (
         <LockNote>
           <b className="font-bold">반려동물 동반 목록</b>은 지역·테마로 나눠 받을 수
           없어요 — 그래서 전국에서 통째로 뽑고 지역·테마 칸이 잠겼어요. 명소를 먼저
@@ -437,7 +560,7 @@ export function FilterPanel({
         </LockNote>
       )}
 
-      {rainLocked && (
+      {rainLocked && !homeOn && (
         <LockNote>
           <b className="font-bold">&lsquo;비 안 오는 곳&rsquo;</b>은 지금 날씨만 알 수
           있어요 — 그래서 오늘 뽑기에서만 켤 수 있어요.

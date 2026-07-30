@@ -38,6 +38,7 @@ import {
 import { visitedAreaCodes } from "@/lib/visitedAreas";
 import { AREA_NAME } from "@/lib/constants";
 import { useTravelStore } from "@/hooks/useTravelStore";
+import { useHomeSigungu } from "@/hooks/useHomeSigungu";
 
 // 정복 지도는 시·군·구 경계(~207KB)와 lib/conquer 를 싣는다 → 별도 청크로 분리해 홈 초기
 // 페인트를 막지 않는다(§7.11 번들 보호 — /map 의 ConquerMap 과 같은 처리).
@@ -79,6 +80,9 @@ export default function Home() {
   const [noRain, setNoRain] = useState(false); // ☔ 날씨 (§6.1)
   const [quiet, setQuiet] = useState(false); // 🍃 한적 (§6.7)
   const [scatter, setScatter] = useState(false); // ⚖️ 분산 모드 (§6.9B) — 기본 OFF
+  // 🏠 집에서 갈 만한 곳(§7.17) — 거주지는 서버가 단일 출처(훅), 밴드 선택만 화면 상태.
+  //   null = 제한 없음(기본). 비로그인은 home=null 이라 조건 패널이 섹션 자체를 감춘다.
+  const [homeKm, setHomeKm] = useState<number | null>(null);
   // 📅 방문 시점 기준일(§6.8) — null = 오늘(기본). 미래 칩 선택 시 그 ymd 저장(날짜 단독=완전 랜덤).
   const [dateYmd, setDateYmd] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -100,6 +104,7 @@ export default function Home() {
   // 🔭 /map → ?emptySpot=1 신호 1회 소비 가드(StrictMode 이중 실행·새로고침 재발화 차단).
   const emptySpotSignalRef = useRef(false);
   const store = useTravelStore();
+  const homeSigungu = useHomeSigungu();
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -134,6 +139,7 @@ export default function Home() {
     setQuiet(false);
     setScatter(false); // ⚖️ 기본(OFF) 복귀(§6.9B)
     setDateYmd(null); // 📅 '오늘' 복귀(§6.8)
+    setHomeKm(null); // 🏠 '제한 없음' 복귀(§7.17) — 거주지 저장값은 건드리지 않는다
   };
 
   // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — 하나를 켜면 나머지 둘을 끈다. UI 는 잠금으로
@@ -206,6 +212,11 @@ export default function Home() {
       noRain,
       quiet,
       scatter, // ⚖️ 조건 모드 + ON 일 때만 방출(🌊 면 미방출, §6.9B)
+      // 🏠 켜지면 이 축만 방출된다(🍃 제외) — 지역·테마·나머지는 서버가 안 본다(§7.17D).
+      home:
+        homeSigungu.home?.code && homeKm != null
+          ? { code: homeSigungu.home.code, km: homeKm }
+          : null,
       dateYmd, // 📅 미래 기준일이면 date 방출 + ☔ 미방출(§6.8)
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
@@ -446,6 +457,11 @@ export default function Home() {
               quiet={quiet}
               scatter={scatter}
               dateYmd={dateYmd}
+              home={homeSigungu.home}
+              homeKm={homeKm}
+              homeSaving={homeSigungu.saving}
+              onSelectHomeKm={setHomeKm}
+              onSaveHome={(code) => void homeSigungu.save(code)}
               onToggleArea={toggleArea}
               onToggleType={toggleType}
               onToggleSeaside={() => toggleTarget("seaside")}

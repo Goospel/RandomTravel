@@ -240,3 +240,18 @@ export const AREA_LATLNG: Record<number, AreaLatLng> = {
   38: { lat: 34.8161, lng: 126.4629 }, // 전남(무안 남악)
   39: { lat: 33.489, lng: 126.4983 }, // 제주시
 };
+
+// ─── 🏠 집에서 갈 만한 곳 (M28, plan.md §7.17) ──────────────────────
+// 거리 밴드 프리셋(km · 직선거리). 여기 두는 이유: 조건 패널(클라)·쿼리 빌더·서버 판정이
+// 같은 값을 봐야 하는데, 판정 본체 lib/homeRange 는 지도 데이터(~200KB)를 들여 클라에 못 싣는다.
+//
+// 가볍게 70km ≈ 편도 1시간 내외 / 당일치기 200km ≈ 서울→강릉(162)·전주(200)는 들어오고 부산(333)은 빠짐.
+// ⚠️ 직선거리라 산악·도서는 실제 소요시간과 어긋난다 — 실측(2026-07-30): 제주시 거주 시 70km 안이
+//    2곳뿐(바다). 체감이 어긋나면 이 두 수만 조정한다(판정 로직 무변).
+export const HOME_RANGE_KM = { light: 70, dayTrip: 200 } as const;
+
+/** 허용 밴드 값 — 쿼리 화이트리스트·UI 칩 공용(임의 km 를 받지 않아 캐시 URL 이 안 쪼개진다). */
+export const HOME_RANGE_VALUES: readonly number[] = [
+  HOME_RANGE_KM.light,
+  HOME_RANGE_KM.dayTrip,
+];

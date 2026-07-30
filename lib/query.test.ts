@@ -13,6 +13,7 @@ import {
   parseSigunguCodes,
   parseOnlySigungu,
   initialTogglesFromUrl,
+  parseHomeRange,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -662,5 +663,90 @@ describe("initialTogglesFromUrl — 시연 딥링크 화이트리스트(§7.16C)
   });
   it("? 없는 형태도 받는다(location.search 는 있지만 방어)", () => {
     expect([...initialTogglesFromUrl("quiet=1")]).toEqual(["quiet"]);
+  });
+});
+
+describe("parseHomeRange — 🏠 거주지 반경(§7.17D)", () => {
+  // 라우트는 KOREA_SIGUNGU 전수를 주입한다 — 여기선 판정에 필요한 2개만(주입 계약 테스트).
+  const VALID: ReadonlySet<string> = new Set(["11010", "36480"]);
+
+  it("유효 code 1개 + 프리셋 km → 채택", () => {
+    expect(parseHomeRange("11010", "70", VALID)).toEqual({ code: "11010", km: 70 });
+    expect(parseHomeRange("11010", "200", VALID)).toEqual({ code: "11010", km: 200 });
+  });
+  it("프리셋 밖 km 는 무시 = 필터 없음(임의 값으로 캐시 URL 이 쪼개지지 않게)", () => {
+    expect(parseHomeRange("11010", "150", VALID)).toBeNull();
+    expect(parseHomeRange("11010", "0", VALID)).toBeNull();
+    expect(parseHomeRange("11010", "-70", VALID)).toBeNull();
+    expect(parseHomeRange("11010", "70.5", VALID)).toBeNull();
+    expect(parseHomeRange("11010", "abc", VALID)).toBeNull();
+  });
+  it("code 가 무효·복수·없음이면 null(parseOnlySigungu 관례)", () => {
+    expect(parseHomeRange("99999", "70", VALID)).toBeNull();
+    expect(parseHomeRange("11010,36480", "70", VALID)).toBeNull();
+    expect(parseHomeRange(null, "70", VALID)).toBeNull();
+  });
+  it("within 이 없으면 null — 거주지만으로는 필터가 성립하지 않는다", () => {
+    expect(parseHomeRange("11010", null, VALID)).toBeNull();
+  });
+});
+
+describe("buildRandomQuery — 🏠 home 옵션(§7.17D·E)", () => {
+  const home = { code: "11010", km: 70 };
+
+  it("home 이 켜지면 fromHome·within 만 방출", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { home }),
+    );
+    expect(p.get("fromHome")).toBe("11010");
+    expect(p.get("within")).toBe("70");
+  });
+
+  it("🍃 한적은 함께 방출된다(유일하게 조합 가능한 조건)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set(), new Set(), { home, quiet: true }),
+    );
+    expect(p.get("quiet")).toBe("1");
+  });
+
+  it("지역·테마·나머지 조건은 미방출(UI 잠금과 표시·전송 일치)", () => {
+    const p = new URLSearchParams(
+      buildRandomQuery("filtered", new Set([32]), new Set([12]), {
+        home,
+        seaside: true,
+        pet: true,
+        barrierFree: true,
+        seasonal: true,
+        festival: true,
+        noRain: true,
+        scatter: true,
+        dateYmd: "20991231",
+        todayYmd: "20260730",
+      }),
+    );
+    for (const k of [
+      "areas", "types", "seaside", "pet", "barrierFree",
+      "seasonal", "festivalOnly", "noRain", "scatter", "date",
+    ]) {
+      expect(p.has(k), k).toBe(false);
+    }
+  });
+
+  it("순수 모드는 여전히 빈 쿼리(모드 불변식 우선)", () => {
+    expect(buildRandomQuery("pure", new Set(), new Set(), { home })).toBe("");
+  });
+
+  it("home 미설정이면 쿼리 완전 무변(회귀 가드 — 기존 뽑기 무침범)", () => {
+    const before = buildRandomQuery("filtered", new Set([32]), new Set([12]), {
+      quiet: true,
+      scatter: true,
+    });
+    const after = buildRandomQuery("filtered", new Set([32]), new Set([12]), {
+      quiet: true,
+      scatter: true,
+      home: null,
+    });
+    expect(after).toBe(before);
+    expect(new URLSearchParams(before).has("fromHome")).toBe(false);
   });
 });
