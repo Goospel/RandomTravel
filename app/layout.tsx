@@ -30,10 +30,27 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  // 상대 경로(/og.png)를 절대 URL 로 펴는 기준 — OG/트위터 크롤러는 절대 URL 만 읽는다.
+  metadataBase: new URL("https://travelanywhere-kr.vercel.app"),
   title: "어디든 — 랜덤 국내 여행지 추천",
   description:
     "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱 — 유명세 대신 전국 어디든 같은 출발선.",
   applicationName: "어디든",
+  // 🔗 링크 미리보기(카톡·슬랙 등) — public/og.png 1200×630.
+  openGraph: {
+    title: "어디든 — 랜덤 국내 여행지 추천",
+    description:
+      "버튼 하나로 오늘 떠날 국내 여행지를 무작위로 뽑아주는 웹앱 — 유명세 대신 전국 어디든 같은 출발선.",
+    images: [
+      { url: "/og.png", width: 1200, height: 630, alt: "어디든 — 랜덤 국내 여행지 추천" },
+    ],
+    type: "website",
+    locale: "ko_KR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og.png"],
+  },
   // Next 가 app/manifest.ts 를 감지해 <link rel="manifest"> 를 자동 주입한다.
   appleWebApp: { capable: true, title: "어디든", statusBarStyle: "default" },
   // 아이콘은 파일 기반 자동 감지에 맡긴다: app/icon.png(파비콘)·app/apple-icon.png(애플 터치).
