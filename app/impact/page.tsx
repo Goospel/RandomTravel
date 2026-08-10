@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getImpactData, SMALL_SAMPLE } from "@/db/impact";
 import { AREA_NAME } from "@/lib/constants";
-import { Icon, type IconName } from "@/components/icons";
+import { Icon } from "@/components/icons";
 
 // 방문자·이벤트 집계는 DB 조회라 빌드 시점에 프리렌더하지 않는다(캐시는 db/impact 의 1h).
 export const dynamic = "force-dynamic";
@@ -22,32 +22,37 @@ export const metadata: Metadata = {
     "전국 방문이 얼마나 기울어 있는지, 어디든의 뽑기가 확률을 어떻게 나누는지, 그리고 실제로 어떻게 뽑혔는지.",
 };
 
-const CARD = "rounded-xl border border-g-border bg-g-surface";
+const CARD = "rounded-2xl border border-g-border bg-g-surface";
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-/** 가로 막대 1행. refShare 를 주면 그 위치에 세로 기준선(설계 균등 확률)을 겹친다. */
+/**
+ * 가로 막대 1행. refShare 를 주면 그 위치에 세로 기준선(설계 균등 확률)을 겹친다.
+ * bar 로 막대 색을 바꾼다 — ①은 편중 자체를 색으로 보여준다(상위=주홍 / 하위=연한 틸).
+ */
 function ShareRow({
   label,
   share,
   refShare,
+  bar = "bg-g-primary",
 }: {
   label: string;
   share: number;
   refShare?: number;
+  bar?: string;
 }) {
   return (
     <li className="flex items-center gap-2.5">
-      <span className="w-[54px] flex-none text-[12px] leading-[1.5] text-g-text-2">
+      <span className="w-[54px] flex-none text-[12px] font-medium leading-[1.5] text-g-text-2">
         {label}
       </span>
-      <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-g-ring-track">
+      <span className="relative h-[14px] flex-1 overflow-hidden rounded bg-g-ring-track">
         <span
-          className="absolute inset-y-0 left-0 rounded-full bg-g-primary"
+          className={`absolute inset-y-0 left-0 rounded ${bar}`}
           style={{ width: `${Math.min(100, share * 100)}%` }}
         />
         {refShare !== undefined && (
           <span
-            className="absolute inset-y-0 w-px bg-g-text-2"
+            className="absolute inset-y-0 w-0.5 bg-g-text opacity-50"
             style={{ left: `${Math.min(100, refShare * 100)}%` }}
           />
         )}
@@ -61,25 +66,31 @@ function ShareRow({
 
 function Panel({
   step,
-  icon,
   title,
   lead,
+  aside,
   children,
 }: {
-  step: string;
-  icon: IconName;
+  /** 원형 숫자 배지에 들어갈 순번(1·2·3) */
+  step: number;
   title: string;
   lead: string;
+  /** 헤더 우측에 붙는 태그류(③ 표본 수) */
+  aside?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className={`${CARD} p-5`}>
-      <h2 className="flex items-center gap-2 font-display text-[16px] font-bold leading-[1.35] tracking-[-0.02em]">
-        <Icon name={icon} size={15} className="text-g-primary" />
-        <span className="text-g-text-2">{step}</span>
-        {title}
-      </h2>
-      <p className="mt-2 text-[13px] leading-[1.6] text-g-text-2">{lead}</p>
+      <div className="flex items-center gap-2.5">
+        <span className="inline-flex h-7 w-7 flex-none items-center justify-center rounded-full bg-g-text font-display text-[13px] font-bold text-g-on-primary">
+          {step}
+        </span>
+        <h2 className="font-display text-[17px] font-bold leading-[1.35] tracking-[-0.02em]">
+          {title}
+        </h2>
+        {aside && <div className="ml-auto flex flex-wrap justify-end gap-1.5">{aside}</div>}
+      </div>
+      <p className="mt-2.5 text-[13px] leading-[1.6] text-g-text-2">{lead}</p>
       {children}
     </section>
   );
@@ -88,11 +99,11 @@ function Panel({
 function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "warn" }) {
   const cls =
     tone === "warn"
-      ? "border-transparent bg-g-warning-soft text-g-warning-text"
-      : "border-g-border bg-g-surface-2 text-g-text-2";
+      ? "bg-g-warning-soft text-g-warning-text"
+      : "bg-[#f4efe4] text-g-text-2";
   return (
     <span
-      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-bold leading-none ${cls}`}
+      className={`inline-flex h-6 items-center whitespace-nowrap rounded-md px-[9px] text-[11px] font-bold leading-none ${cls}`}
     >
       {children}
     </span>
@@ -123,16 +134,12 @@ export default async function ImpactPage() {
         </Link>
         <h1 className="flex items-center gap-2 font-display text-[24px] font-bold leading-[1.2] tracking-[-0.03em] sm:text-[32px] sm:leading-[1.15]">
           <Icon name="target" size={26} className="text-g-primary" />
-          임팩트 대시보드
+          쏠림을 숫자로
         </h1>
-        <p className="text-[15px] leading-[1.6] text-g-text-2">
-          전국 방문은 얼마나 기울어 있고, 어디든의 뽑기는 확률을 어떻게 나누며, 실제로는 어떻게
-          뽑혔는지 — 세 장면으로 보여드려요.
-        </p>
       </header>
 
       {notices.length > 0 && (
-        <div className="flex items-start gap-2 rounded-xl border border-transparent bg-g-warning-soft px-4 py-3 text-[13px] leading-[1.6] text-g-warning-text">
+        <div className="flex items-start gap-2 rounded-2xl bg-g-warning-soft px-4 py-3 text-[13px] leading-[1.6] text-g-warning-text">
           <Icon name="warning" size={15} className="mt-0.5 flex-none" />
           <div className="flex flex-col gap-1">
             {notices.map((n) => (
@@ -144,26 +151,39 @@ export default async function ImpactPage() {
 
       {/* ① 문제 — 현실의 방문 편중 */}
       <Panel
-        step="①"
-        icon="map"
+        step={1}
         title="현실 — 방문은 이만큼 기울어 있어요"
-        lead="공공 관광 데이터의 외지인 방문자 기준 시·도 점유율이에요(최근 집계분 평균)."
+        lead="공공 관광 데이터 · 외지인 방문자 점유율"
       >
         {visitor ? (
           <>
-            <ul className="mt-4 flex flex-col gap-2">
-              {visitor.map((s) => (
-                <ShareRow key={s.areaCode} label={AREA_NAME[s.areaCode]} share={s.share} />
+            <ul className="mt-4 flex flex-col gap-[7px]">
+              {visitor.map((s, i) => (
+                <ShareRow
+                  key={s.areaCode}
+                  label={AREA_NAME[s.areaCode]}
+                  share={s.share}
+                  // 편중을 색으로 — 상위 2개는 주홍, 하위 3개는 거의 안 보이는 연한 틸.
+                  bar={
+                    i < 2
+                      ? "bg-g-accent-bright"
+                      : i >= visitor.length - 3
+                        ? "bg-g-primary-soft-border"
+                        : "bg-g-primary"
+                  }
+                />
               ))}
             </ul>
+            {/* ⚠️ 지역명 뒤에 조사를 붙이지 않는다 — 이름이 데이터에서 오는데 받침 유무가 갈려
+                "제주과" 같은 문장이 나온다(실측 2026-07-28). 그래서 '서울과 세종의 차이'가
+                아니라 구분자만 쓴다. */}
             {extremeRatio !== null && (
-              <p className="mt-3 text-[12px] leading-[1.6] text-g-text-2">
-                가장 많은 {AREA_NAME[visitor[0].areaCode]}, 가장 적은{" "}
-                {AREA_NAME[visitor[visitor.length - 1].areaCode]} — 그 차이가{" "}
-                <b className="font-display font-bold tabular-nums">
+              <p className="mt-3.5 rounded-[10px] bg-g-accent-soft px-3.5 py-[11px] text-[13px] leading-[1.6] text-g-accent-text">
+                최다 {AREA_NAME[visitor[0].areaCode]} · 최소{" "}
+                {AREA_NAME[visitor[visitor.length - 1].areaCode]} — 차이{" "}
+                <b className="font-display text-[15px] font-bold tabular-nums">
                   {extremeRatio.toFixed(1)}배
                 </b>
-                예요. 이게 우리가 풀려는 문제예요.
               </p>
             )}
           </>
@@ -176,20 +196,16 @@ export default async function ImpactPage() {
 
       {/* ② 설계 — 뽑기 확률(해석적 계산) */}
       <Panel
-        step="②"
-        icon="scales"
+        step={2}
         title="설계 — 뽑기는 확률을 이렇게 나눠요"
-        lead="어느 시·도를 고를지의 확률이에요. 기본은 17개 시·도 균등이고, 분산 모드를 켜면 외지인 방문자가 적은 시·도가 더 자주 걸려요."
+        lead="기본은 17개 시·도 균등 · 분산 모드는 방문자 적은 곳에 가중"
       >
+        {/* ⚠️ 이 두 태그는 지우면 안 된다(§7.15) — 없으면 해석적 설계값이 실측처럼 읽힌다. */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Tag tone="warn">설계 확률 — 실측 아님</Tag>
           <Tag>시·도 선택 기준</Tag>
         </div>
-        <p className="mt-2.5 text-[12px] leading-[1.6] text-g-text-2">
-          뽑기 규칙에서 계산한 값이에요(시뮬레이션이 아니라 정확한 확률). 조건에 맞는 후보가 0인
-          시·도는 건너뛰므로 최종 결과 분포와는 조금 달라요.
-        </p>
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="mt-4 flex flex-col gap-[7px]">
           {design.map((d) => (
             <ShareRow
               key={d.areaCode}
@@ -199,17 +215,16 @@ export default async function ImpactPage() {
             />
           ))}
         </ul>
-        <p className="mt-3 text-[12px] leading-[1.6] text-g-text-2">
+        <p className="mt-3 text-[12px] leading-[1.6] text-g-text-3">
           {design[0]?.weighted !== null && design.length > 0 ? (
             <>
-              막대 = 분산 모드 확률 · 세로선 = 기본(균등){" "}
+              막대 = 분산 모드 · 세로선 = 균등{" "}
               <b className="font-display font-bold tabular-nums">{pct(uniform)}</b>
             </>
           ) : (
             <>
-              막대 = 기본(균등){" "}
-              <b className="font-display font-bold tabular-nums">{pct(uniform)}</b> — 17개 시·도가
-              같은 출발선이에요.
+              막대 = 균등{" "}
+              <b className="font-display font-bold tabular-nums">{pct(uniform)}</b>
             </>
           )}
         </p>
@@ -217,19 +232,20 @@ export default async function ImpactPage() {
 
       {/* ③ 실측 — 실사용 분포·반응 퍼널 */}
       <Panel
-        step="③"
-        icon="flag"
+        step={3}
         title="실측 — 실제로는 이렇게 뽑혔어요"
-        lead="사용자에게 실제로 제안된 여행지(뽑기 + 다시 뽑기)의 시·도 분포예요. 익명 집계라 개인을 알아볼 수 없어요."
+        lead="실제 제안된 여행지의 시·도 분포 · 익명 집계"
+        // ⚠️ 표본 수는 상시 노출(§7.15) — n<100 이면 '표본 누적 중'까지. 지우면 화면이 거짓말한다.
+        aside={
+          <>
+            <Tag>표본 {(actual?.total ?? 0).toLocaleString("ko-KR")}건</Tag>
+            {(actual?.total ?? 0) < SMALL_SAMPLE && <Tag tone="warn">표본 누적 중</Tag>}
+          </>
+        }
       >
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <Tag>표본 {(actual?.total ?? 0).toLocaleString("ko-KR")}건</Tag>
-          {(actual?.total ?? 0) < SMALL_SAMPLE && <Tag tone="warn">표본 누적 중</Tag>}
-        </div>
-
         {actual && actual.shares.length > 0 ? (
           <>
-            <ul className="mt-4 flex flex-col gap-2">
+            <ul className="mt-4 flex flex-col gap-[7px]">
               {actual.shares.map((s) => (
                 <ShareRow
                   key={s.areaCode}
@@ -239,8 +255,8 @@ export default async function ImpactPage() {
                 />
               ))}
             </ul>
-            <p className="mt-3 text-[12px] leading-[1.6] text-g-text-2">
-              막대 = 실제 제안 비율 · 세로선 = ②의 균등 설계값{" "}
+            <p className="mt-3 text-[12px] leading-[1.6] text-g-text-3">
+              막대 = 실제 제안 · 세로선 = 균등{" "}
               <b className="font-display font-bold tabular-nums">{pct(uniform)}</b>
             </p>
           </>
@@ -251,7 +267,7 @@ export default async function ImpactPage() {
         )}
 
         {funnel && (
-          <div className="mt-5 border-t border-g-border pt-4">
+          <div className="mt-4 border-t border-dashed border-g-border pt-4">
             <h3 className="font-display text-[15px] font-bold leading-[1.35] tracking-[-0.02em]">
               제안 다음에 무슨 일이 생겼나
             </h3>
@@ -262,26 +278,29 @@ export default async function ImpactPage() {
                 { label: "길찾기", value: funnel.navigated },
                 { label: "다녀옴", value: funnel.visited },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-g-surface-2 px-3 py-2.5">
-                  <dt className="text-[11px] font-bold leading-[1.3] text-g-text-2">
+                <div
+                  key={s.label}
+                  className="rounded-xl border border-g-border bg-g-surface-3 p-3"
+                >
+                  <dt className="text-[11px] font-bold leading-[1.3] text-g-text-3">
                     {s.label}
                   </dt>
-                  <dd className="mt-1 font-display text-[20px] font-bold leading-[1.2] tracking-[-0.03em] tabular-nums">
+                  <dd className="mt-1.5 font-display text-[22px] font-bold leading-[1.1] tracking-[-0.03em] tabular-nums">
                     {s.value.toLocaleString("ko-KR")}
                   </dd>
                 </div>
               ))}
             </dl>
-            <p className="mt-3 text-[12px] leading-[1.6] text-g-text-2">
-              전체 건수를 이벤트별로 센 값이라 같은 사람의 한 흐름으로 이어붙인 게 아니에요 —{" "}
-              <b className="font-bold">연관이지 인과가 아니에요</b>.
+            {/* ⚠️ 이 한 줄은 지우면 안 된다(§7.15) — 퍼널을 인과로 읽는 오해를 막는 유일한 문장이다. */}
+            <p className="mt-3 text-[12px] leading-[1.6] text-g-text-3">
+              <b className="font-bold">연관이지 인과가 아니에요</b>
             </p>
           </div>
         )}
       </Panel>
 
       <p className="px-1 text-[12px] leading-[1.6] text-g-text-2">
-        ①은 공공 관광 데이터, ③은 이 서비스의 익명 사용 기록을 집계한 값이에요. 무엇을 어떻게
+        1은 공공 관광 데이터, 3은 이 서비스의 익명 사용 기록을 집계한 값이에요. 무엇을 어떻게
         모으는지는{" "}
         <Link href="/privacy" className="underline underline-offset-2 hover:text-g-primary">
           수집 안내

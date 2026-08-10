@@ -82,7 +82,7 @@ export function VisitedMap({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="relative h-[420px] w-full overflow-hidden rounded-xl border border-g-border bg-g-surface">
+      <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-g-border bg-g-surface">
         {showMap ? (
           <div ref={containerRef} className="h-full w-full" />
         ) : (
@@ -91,9 +91,9 @@ export function VisitedMap({
       </div>
 
       {storeReady && sorted.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-g-border bg-g-surface">
+        <section className="overflow-hidden rounded-2xl border border-g-border bg-g-surface">
           <div className="px-4 py-3.5 font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
-            다녀온 곳 <span className="font-medium text-g-neutral">{sorted.length}</span>
+            다녀온 곳 <span className="font-medium text-g-num">{sorted.length}</span>
           </div>
           <ul>
             {sorted.map((p) => (
@@ -125,7 +125,7 @@ function VisitedRow({ place, now }: { place: SavedPlace; now: number }) {
           <p className="truncate text-[15px] font-medium leading-[1.4]">{place.title}</p>
           <span
             className={`flex-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
-              opt ? RATING_SELECTED[opt.value] : "bg-g-surface-2 text-g-neutral"
+              opt ? RATING_SELECTED[opt.value] : "bg-g-surface-2 text-g-num"
             }`}
           >
             {opt ? opt.short : "평가 전"}
@@ -185,7 +185,7 @@ function MapMessage({
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-6 text-center text-g-neutral">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-6 text-center text-g-text-3">
       <Icon name={icon} size={36} />
       <p className="text-[15px] font-medium text-g-text">{title}</p>
       {desc && <p className="max-w-xs text-[12px] leading-[1.6] text-g-text-2">{desc}</p>}
