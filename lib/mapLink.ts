@@ -8,12 +8,9 @@
 // ⚠️ 순서는 이름, 위도(lat), 경도(lng) — TourAPI mapy=위도, mapx=경도.
 // 이름은 encodeURIComponent 로 감싸 콤마(좌표 구분자)·공백·한글이 깨지지 않게 한다.
 
-const BASE = "https://map.kakao.com/link";
+import { isKoreaCoord } from "@/lib/geo";
 
-/** 유효한 좌표 숫자인지 — null/undefined/NaN 배제, 0 은 유효 */
-function isCoord(n: number | null | undefined): n is number {
-  return typeof n === "number" && Number.isFinite(n);
-}
+const BASE = "https://map.kakao.com/link";
 
 /**
  * 지도에서 보기 링크.
@@ -27,7 +24,7 @@ export function kakaoMapLink(
   lng: number | null | undefined,
 ): string | null {
   const label = name.trim();
-  if (isCoord(lat) && isCoord(lng)) {
+  if (isKoreaCoord(lat, lng)) {
     const enc = encodeURIComponent(label || "여행지");
     return `${BASE}/map/${enc},${lat},${lng}`;
   }
@@ -46,7 +43,7 @@ export function kakaoRouteLink(
   lat: number | null | undefined,
   lng: number | null | undefined,
 ): string | null {
-  if (isCoord(lat) && isCoord(lng)) {
+  if (isKoreaCoord(lat, lng)) {
     const enc = encodeURIComponent(name.trim() || "여행지");
     return `${BASE}/to/${enc},${lat},${lng}`;
   }

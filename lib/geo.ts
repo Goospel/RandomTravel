@@ -10,6 +10,46 @@ export function formatKm(meters: number): string {
   return `${Math.max(km, 0.1).toFixed(1)}km`;
 }
 
+/**
+ * 대한민국 대략 경계 — 마라도(33.06)~강원 북단 / 서해~독도(131.9).
+ * (0,0) 널섬·손상값·위경도 스왑 거부용. 앱 데이터는 전부 국내 관광지라
+ * 이 경계로 좁혀도 정상 좌표 손실이 없다.
+ */
+export const KOREA_BOUNDS = {
+  latMin: 33,
+  latMax: 39,
+  lngMin: 124,
+  lngMax: 132,
+} as const;
+
+/**
+ * 유한수 + 한국 대략 범위 안 — TourAPI(특히 여행코스형)가 좌표 없음을 "0"으로 주는
+ * 널섬 케이스를 거부한다. Number.isFinite 만으로는 (0,0)·범위 밖 손상값·위경도 스왑이
+ * 통과해 지도 bounds 를 붕괴시키거나(정상 마커까지 화면 밖) 앵커에 쓰레기 좌표가 실린다.
+ */
+export function isKoreaCoord(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): boolean {
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= KOREA_BOUNDS.latMin &&
+    lat <= KOREA_BOUNDS.latMax &&
+    lng >= KOREA_BOUNDS.lngMin &&
+    lng <= KOREA_BOUNDS.lngMax
+  );
+}
+
+/** 객체형 타입 가드 — 통과하면 p.lat/p.lng 가 number 로 좁혀진다. */
+export function hasKoreaCoord<T extends { lat: number | null; lng: number | null }>(
+  p: T,
+): p is T & { lat: number; lng: number } {
+  return isKoreaCoord(p.lat, p.lng);
+}
+
 const EARTH_RADIUS_M = 6_371_000; // 평균 반경(m)
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatKm, haversineM } from "@/lib/geo";
+import {
+  formatKm,
+  haversineM,
+  isKoreaCoord,
+  hasKoreaCoord,
+  KOREA_BOUNDS,
+} from "@/lib/geo";
 
 describe("formatKm — 📍 주변 거리 표시(m→km, M14)", () => {
   it("소수 첫째 자리로 반올림", () => {
@@ -38,5 +44,57 @@ describe("haversineM — 두 좌표 대권 직선거리(m, 🧭 M20)", () => {
     const d = haversineM(37.5, 127.0, 37.51, 127.0);
     expect(d).toBeGreaterThan(1_000);
     expect(d).toBeLessThan(1_200);
+  });
+});
+
+// 🇰🇷 한국 경계 좌표 판정 — (0,0) 널섬 등 손상 좌표를 앵커·지도·링크에서 거르는 단일 출처.
+describe("isKoreaCoord / hasKoreaCoord — 좌표 유효성(널섬 거부)", () => {
+  it("(0,0) 널섬은 거부 — TourAPI 여행코스형이 좌표 없음을 0으로 준다", () => {
+    expect(isKoreaCoord(0, 0)).toBe(false);
+  });
+
+  it("null·undefined 는 거부", () => {
+    expect(isKoreaCoord(null, null)).toBe(false);
+    expect(isKoreaCoord(37.5665, null)).toBe(false);
+    expect(isKoreaCoord(undefined, 126.978)).toBe(false);
+  });
+
+  it("NaN·Infinity 는 거부", () => {
+    expect(isKoreaCoord(Number.NaN, 126.978)).toBe(false);
+    expect(isKoreaCoord(37.5665, Number.POSITIVE_INFINITY)).toBe(false);
+    expect(isKoreaCoord(Number.NEGATIVE_INFINITY, Number.NaN)).toBe(false);
+  });
+
+  it("위도만 범위 안이고 경도가 밖이면 거부(도쿄)", () => {
+    expect(isKoreaCoord(35.68, 139.69)).toBe(false);
+  });
+
+  it("위경도 스왑은 거부", () => {
+    expect(isKoreaCoord(126.978, 37.5665)).toBe(false);
+  });
+
+  it("국내 정상 좌표는 통과 — 서울·마라도·독도", () => {
+    expect(isKoreaCoord(37.5665, 126.978)).toBe(true);
+    expect(isKoreaCoord(33.06, 126.27)).toBe(true);
+    expect(isKoreaCoord(37.24, 131.87)).toBe(true);
+  });
+
+  it("경계값은 포함(>=min, <=max)", () => {
+    expect(isKoreaCoord(KOREA_BOUNDS.latMin, KOREA_BOUNDS.lngMin)).toBe(true);
+    expect(isKoreaCoord(KOREA_BOUNDS.latMax, KOREA_BOUNDS.lngMax)).toBe(true);
+    expect(isKoreaCoord(KOREA_BOUNDS.latMin - 0.01, 127)).toBe(false);
+    expect(isKoreaCoord(37, KOREA_BOUNDS.lngMax + 0.01)).toBe(false);
+  });
+
+  it("hasKoreaCoord 는 객체를 판정하고 타입을 좁힌다", () => {
+    const good = { title: "서울", lat: 37.5665 as number | null, lng: 126.978 as number | null };
+    const nullIsland = { title: "코스", lat: 0 as number | null, lng: 0 as number | null };
+    expect(hasKoreaCoord(nullIsland)).toBe(false);
+    if (hasKoreaCoord(good)) {
+      // 좁혀졌으면 number 로 산술 가능(타입 검사로 검증 — tsc 가 계측기)
+      expect(good.lat + good.lng).toBeCloseTo(164.5445);
+    } else {
+      throw new Error("정상 좌표가 거부됨");
+    }
   });
 });

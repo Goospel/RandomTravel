@@ -6,6 +6,7 @@ import {
   HOME_RANGE_VALUES,
 } from "@/lib/constants";
 import { kstYmd, ymdOffset } from "@/lib/kst";
+import { isKoreaCoord } from "@/lib/geo";
 
 /**
  * 콤마 문자열 → 유효 코드 배열.
@@ -44,9 +45,7 @@ export function parseBool(raw: string | null): boolean {
 }
 
 // ─── 📍 주변에서 뽑기 앵커 좌표 (M14) ─────────────────────────────────
-// 대한민국 대략 경계 — 이 범위를 벗어난 near= 는 조작·오류로 보고 무시(400).
-const KOREA_LAT = { min: 33, max: 39 } as const; // 제주 남단 ~ 강원 북단
-const KOREA_LNG = { min: 124, max: 132 } as const; // 서해 ~ 독도
+// 경계 판정은 lib/geo 의 isKoreaCoord 단일 출처 — 벗어난 near= 는 조작·오류로 보고 무시(400).
 
 /**
  * `?near=위도,경도` → {lat,lng}. 유한수 + 한국 대략 범위 안일 때만.
@@ -60,9 +59,7 @@ export function parseLatLng(
   if (parts.length !== 2) return null;
   const lat = Number(parts[0].trim());
   const lng = Number(parts[1].trim());
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat < KOREA_LAT.min || lat > KOREA_LAT.max) return null;
-  if (lng < KOREA_LNG.min || lng > KOREA_LNG.max) return null;
+  if (!isKoreaCoord(lat, lng)) return null;
   return { lat, lng };
 }
 

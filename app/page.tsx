@@ -36,6 +36,7 @@ import {
 //    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
 import { visitedAreaCodes } from "@/lib/visitedAreas";
 import { AREA_NAME } from "@/lib/constants";
+import { hasKoreaCoord } from "@/lib/geo";
 import { useTravelStore } from "@/hooks/useTravelStore";
 import { useHomeSigungu } from "@/hooks/useHomeSigungu";
 
@@ -177,7 +178,7 @@ export default function Home() {
           if (updateAnchor) {
             const p = data.place;
             setAnchor(
-              p.lat != null && p.lng != null
+              hasKoreaCoord(p)
                 ? { title: p.title, lat: p.lat, lng: p.lng }
                 : null,
             );
@@ -301,7 +302,7 @@ export default function Home() {
 
   // 📍 기록(찜·최근·다녀옴)에서 그 장소를 거점으로 삼아 주변 뽑기 — 앵커를 그 장소로 바꾼다.
   function drawNearbyFrom(place: SavedPlace) {
-    if (place.lat == null || place.lng == null) return;
+    if (!hasKoreaCoord(place)) return;
     setAnchor({ title: place.title, lat: place.lat, lng: place.lng });
     const url = `/api/random?${buildNearbyQuery(place.lat, place.lng)}`;
     void runDraw(url, true, false);
@@ -312,7 +313,7 @@ export default function Home() {
   function openCourse() {
     if (status.kind !== "ok") return;
     const p = status.data.place;
-    if (p.lat == null || p.lng == null) return; // 좌표 없으면 애초에 버튼 미렌더(가드 중복)
+    if (!hasKoreaCoord(p)) return; // 좌표 없으면 애초에 버튼 미렌더(가드 중복)
     void runCourse({ title: p.title, lat: p.lat, lng: p.lng, contentId: p.contentId });
   }
 
@@ -528,9 +529,7 @@ export default function Home() {
               onDrawNearby={canDrawNearby ? drawNearby : null}
               anchorTitle={anchor?.title ?? null}
               onOpenCourse={
-                status.data.place.lat != null && status.data.place.lng != null
-                  ? openCourse
-                  : null
+                hasKoreaCoord(status.data.place) ? openCourse : null
               }
               courseLoading={course.kind === "loading"}
               saved={store.isSaved(status.data.place.contentId)}
