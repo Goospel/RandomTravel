@@ -100,7 +100,7 @@ function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?:
   const cls =
     tone === "warn"
       ? "bg-g-warning-soft text-g-warning-text"
-      : "bg-[#f4efe4] text-g-text-2";
+      : "bg-g-ring-track text-g-text-2";
   return (
     <span
       className={`inline-flex h-6 items-center whitespace-nowrap rounded-md px-[9px] text-[11px] font-bold leading-none ${cls}`}
@@ -300,7 +300,7 @@ export default async function ImpactPage() {
       </Panel>
 
       <p className="px-1 text-[12px] leading-[1.6] text-g-text-2">
-        1은 공공 관광 데이터, 3은 이 서비스의 익명 사용 기록을 집계한 값이에요. 무엇을 어떻게
+        ①은 공공 관광 데이터, ③은 이 서비스의 익명 사용 기록을 집계한 값이에요. 무엇을 어떻게
         모으는지는{" "}
         <Link href="/privacy" className="underline underline-offset-2 hover:text-g-primary">
           수집 안내

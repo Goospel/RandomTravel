@@ -509,7 +509,9 @@ export default function Home() {
 
         {/* 🎉 방금 정복한 시·도 토스트(§7.8) — 통합 카드 우상단 */}
         {store.ready && filledArea != null && (
-          <div className="animate-fade-up absolute right-3.5 top-3.5 rounded-full bg-g-primary px-3 py-1.5 text-[12px] font-bold text-g-on-primary">
+          // 밝은 잉크(--g-on-primary)를 얹으므로 --g-primary(4.59:1)가 아니라
+          // --g-primary-deep(7.2:1) — designGuide 「대비 함정 1」.
+          <div className="animate-fade-up absolute right-3.5 top-3.5 rounded-full bg-g-primary-deep px-3 py-1.5 text-[12px] font-bold text-g-on-primary">
             {AREA_NAME[filledArea]} 정복! · 내 지도 +1
           </div>
         )}

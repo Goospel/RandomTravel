@@ -17,7 +17,7 @@ import { Icon, type IconName } from "@/components/icons";
 //   의미색은 🍃 한적(success)·notice(warning)·🔭 빈 곳(accent)만. 나머지는 중립.
 
 const BADGE_KIND = {
-  neutral: "bg-[#f4efe4] text-g-text-3",
+  neutral: "bg-g-ring-track text-g-text-3",
   accent: "bg-g-accent-soft text-g-accent-text",
   success: "bg-g-success-soft text-g-success-text",
   warning: "bg-g-warning-soft text-g-warning-text",

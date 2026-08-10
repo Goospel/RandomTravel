@@ -52,10 +52,11 @@ export function QuietTopStrip({
           </span>
           오늘 한산할 동네
         </h2>
-        {/* 🍃 정직성(§6.7) — 제목에서 설명문을 걷어내는 대신 '예측 + 데이터 기준일'을 여기가 진다.
-            이 메타를 지우면 예측이 실시간 관측처럼 읽힌다. */}
+        {/* 🍃 정직성(§6.7)·출처(§7.9) — 제목에서 설명문을 걷어내는 대신 '출처 · 기준일 + 예측'을
+            이 한 줄이 전부 진다. 지우면 예측이 실시간 관측처럼, 자체 집계처럼 읽힌다.
+            출처는 "공공데이터" 수준까지만 — 공사·KTO 지칭 금지(§14.2). */}
         <span className="flex-none text-[11px] font-medium text-g-text-3">
-          {fmtYmd(data.baseYmd)} 예측
+          공공데이터 · {fmtYmd(data.baseYmd)} 예측
         </span>
       </div>
 
