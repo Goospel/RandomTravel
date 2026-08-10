@@ -36,7 +36,7 @@ export default function DemoLoginPage() {
       </header>
 
       {enabled ? (
-        <section className="rounded-xl border border-g-border bg-g-surface p-5">
+        <section className="rounded-2xl border border-g-border bg-g-surface p-5">
           <DemoLoginForm />
         </section>
       ) : null}
