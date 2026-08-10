@@ -23,7 +23,11 @@ const BADGE_KIND = {
   warning: "bg-g-warning-soft text-g-warning-text",
 } as const;
 
-/** 뱃지 1개 — 엽서에 찍힌 사각 스탬프. 아이콘(12px)은 있을 때만. */
+/**
+ * 뱃지 1개 — 엽서에 찍힌 사각 스탬프. 아이콘(12px)은 있을 때만.
+ * `truncate` 는 폭 상한만 씌운다 — **어느 조각이 줄어들지는 호출부가 정한다**
+ * (`min-w-0 truncate` 를 그 조각에). 배지 전체를 자르면 뒤에 오는 값(거리 등)이 사라진다.
+ */
 function Badge({
   kind = "neutral",
   icon,
@@ -45,7 +49,7 @@ function Badge({
       } ${BADGE_KIND[kind]}`}
     >
       {icon && <Icon name={icon} size={12} />}
-      <span className={truncate ? "truncate" : undefined}>{children}</span>
+      {children}
     </span>
   );
 }
@@ -247,11 +251,13 @@ export function ResultCard({
           )}
           {data.picked.festival && (
             <Badge icon="tent" truncate title={data.picked.festival.name}>
-              {data.picked.festival.name}
-              {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
-              {/* 📅 오늘 아닌 기준일이면 명시 — 시작 전 축제가 '진행 중'처럼 보이는 오해 방지(§6.8) */}
-              {data.picked.festival.baseYmd &&
-                ` (${fmtYmd(data.picked.festival.baseYmd)} 기준)`}
+              <span className="min-w-0 truncate">
+                {data.picked.festival.name}
+                {data.picked.festival.more > 0 && ` 외 ${data.picked.festival.more}`}
+                {/* 📅 오늘 아닌 기준일이면 명시 — 시작 전 축제가 '진행 중'처럼 보이는 오해 방지(§6.8) */}
+                {data.picked.festival.baseYmd &&
+                  ` (${fmtYmd(data.picked.festival.baseYmd)} 기준)`}
+              </span>
             </Badge>
           )}
           {data.picked.weather && (
@@ -279,8 +285,11 @@ export function ResultCard({
           )}
           {distanceM != null && (
             <Badge icon="pin" truncate title={anchorTitle ?? undefined}>
-              {anchorTitle ? `${anchorTitle}에서 ` : "주변 "}
-              {formatKm(distanceM)}
+              {/* 거리(이 배지의 정보)는 절대 안 잘리게 — 줄어드는 건 기준점 이름 쪽뿐이다. */}
+              <span className="min-w-0 truncate">
+                {anchorTitle ? `${anchorTitle}에서` : "주변"}
+              </span>
+              <span className="flex-none">{formatKm(distanceM)}</span>
             </Badge>
           )}
         </div>
@@ -344,10 +353,16 @@ export function ResultCard({
                 <button
                   type="button"
                   onClick={onDrawNearby}
-                  className="inline-flex h-[46px] flex-1 items-center justify-center gap-2 truncate rounded-2xl border-[1.5px] border-g-primary bg-g-surface text-[14px] font-bold text-g-primary transition-transform duration-200 [corner-shape:squircle] hover:-translate-y-px hover:bg-g-primary-soft"
+                  title={anchorTitle ?? undefined}
+                  className="inline-flex h-[46px] flex-1 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-g-primary bg-g-surface text-[14px] font-bold text-g-primary transition-transform duration-200 [corner-shape:squircle] hover:-translate-y-px hover:bg-g-primary-soft"
                 >
                   <Icon name="pin" size={16} />
-                  {anchorTitle ? `${anchorTitle} 근처에서 한 번 더` : "근처에서 한 번 더"}
+                  {/* 장소명만 줄이고 라벨은 항상 보이게 — 버튼 전체에 truncate 를 걸면 여행코스형
+                      긴 제목에서 "근처에서 한 번 더"가 통째로 잘려 버튼이 무슨 버튼인지 사라진다. */}
+                  {anchorTitle && (
+                    <span className="min-w-0 truncate">{anchorTitle}</span>
+                  )}
+                  <span className="flex-none">근처에서 한 번 더</span>
                 </button>
               )}
               {onOpenCourse && (

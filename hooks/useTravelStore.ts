@@ -33,6 +33,8 @@ const K_RECENT = "rt.recent.v1";
 const K_EVENTS = "rt.events.v1";
 const K_SESSION = "rt.session.v1";
 const K_OWNER = "rt.owner.v1"; // 현재 로컬 찜/방문의 소유자 userId(익명이면 없음)
+// 🧹 고아 키 — M29 에서 StoryBanner 를 없애며 읽는 코드가 0건이 됐다. 쓰지 않고 지우기만 한다.
+const K_STORY_SEEN_ORPHAN = "rt.storySeen.v1";
 const RECENT_CAP = 20;
 
 // 로그인 세션당 1회만 서버 병합 — 여러 페이지의 store 인스턴스 중복 병합 방지.
@@ -217,6 +219,13 @@ export function useTravelStore(): UseTravelStore {
       }
     }
     sessionIdRef.current = sid;
+
+    // 고아 키 청소 — 키가 이미 없으면 removeItem 은 no-op 이라 조건 검사도 필요 없다.
+    try {
+      window.localStorage.removeItem(K_STORY_SEEN_ORPHAN);
+    } catch {
+      /* 무시 — 저장소 접근 불가(프라이빗 모드 등) */
+    }
 
     // localStorage 는 SSR 에서 읽을 수 없어, 렌더 중 읽으면 서버(빈 목록)↔클라(채워진 목록)
     // 하이드레이션 불일치가 난다. 그래서 마운트 후 여기서 setState 로 채운다(정석 패턴).
