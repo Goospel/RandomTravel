@@ -1,84 +1,69 @@
 @import "tailwindcss";
 
-/* ── Genesis 디자인 토큰 (designGuide.md 단일 출처) ────────────────────────
-   색·폰트는 전부 이 변수로만 참조한다. 다크는 클래스(`dark:`)가 아니라 **변수 스왑**이라
-   컴포넌트에서 라이트/다크를 짝으로 쓸 필요가 없다(한쪽만 써서 깨지는 실패 모드 제거).
-   토글 UI 가 없으므로 스왑 트리거는 OS 설정(prefers-color-scheme) 하나다. */
+/* ── 여행 티켓 디자인 토큰 (designGuide.md 단일 출처) ────────────────────────
+   색·폰트는 전부 이 변수로만 참조한다.
+   **라이트 전용**이다 — `prefers-color-scheme: dark` 변수 스왑은 제거했다(여행 서비스인데
+   OS 다크 사용자에게 검은 화면이 나가던 문제). 종이빛 한 벌만 유지한다.
+   액센트는 2축: 틸(--g-primary, 정보·상태) / 주홍(--g-accent, 행동). */
 :root {
   /* 1순위 패밀리는 next/font 가 <html> 에 심는 변수(app/layout.tsx) — 폴백이 실제
      한글을 렌더한다(General Sans·DM Sans 는 한글 글리프 없음. 의도된 동작). */
   --g-display: var(--font-general-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --g-body: var(--font-dm-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
-  --g-bg: #fafafa;
-  --g-surface: #ffffff;
-  --g-surface-2: #f4f4f6;
-  --g-text: #0a0a0a;
-  --g-text-2: #6b6b6b;
-  --g-neutral: #9c9c9c;
-  --g-border: #e8e8ec;
+  /* 면 — 종이 */
+  --g-bg: #fbf6ec; /* 페이지 */
+  --g-surface: #ffffff; /* 카드 */
+  --g-surface-2: #f7f2e7; /* 한 단 눌린 면(세그먼트 트랙·타일·썸네일) */
+  --g-surface-3: #fdfaf3; /* 카드 안 인셋 패널(조건 패널) */
 
-  --g-primary: #6366f1;
-  --g-primary-hover: #4f46e5;
-  --g-primary-soft: #eef0fe;
-  --g-primary-soft-border: #dde0fd;
-  --g-primary-text: #4f46e5;
-  --g-ring-track: #e4e5f6;
+  /* 잉크 — 장식용 연한 그레이는 두지 않는다(화면의 글자는 전부 읽는 글자다) */
+  --g-text: #16323a; /* 제목·본문 */
+  --g-text-2: #4e6367; /* 설명·메타 (종이 배경 위) */
+  --g-text-3: #566b6f; /* 캡션·그룹 라벨 (흰 면 위) */
+  --g-num: #6e6146; /* 숫자 카운트(웜) */
 
-  /* 채워진 indigo 위 잉크 — 다크에선 --g-primary 가 밝아져 흰 글자가 2.98:1 로 실패한다.
-     그래서 색이 아니라 **테마별 토큰**으로 둔다(라이트 4.47:1 / 다크 6.59:1). */
-  --g-on-primary: #ffffff;
+  /* 선 */
+  --g-border: #e8dfce;
+  --g-border-strong: #dfd3bc; /* 화면 테두리·점선 배너 */
 
-  --g-map-empty: #ededf1;
+  /* 액센트 — 바다빛 틸 (정보·상태) */
+  --g-primary: #0e7c86;
+  --g-primary-hover: #0b6570;
+  --g-primary-deep: #0a5c66; /* 밝은 잉크를 얹는 히어로 면 */
+  --g-primary-soft: #e1f1f0;
+  --g-primary-soft-border: #c6e4e1;
+  --g-primary-text: #0a5c66;
+  --g-on-primary: #fbf6ec;
+
+  /* 액센트 — 스탬프 주홍 (행동) */
+  --g-accent: #c4471e; /* 채워진 CTA 배경 */
+  --g-accent-hover: #a83b18;
+  --g-accent-bright: #e4572e; /* 텍스트 아님. 마커·아이콘 전용(흰 글자 3.46:1 실패) */
+  --g-accent-soft: #fdebe3;
+  --g-accent-text: #b03d1b;
+  --g-on-accent: #fff6f1;
+
+  /* 지도 */
+  --g-map-empty: #e4dccb;
   --g-map-stroke: #ffffff;
-  --g-sido-stroke: #c9c9d2;
-  --g-dot-alt: #818cf8;
-  --g-grid: #0000000a;
+  --g-sido-stroke: #c0b49c;
+  --g-dot-alt: #3fa0a8;
+  --g-ring-track: #f4efe4;
+  --g-grid: #f3eee3; /* 모눈 라인 */
+  --g-sun: #f2b705; /* 정복률 링·레벨 진행바(틸 면 위 채움) */
 
-  --g-success-soft: #ecfdf5;
-  --g-success-text: #047a55;
-  --g-warning-soft: #fffbeb;
-  --g-warning-text: #b45309;
-  --g-error-soft: #fef2f2;
-  --g-error-text: #dc2626;
+  /* 의미색 */
+  --g-success-soft: #e7f4e7;
+  --g-success-text: #2f7a42;
+  --g-warning-soft: #fdf4da;
+  --g-warning-text: #8a6205;
+  --g-error-soft: #fdebe3;
+  --g-error-text: #b03d1b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --g-bg: #0b0b0e;
-    --g-surface: #141419;
-    --g-surface-2: #1c1c22;
-    --g-text: #fafafa;
-    --g-text-2: #a0a0a8;
-    --g-neutral: #71717a;
-    --g-border: #26262e;
-
-    --g-primary: #818cf8;
-    --g-primary-hover: #a5b4fc;
-    --g-primary-soft: #1d1d33;
-    --g-primary-soft-border: #33335e;
-    --g-primary-text: #a5b4fc;
-    --g-ring-track: #2a2a3f;
-
-    --g-on-primary: #0b0b0e;
-
-    --g-map-empty: #26262e;
-    --g-map-stroke: #0b0b0e;
-    --g-sido-stroke: #45455a;
-    --g-dot-alt: #4f46e5;
-    --g-grid: #ffffff12;
-
-    --g-success-soft: #06251c;
-    --g-success-text: #34d399;
-    --g-warning-soft: #2a1c05;
-    --g-warning-text: #fbbf24;
-    --g-error-soft: #2b0f10;
-    --g-error-text: #f87171;
-  }
-}
-
-/* Tailwind 유틸리티로 노출 — `inline` 이라 유틸리티가 var(--g-*) 를 그대로 참조하므로
-   위 스왑이 런타임에 그대로 먹는다(bg-g-surface·text-g-text-2·border-g-border …). */
+/* Tailwind 유틸리티로 노출 — `inline` 이라 유틸리티가 var(--g-*) 를 그대로 참조한다
+   (bg-g-surface·text-g-text-2·border-g-border …). */
 @theme inline {
   --font-display: var(--g-display);
   --font-body: var(--g-body);
@@ -86,18 +71,30 @@
   --color-g-bg: var(--g-bg);
   --color-g-surface: var(--g-surface);
   --color-g-surface-2: var(--g-surface-2);
+  --color-g-surface-3: var(--g-surface-3);
   --color-g-text: var(--g-text);
   --color-g-text-2: var(--g-text-2);
-  --color-g-neutral: var(--g-neutral);
+  --color-g-text-3: var(--g-text-3);
+  --color-g-num: var(--g-num);
   --color-g-border: var(--g-border);
+  --color-g-border-strong: var(--g-border-strong);
 
   --color-g-primary: var(--g-primary);
   --color-g-primary-hover: var(--g-primary-hover);
+  --color-g-primary-deep: var(--g-primary-deep);
   --color-g-primary-soft: var(--g-primary-soft);
   --color-g-primary-soft-border: var(--g-primary-soft-border);
   --color-g-primary-text: var(--g-primary-text);
   --color-g-ring-track: var(--g-ring-track);
   --color-g-on-primary: var(--g-on-primary);
+
+  --color-g-accent: var(--g-accent);
+  --color-g-accent-hover: var(--g-accent-hover);
+  --color-g-accent-bright: var(--g-accent-bright);
+  --color-g-accent-soft: var(--g-accent-soft);
+  --color-g-accent-text: var(--g-accent-text);
+  --color-g-on-accent: var(--g-on-accent);
+  --color-g-sun: var(--g-sun);
 
   --color-g-map-empty: var(--g-map-empty);
   --color-g-map-stroke: var(--g-map-stroke);
@@ -112,11 +109,27 @@
   --color-g-error-text: var(--g-error-text);
 }
 
+/* 종이 도트 — 페이지 전면. 이미지 자산 없이 CSS 그라디언트만 쓴다. */
 body {
-  background: var(--g-bg);
+  background-color: var(--g-bg);
+  background-image: radial-gradient(var(--g-border) 1px, transparent 1px);
+  background-size: 16px 16px;
   color: var(--g-text);
   font-family: var(--g-body);
   text-wrap: pretty;
+}
+
+/* 모눈 — 지도를 얹는 면(홈 티켓 지도면·/map 스탬프 지도). 24px 격자. */
+.bg-g-grid {
+  background-image:
+    linear-gradient(var(--g-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--g-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 엽서 사진 폴백 — 사선. 이미지 없는 결과 카드의 빈 면을 종이 질감으로 채운다. */
+.bg-g-hatch {
+  background-image: repeating-linear-gradient(135deg, #e7e0d0 0 10px, #efe9dc 10px 20px);
 }
 
 /* 키보드 포커스 가시성 — 커스텀 배경 버튼/링크에서 UA 기본 아웃라인이 약해지는 문제 보완.
