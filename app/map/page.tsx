@@ -111,7 +111,10 @@ export default function MapPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/?emptySpot=1")}
-                  className="inline-flex h-[46px] items-center justify-center gap-2 rounded-2xl bg-g-accent px-5 text-[15px] font-bold text-g-on-accent shadow-[0_10px_22px_-12px_rgba(154,56,24,.85),0_1px_2px_rgba(22,50,58,.08)] [corner-shape:squircle] hover:bg-g-accent-hover"
+                  // 틴티드 섀도는 홈 주 CTA 전용 예외라 여기엔 없다(designGuide 모양표).
+                  // 대신 밝은 잉크 저불투명 테두리로 경계를 만든다 — 주홍 면(#c4471e)과 틸 히어로
+                  // (#0a5c66)는 1.56:1 이라 색만으로는 버튼 경계가 안 보인다(비텍스트 3:1 미달).
+                  className="inline-flex h-[46px] items-center justify-center gap-2 rounded-2xl border border-g-on-primary/50 bg-g-accent px-5 text-[15px] font-bold text-g-on-accent [corner-shape:squircle] hover:bg-g-accent-hover"
                 >
                   <Icon name="target" size={16} />
                   빈 칸에서 뽑기
