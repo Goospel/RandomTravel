@@ -10,9 +10,13 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Icon } from "@/components/icons";
 
+// 입력 필드 = 카드 안 인셋(designGuide 모양표) — 흰 카드 위에서 한 단 눌린 면으로 보이게
+// surface-3 + radius 14. 포커스 표시는 전역 `:focus-visible`(--g-primary 아웃라인)이 담당한다.
 const FIELD =
-  "w-full rounded-lg border border-g-border bg-g-surface px-3 py-2.5 text-[14px] leading-[1.4] text-g-text";
-const LABEL = "text-[11px] font-bold leading-[1.3] tracking-[0.12em] text-g-text-2 uppercase";
+  "w-full rounded-[14px] border border-g-border bg-g-surface-3 px-3.5 py-2.5 text-[14px] leading-[1.4] text-g-text";
+// 그룹 라벨 규격 — 11/700 · uppercase · 0.1em · 흰 면 위라 --g-text-3(designGuide 타이포표).
+const LABEL =
+  "text-[11px] font-bold uppercase leading-[1.3] tracking-[0.1em] text-g-text-3";
 
 export function DemoLoginForm() {
   const [id, setId] = useState("");
@@ -75,18 +79,25 @@ export function DemoLoginForm() {
       {error ? (
         <p
           role="alert"
-          className="rounded-lg bg-g-error-soft px-3 py-2.5 text-[13px] leading-[1.6] text-g-error-text"
+          className="rounded-[14px] bg-g-error-soft px-3.5 py-2.5 text-[13px] leading-[1.6] text-g-error-text"
         >
           {error}
         </p>
       ) : null}
 
+      {/* 이 화면의 주 버튼 — 홈 CTA 와 같은 모양(h-60 · radius 20 스퀘어클)이라 심사위원이
+          처음 보는 화면도 같은 제품으로 읽힌다.
+          ⚠️ 면은 --g-primary 가 아니라 --g-primary-deep 이다 — 밝은 잉크(--g-on-primary)를
+          얹으므로 primary 위(4.59:1)면 대비가 모자란다(designGuide 「대비 함정 1」, 7.2:1).
+          틴티드 섀도는 주홍 주 CTA 전용 예외라 여기엔 붙이지 않는다(정적 요소 그림자 금지).
+          hover 가 deep 보다 한 톤 밝은 --g-primary-hover 인 건 의도다(6.3:1로 여전히 통과) —
+          --g-primary 로 "고치면" 다시 4.59:1 로 떨어진다. */}
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-g-primary text-[16px] font-medium text-g-on-primary hover:bg-g-primary-hover disabled:cursor-default disabled:opacity-60"
+        className="inline-flex h-[60px] w-full items-center justify-center gap-2.5 rounded-[20px] bg-g-primary-deep text-[17px] font-bold tracking-[-0.01em] text-g-on-primary [corner-shape:squircle] hover:bg-g-primary-hover disabled:cursor-default disabled:opacity-60"
       >
-        <Icon name="key" size={16} />
+        <Icon name="key" size={18} />
         {pending ? "확인 중이에요" : "로그인"}
       </button>
     </form>
