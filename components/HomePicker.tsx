@@ -35,12 +35,14 @@ export default function HomePicker({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* 이미 surface-3 인셋(조건 패널) 안이라 필드는 흰 면으로 띄운다 — 꺼진 칩과 같은 논리.
+          높이를 저장 버튼과 같은 38px 로 고정해 wrap 돼도 두 컨트롤이 어긋나지 않는다. */}
       <select
         aria-label="사는 시·군·구"
         value={value}
         disabled={saving}
         onChange={(e) => setValue(e.target.value)}
-        className="min-w-[180px] rounded-lg border border-g-border bg-g-surface px-3 py-2 text-[13px] leading-[1.3] text-g-text disabled:opacity-60"
+        className="h-[38px] min-w-[180px] rounded-[14px] border border-g-border bg-g-surface px-3.5 text-[13px] leading-[1.3] text-g-text disabled:opacity-60"
       >
         <option value="">사는 곳을 고르세요</option>
         {BY_AREA.map((g) => (
@@ -53,11 +55,13 @@ export default function HomePicker({
           </optgroup>
         ))}
       </select>
+      {/* ⚠️ 면이 --g-primary 였는데 그 위 --g-on-primary 는 4.59:1 로 모자란다
+          (designGuide 「대비 함정 1」 — 밝은 잉크는 --g-primary-deep 위에만, 7.13:1). */}
       <button
         type="button"
         disabled={!value || saving}
         onClick={() => onSelect(value)}
-        className="rounded-full border border-g-primary bg-g-primary px-3 py-1.5 text-[12px] font-medium leading-[1.2] text-g-on-primary disabled:cursor-default disabled:opacity-50"
+        className="inline-flex h-[38px] items-center rounded-[14px] bg-g-primary-deep px-4 text-[13px] font-bold leading-[1.2] text-g-on-primary [corner-shape:squircle] hover:bg-g-primary-hover disabled:cursor-default disabled:opacity-50"
       >
         {saving ? "저장 중…" : "저장"}
       </button>
