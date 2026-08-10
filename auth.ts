@@ -7,15 +7,36 @@ import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import Google from "next-auth/providers/google";
 import Kakao from "next-auth/providers/kakao";
+import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/db";
 import { accounts, sessions, users, verificationTokens } from "@/db/schema";
+import { DEMO_USER, checkDemoCredentials, demoLoginEnabled } from "@/lib/demoLogin";
 
 // env(클라이언트 ID)가 있는 provider만 켠다 — 크레덴셜 없는 provider 버튼이
 // 떠서 눌러도 실패하는 상황을 막는다(예: 카카오 셋업 전 배포).
 const providers: Provider[] = [];
 if (process.env.AUTH_GOOGLE_ID) providers.push(Google);
 if (process.env.AUTH_KAKAO_ID) providers.push(Kakao);
+
+// 🎫 심사용 데모 로그인(§14.1) — 같은 게이트 패턴으로 env 두 개가 다 있을 때만 켠다.
+//   진입점은 링크 없는 /demo-login 한 곳뿐(제출 양식에만 기재).
+if (demoLoginEnabled(process.env)) {
+  providers.push(
+    Credentials({
+      name: "심사용 계정",
+      credentials: { id: {}, password: {} },
+      async authorize(credentials) {
+        if (!checkDemoCredentials(credentials ?? {}, process.env)) return null;
+        // Credentials 는 어댑터의 createUser 를 타지 않는다 — 그런데 /api/places·/api/home 이
+        //   user FK 를 참조하므로 행이 없으면 동기화가 통째로 500 이 난다. 로그인 시점에
+        //   멱등 삽입해 그 실패 모드를 없앤다(데모 경로에서만 실행 — 일반 로그인 비용 0).
+        await db.insert(users).values({ ...DEMO_USER }).onConflictDoNothing();
+        return { ...DEMO_USER };
+      },
+    }),
+  );
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
