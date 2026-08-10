@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent } from "react";
 import type { SavedPlace, RevisitRating } from "@/lib/travelStore";
 import { AREA_NAME, REVISIT_OPTIONS } from "@/lib/constants";
 import { kakaoMapLink } from "@/lib/mapLink";
+import { hasKoreaCoord } from "@/lib/geo";
 import { Icon, type IconName } from "@/components/icons";
 
 type TabKey = "saved" | "recent" | "visited";
@@ -189,7 +190,7 @@ function PlaceRow({
   const areaName =
     place.areaCode != null ? AREA_NAME[place.areaCode] : undefined;
   const mapHref = kakaoMapLink(place.title, place.lat, place.lng);
-  const canDrawNearby = place.lat != null && place.lng != null;
+  const canDrawNearby = hasKoreaCoord(place);
   const rating = place.rating ?? null;
 
   return (

@@ -43,12 +43,16 @@ describe("kakaoMapLink", () => {
     expect(kakaoMapLink("   ", null, null)).toBeNull();
   });
 
-  it("0 좌표는 유효한 숫자로 취급한다(falsy 오판 방지)", () => {
-    const url = kakaoMapLink("적도어딘가", 0, 0);
-    expect(url).toBe(
-      "https://map.kakao.com/link/map/" +
-        encodeURIComponent("적도어딘가") +
-        ",0,0",
+  // TourAPI 여행코스형이 좌표 없음을 0 으로 주는 케이스 — 널섬 링크 대신 이름 검색 폴백.
+  it("(0,0) 널섬은 좌표 없음으로 보고 이름 검색으로 폴백한다", () => {
+    expect(kakaoMapLink("어느 코스", 0, 0)).toBe(
+      "https://map.kakao.com/link/search/" + encodeURIComponent("어느 코스"),
+    );
+  });
+
+  it("한국 밖 좌표도 폴백한다(위경도 스왑 등 손상값)", () => {
+    expect(kakaoMapLink("스왑", 126.978, 37.5665)).toBe(
+      "https://map.kakao.com/link/search/" + encodeURIComponent("스왑"),
     );
   });
 });
@@ -65,6 +69,10 @@ describe("kakaoRouteLink", () => {
 
   it("좌표가 없으면 길찾기는 불가 — null", () => {
     expect(kakaoRouteLink("이름", null, null)).toBeNull();
+  });
+
+  it("(0,0) 널섬도 좌표 없음 — null(길찾기 버튼 숨김)", () => {
+    expect(kakaoRouteLink("어느 코스", 0, 0)).toBeNull();
   });
 });
 
