@@ -102,7 +102,7 @@ export function CoursePanel({
   }
 
   return (
-    <section className="animate-card-reveal w-full rounded-xl border border-g-border bg-g-surface p-4">
+    <section className="animate-card-reveal w-full rounded-2xl border border-g-border bg-g-surface p-4">
       {/* 컨테이너 밖(page 결과 aria-live) 이라 중첩 아님 — 코스 준비·재뽑기·에러만 통지 */}
       <p className="sr-only" aria-live="polite">
         {live}
@@ -135,15 +135,16 @@ export function CoursePanel({
 /** 코스 생성 실패 — warning 톤 + 전체 재생성 버튼. */
 function CourseError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-lg bg-g-warning-soft p-3 text-center text-[13px] text-g-warning-text">
+    <div className="rounded-xl bg-g-warning-soft p-3 text-center text-[13px] text-g-warning-text">
       <p className="inline-flex items-center gap-1.5 font-medium">
         <Icon name="warning" size={13} />
         {message}
       </p>
+      {/* page.tsx ErrorPanel 의 '조건 초기화'와 같은 규격 — 같은 성격의 복구 버튼이다. */}
       <button
         type="button"
         onClick={onRetry}
-        className="mt-2 block w-full rounded-md border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium hover:bg-g-surface"
+        className="mt-2 block w-full rounded-[14px] border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium [corner-shape:squircle] hover:bg-g-surface"
       >
         다시 시도
       </button>
@@ -177,8 +178,10 @@ function Timeline({
   const total = courseTotalM(legs);
   const drive = needsDriveHint(total);
   const c = data.congestion;
+  // 결과 엽서(ResultCard)의 사각 스탬프 배지와 **같은 규격**이어야 한다 — 코스 패널은 엽서 바로
+  // 밑에 붙어서, 같은 🍃 한적 예측 정보가 두 모양(pill vs 사각)으로 보이면 다른 정보로 읽힌다.
   const badge =
-    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3]";
+    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-[9px] py-[5px] text-[11px] font-bold leading-[1.2]";
 
   return (
     <div>
@@ -194,7 +197,7 @@ function Timeline({
             {c.baseYmd < c.targetYmd && ` (${fmtYmd(c.baseYmd)} 데이터)`}
           </span>
         )}
-        <span className={`${badge} bg-g-surface-2 text-g-text-2`}>
+        <span className={`${badge} bg-g-ring-track text-g-text-3`}>
           <Icon name="car" size={12} />총 {formatKm(total)}
           {drive && " · 차로 이동 기준"}
         </span>

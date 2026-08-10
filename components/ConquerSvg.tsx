@@ -87,8 +87,8 @@ export function ConquerSvg({
               d={d}
               vectorEffect="non-scaling-stroke"
               strokeWidth={0.5}
-              // 결과일 때 뽑힌 조각만 온전히, 나머지는 0.45 로 눌러 시선을 하나로 모은다.
-              fillOpacity={isResult && !isHit ? 0.45 : 1}
+              // 결과일 때 뽑힌 조각만 온전히, 나머지는 0.4 로 눌러 시선을 하나로 모은다.
+              fillOpacity={isResult && !isHit ? 0.4 : 1}
               className={`stroke-g-map-stroke ${
                 on || isHit ? "fill-g-primary" : "fill-g-map-empty"
               }`}
@@ -119,12 +119,14 @@ export function ConquerSvg({
       )}
 
       {hit?.c && (
+        // 마커만 주홍(--g-accent-bright) — 틸 조각 위에서 결과가 즉시 눈에 띈다.
+        // 글자를 얹지 않는 요소라 대비 제약이 없다(designGuide 함정 2).
         <g aria-hidden="true">
           <circle
             cx={hit.c.x}
             cy={hit.c.y}
             r={9}
-            className="animate-pin-pulse fill-g-primary"
+            className="animate-pin-pulse fill-g-accent-bright"
           />
           <circle
             cx={hit.c.x}
@@ -132,7 +134,7 @@ export function ConquerSvg({
             r={7}
             strokeWidth={3}
             vectorEffect="non-scaling-stroke"
-            className="fill-g-primary stroke-g-surface"
+            className="fill-g-accent-bright stroke-g-surface"
           />
         </g>
       )}

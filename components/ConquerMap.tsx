@@ -1,9 +1,9 @@
 "use client";
 
-// 🧩 전국 정복 지도(Genesis 리스킨) — 다녀온 곳의 좌표로 시·군·구를 "정복"으로 칠한다.
+// 🧩 여행 스탬프북 — 다녀온 곳의 좌표로 시·군·구에 도장을 찍는다.
 //   순수 집계·판정은 lib/conquer, 윤곽은 lib/koreaMap(생성물). 여기선 히어로+진행보드 렌더.
-//   지도 SVG 자체는 components/ConquerSvg — 홈 통합 카드와 공유한다(§7.12).
-//   히어로: 정복률 링 + 3통계(시·군·구·다녀온 곳·시·도) + 탐험가 레벨 진행바.
+//   지도 SVG 자체는 components/ConquerSvg — 홈 티켓 카드와 공유한다(§7.12).
+//   히어로는 이 화면에서 유일한 틸 면이다(밝은 잉크를 얹으므로 --g-primary-deep).
 
 import { useMemo, type ReactNode } from "react";
 import {
@@ -28,9 +28,12 @@ for (const sg of KOREA_SIGUNGU) {
 // 진행 보드 배치 순서(대략 지리적 그룹) — 프로토타입 계승.
 const BOARD_ORDER = [1, 2, 31, 32, 34, 8, 33, 35, 37, 3, 4, 7, 5, 38, 36, 6, 39];
 
-const CARD = "rounded-xl border border-g-border bg-g-surface";
+const CARD = "rounded-2xl border border-g-border bg-g-surface";
 const SECTION_TITLE =
   "inline-flex items-center gap-2 font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]";
+/** 섹션 제목 앞 22px 아이콘 칩 — 색만 섹션마다 다르다. */
+const TITLE_CHIP =
+  "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[7px]";
 
 export function ConquerMap({
   visited,
@@ -63,84 +66,83 @@ export function ConquerMap({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 히어로 — 정복률 링 + 통계 + 레벨 */}
-      <section className={`${CARD} p-6`}>
-        <div className="flex flex-wrap items-center gap-6">
-          <div
-            className="flex h-24 w-24 flex-none items-center justify-center rounded-full"
-            style={{
-              background: `conic-gradient(var(--g-primary) ${Math.max(percent, n > 0 ? 3 : 0)}%, var(--g-ring-track) 0)`,
-            }}
-            aria-hidden
-          >
-            <div className="flex h-[78px] w-[78px] flex-col items-center justify-center gap-[3px] rounded-full bg-g-surface">
-              <div className="font-display text-[24px] font-bold leading-none tracking-[-0.03em] text-g-primary">
-                {storeReady ? `${percentLabel}%` : "–"}
-              </div>
-              <div className="text-[11px] font-medium uppercase leading-none tracking-[0.08em] text-g-neutral">
-                정복률
-              </div>
+      {/* 히어로 — 정복률 링 + 통계 + 레벨 + 🔭 CTA. 화면에서 유일한 색 찬 면. */}
+      <section className="flex flex-wrap items-center gap-[26px] rounded-2xl border border-g-border bg-g-primary-deep p-6 text-g-on-primary">
+        <div
+          className="flex h-[104px] w-[104px] flex-none items-center justify-center rounded-full"
+          style={{
+            background: `conic-gradient(var(--g-sun) ${Math.max(percent, n > 0 ? 3 : 0)}%, rgba(251,246,236,.2) 0)`,
+          }}
+          aria-hidden
+        >
+          <div className="flex h-[84px] w-[84px] flex-col items-center justify-center gap-[3px] rounded-full bg-g-primary-deep">
+            <div className="font-display text-[26px] font-bold leading-none tracking-[-0.03em]">
+              {storeReady ? `${percentLabel}%` : "–"}
             </div>
-          </div>
-
-          <div className="min-w-[200px] flex-[1_1_220px]">
-            <div className="mb-5 flex flex-wrap gap-5">
-              <Stat value={`${n}`} sub={`/ ${total}`} label="정복한 시·군·구" />
-              <Stat value={`${visited.length}`} label="다녀온 곳" />
-              <Stat value={`${areaCount}`} sub="/ 17" label="발 들인 시·도" />
-            </div>
-            <div className="mb-2 flex items-center justify-between gap-3 text-[13px] font-medium leading-none text-g-text-2">
-              <span className="inline-flex items-center gap-1.5">
-                <Icon name={level.icon} size={14} className="text-g-primary" />
-                {level.name}
-              </span>
-              <span>
-                {level.next == null ? "최고 레벨" : `다음까지 ${level.remaining}곳`}
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-g-ring-track">
-              <div
-                className="h-full rounded-full bg-g-primary transition-[width] duration-500"
-                style={{ width: `${Math.max(4, level.progressPercent)}%` }}
-              />
+            <div className="text-[10px] font-bold uppercase leading-none tracking-[0.12em] opacity-[.78]">
+              정복률
             </div>
           </div>
         </div>
+
+        <div className="min-w-[200px] flex-[1_1_240px]">
+          <div className="mb-[18px] flex flex-wrap gap-[26px]">
+            <Stat value={`${n}`} sub={`/ ${total}`} label="시·군·구" />
+            <Stat value={`${visited.length}`} label="다녀온 곳" />
+            <Stat value={`${areaCount}`} sub="/ 17" label="시·도" />
+          </div>
+          <div className="mb-2 flex items-center justify-between gap-3 text-[13px] font-bold leading-none">
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name={level.icon} size={14} className="text-g-sun" />
+              {level.name}
+            </span>
+            <span className="font-medium opacity-[.75]">
+              {level.next == null ? "최고 레벨" : `다음까지 ${level.remaining}곳`}
+            </span>
+          </div>
+          <div className="h-[9px] overflow-hidden rounded-full bg-[rgba(251,246,236,.2)]">
+            <div
+              className="h-full rounded-full bg-g-sun transition-[width] duration-500"
+              style={{ width: `${Math.max(4, level.progressPercent)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 🔭 빈 곳에서 뽑기 — 히어로 오른쪽 끝(옛 위치는 히어로 아래 별도 줄이었다). */}
+        {cta}
       </section>
 
-      {cta}
-
-      {/* 퍼즐 지도 + 진행 보드 */}
+      {/* 스탬프 지도 + 진행 보드 */}
       <div className="flex flex-wrap items-start gap-5">
-        <section className={`${CARD} min-w-[300px] flex-[1_1_360px] p-5`}>
-          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
+        <section className={`${CARD} bg-g-grid min-w-[300px] flex-[1_1_360px] p-5`}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
             <span className={SECTION_TITLE}>
-              <Icon name="grid" size={15} className="text-g-primary" />
-              시·군·구 정복 지도
+              <span className={`${TITLE_CHIP} bg-g-primary-soft text-g-primary`}>
+                <Icon name="grid" size={13} />
+              </span>
+              시·군·구 스탬프 지도
             </span>
-            <div className="flex items-center gap-3 text-[11px] font-medium leading-none text-g-neutral">
+            <div className="flex items-center gap-3 text-[11px] font-medium leading-none text-g-text-3">
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-g-primary" />
-                정복
+                찍음
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-g-map-empty" />
-                미정복
+                <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-g-map-empty" />빈 칸
               </span>
             </div>
           </div>
           <ConquerSvg
             conquered={conquered}
-            className="mx-auto block h-auto w-full max-w-[320px]"
+            className="mx-auto block h-auto w-full max-w-[340px]"
           />
-          <p className="mt-3.5 text-center text-[12px] leading-[1.6] text-g-neutral">
-            다녀온 곳이 속한 시·군·구가 채워져요 · 조각 위에 올리면 이름이 보여요.
-          </p>
         </section>
 
         <section className={`${CARD} min-w-[260px] flex-[1_1_280px] p-5`}>
           <div className={`mb-3.5 ${SECTION_TITLE}`}>
-            <Icon name="flag" size={15} className="text-g-primary" />
+            <span className={`${TITLE_CHIP} bg-g-warning-soft text-g-warning-text`}>
+              <Icon name="flag" size={13} />
+            </span>
             시·도별 진행
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
@@ -151,7 +153,7 @@ export function ConquerMap({
               return (
                 <div
                   key={code}
-                  className={`rounded-lg p-3 ${
+                  className={`rounded-xl p-3 ${
                     full
                       ? "border-[1.5px] border-g-primary bg-g-primary-soft"
                       : done > 0
@@ -166,7 +168,7 @@ export function ConquerMap({
                     </span>
                     <span
                       className={`whitespace-nowrap text-[12px] font-bold leading-none ${
-                        done > 0 ? "text-g-primary-text" : "text-g-neutral"
+                        done > 0 ? "text-g-primary-text" : "text-g-num"
                       }`}
                     >
                       {done} / {areaTotal}
@@ -176,7 +178,7 @@ export function ConquerMap({
                     {Array.from({ length: areaTotal }, (_, i) => (
                       <span
                         key={i}
-                        className={`h-2 w-2 rounded-[2.5px] ${
+                        className={`h-2 w-2 rounded-[2px] ${
                           i < done
                             ? i % 2
                               ? "bg-g-dot-alt"
@@ -196,19 +198,20 @@ export function ConquerMap({
   );
 }
 
+/** 히어로 스탯 — 틸 면 위라 잉크는 상속(--g-on-primary), 위계는 opacity 로만 만든다. */
 function Stat({ value, sub, label }: { value: string; sub?: string; label: string }) {
   return (
     <div>
-      <div className="font-display text-[32px] font-bold leading-none tracking-[-0.03em]">
+      <div className="font-display text-[34px] font-bold leading-none tracking-[-0.03em]">
         {value}
         {sub && (
-          <span className="font-body text-[15px] font-medium tracking-normal text-g-text-2">
+          <span className="font-body text-[15px] font-medium tracking-normal opacity-[.78]">
             {" "}
             {sub}
           </span>
         )}
       </div>
-      <div className="mt-1.5 text-[12px] font-medium leading-none text-g-text-2">
+      <div className="mt-[7px] text-[12px] font-medium leading-none opacity-[.75]">
         {label}
       </div>
     </div>

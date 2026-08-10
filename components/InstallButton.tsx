@@ -10,9 +10,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { installMode, isIOS } from "@/lib/pwaInstall";
 import { Icon } from "@/components/icons";
 
-/** Genesis pill — 헤더의 앱 설치·로그인 공용(h-8 · 13px · rounded-full). */
+/** 헤더 pill — 앱 설치·로그인 공용(h-34 · 13px · rounded-full · 종이 위라 테두리는 border-strong). */
 export const pillButton =
-  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-g-border bg-g-surface px-3 text-[13px] font-medium text-g-text-2 hover:border-g-primary hover:text-g-primary";
+  "inline-flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-full border border-g-border-strong bg-g-surface px-3 text-[13px] font-medium text-g-text-2 hover:border-g-primary hover:text-g-primary";
 
 // beforeinstallprompt 는 표준 lib.dom 타입에 없어 최소 형태만 선언한다.
 interface BeforeInstallPromptEvent extends Event {

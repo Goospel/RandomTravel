@@ -16,21 +16,26 @@ const HomePicker = dynamic(() => import("@/components/HomePicker"), {
   loading: () => <span className="text-[12px] text-g-text-2">불러오는 중…</span>,
 });
 
-// 🎯 조건 패널(Genesis 리스킨) — indigo pill 칩 + 실시간 후보 수 배지 + 바다 잠금 인라인 설명.
-//   후보 수는 조건이 바뀔 때마다 /api/random/count 로 근사 집계(동적 조건은 정성 라벨).
+// 🎫 탑승 조건 패널 — 티켓 카드 안에 한 단 밝게 얹힌 인셋. 캡슐 칩 + 실시간 후보 수 배지 +
+//   1줄 추가 조건 토글. 후보 수는 조건이 바뀔 때마다 /api/random/count 로 근사 집계.
+//   설명문은 전부 걷어냈다 — 화면이 이미 보여주는 걸 문장으로 반복하지 않는다(designGuide 문구 톤).
 
 const CHIP_BASE =
-  "whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-medium leading-[1.2]";
+  "whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12px] leading-[1.2]";
 
 function chip(on: boolean): string {
   return `${CHIP_BASE} ${
     on
-      ? "border-g-primary bg-g-primary text-g-on-primary"
-      : "border-g-border bg-g-surface text-g-text-2 hover:border-g-primary hover:text-g-primary"
+      ? "border-g-text bg-g-text font-bold text-g-on-primary"
+      : "border-g-border bg-g-surface font-medium text-g-text-3 hover:border-g-primary hover:text-g-primary"
   }`;
 }
 
-const GROUP_LABEL = "text-[12px] font-bold leading-none text-g-text-2";
+/** 잠긴 칩 — 눌리지 않은 것으로 취급하고 잉크만 한 단 눌러 둔다(카운트 잉크 재사용). */
+const CHIP_LOCKED = `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 font-medium text-g-num`;
+
+const GROUP_LABEL =
+  "text-[11px] font-bold uppercase leading-none tracking-[0.1em] text-g-text-3";
 
 /**
  * 실시간 후보 수 배지 — 조건이 얼마나 넓은지 투명하게 보여준다.
@@ -40,8 +45,8 @@ const GROUP_LABEL = "text-[12px] font-bold leading-none text-g-text-2";
 function CandidateBadge({ query, unit = "곳" }: { query: string; unit?: string }) {
   const count = useCandidateCount(query);
   const pill =
-    "whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-medium leading-[1.3]";
-  const neutral = `${pill} border border-g-border bg-g-surface text-g-text-2`;
+    "whitespace-nowrap rounded-full px-2.5 py-[5px] text-[12px] font-bold leading-[1.3]";
+  const neutral = `${pill} border border-g-primary-soft-border bg-[#f2faf9] text-g-primary`;
 
   if (count.status === "loading") {
     return (
@@ -77,38 +82,44 @@ function CandidateBadge({ query, unit = "곳" }: { query: string; unit?: string 
   );
 }
 
-/** 추가 조건 토글 1개 (🌊·🦀·🎪·☔·🍃). locked=미래 기준일이라 잠긴 상태(☔ 오늘 전용, §6.8) */
+/**
+ * 추가 조건 토글 1개 (🌊·🐕·♿·🦀·🎪·☔·🍃·⚖️) — 아이콘 칩 + 라벨 **한 줄**.
+ * 설명문은 없다: 왜 잠겼는지 같은 예외만 아래 LockNote 가 말한다.
+ * locked = 다른 축이 이 칸을 무의미하게 만든 상태(☔ 오늘 전용·🏠 반경 등, §6.8·§6.11).
+ */
 function ExtraToggle({
   on,
   onToggle,
   icon,
   label,
-  desc,
   locked = false,
 }: {
   on: boolean;
   onToggle: () => void;
   icon: IconName;
   label: string;
-  desc: string;
   locked?: boolean;
 }) {
-  const card = "flex flex-col items-start gap-[3px] rounded-lg border px-3 py-2.5 text-left";
-  const title = "inline-flex items-center gap-1.5 text-[13px] font-bold leading-[1.3]";
+  const row =
+    "flex items-center gap-[9px] rounded-2xl border p-3 text-left [corner-shape:squircle]";
+  const chipBase =
+    "inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg";
+  const title = "text-[13px] font-bold leading-[1.3]";
 
   if (locked) {
     // 잠긴 토글은 눌리지 않은 것으로 취급(🌊 관례) — 선택 state 는 상위에서 보존, 오늘 복귀 시 복원.
     return (
       <div
         aria-disabled
-        className={`${card} cursor-not-allowed border-g-border bg-g-surface-2 opacity-70`}
+        className={`${row} cursor-not-allowed border-g-border bg-g-surface-2`}
       >
-        <span className={`${title} text-g-text-2`}>
+        <span className={`${chipBase} bg-g-surface text-g-num`}>
           <Icon name={icon} size={14} />
-          {label}
-          <Icon name="lock" size={12} />
         </span>
-        <span className="text-[12px] leading-[1.5] text-g-text-2">{desc}</span>
+        <span className={`${title} inline-flex items-center gap-1.5 text-g-num`}>
+          {label}
+          <Icon name="lock" size={11} />
+        </span>
       </div>
     );
   }
@@ -117,17 +128,20 @@ function ExtraToggle({
       type="button"
       onClick={onToggle}
       aria-pressed={on}
-      className={`${card} ${
+      className={`${row} ${
         on
-          ? "border-g-primary bg-g-primary-soft"
+          ? "border-g-success-text bg-[#f3faf2]"
           : "border-g-border bg-g-surface hover:border-g-primary"
       }`}
     >
-      <span className={`${title} text-g-text`}>
-        <Icon name={icon} size={14} className={on ? "text-g-primary-text" : "text-g-text-2"} />
-        {label}
+      <span
+        className={`${chipBase} ${
+          on ? "bg-g-success-soft text-g-success-text" : "bg-g-surface-2 text-g-text-3"
+        }`}
+      >
+        <Icon name={icon} size={14} />
       </span>
-      <span className="text-[12px] leading-[1.5] text-g-text-2">{desc}</span>
+      <span className={`${title} text-g-text`}>{label}</span>
     </button>
   );
 }
@@ -135,7 +149,7 @@ function ExtraToggle({
 /** 🔒 인라인 잠금 설명 — 바다/날씨가 왜 다른 칸을 잠갔는지. */
 function LockNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-1.5 rounded-lg bg-g-primary-soft px-3 py-2 text-[12px] leading-[1.6] text-g-primary-text">
+    <div className="flex gap-1.5 rounded-xl bg-g-primary-soft px-3 py-2 text-[12px] leading-[1.6] text-g-primary-text">
       <Icon name="lock" size={13} className="mt-0.5" />
       <span>{children}</span>
     </div>
@@ -266,10 +280,13 @@ export function FilterPanel({
   });
 
   return (
-    <div className="flex w-full flex-col gap-4 rounded-xl border border-g-border bg-g-surface-2 p-4">
+    <div className="flex w-full flex-col gap-4 rounded-[14px] border border-g-border bg-g-surface-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
-          조건 고르기
+        <span className="inline-flex items-center gap-[7px] font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
+          <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[7px] bg-g-primary-soft text-g-primary">
+            <Icon name="start" size={13} />
+          </span>
+          탑승 조건
         </span>
         <CandidateBadge query={countQuery} unit={homeOn ? "개 동네" : "곳"} />
       </div>
@@ -311,7 +328,7 @@ export function FilterPanel({
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] leading-[1.6] text-g-text-2">
+              <p className="text-[11px] leading-[1.6] text-g-text-3">
                 <b className="font-bold">{home.name}</b> 기준 <b className="font-bold">직선거리</b>
                 예요 — 실제 이동 시간은 길·교통편에 따라 달라져요.{" "}
                 <button
@@ -333,7 +350,7 @@ export function FilterPanel({
                   setEditingHome(false);
                 }}
               />
-              <p className="text-[11px] leading-[1.6] text-g-text-2">
+              <p className="text-[11px] leading-[1.6] text-g-text-3">
                 사는 곳을 저장해 두면 <b className="font-bold">집에서 갈 만한 거리</b>로 좁혀
                 뽑을 수 있어요.
               </p>
@@ -361,7 +378,7 @@ export function FilterPanel({
               disabled={areaLocked}
               className={
                 areaLocked
-                  ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
+                  ? CHIP_LOCKED
                   : chip(selectedAreas.has(a.code))
               }
             >
@@ -393,7 +410,7 @@ export function FilterPanel({
                 disabled={typeLocked}
                 className={
                   typeLocked
-                    ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
+                    ? CHIP_LOCKED
                     : chip(on)
                 }
               >
@@ -410,8 +427,8 @@ export function FilterPanel({
           id="filter-date-label"
           className={`inline-flex items-center gap-1.5 ${GROUP_LABEL}`}
         >
-          <Icon name="calendar" size={13} />
-          언제 가요?
+          <Icon name="calendar" size={12} />
+          날짜
         </h3>
         <div
           role="group"
@@ -432,7 +449,7 @@ export function FilterPanel({
                 disabled={homeOn}
                 className={
                   homeOn
-                    ? `${CHIP_BASE} inline-flex cursor-not-allowed items-center gap-1 border-g-border bg-g-surface-2 text-g-neutral`
+                    ? CHIP_LOCKED
                     : chip(active)
                 }
               >
@@ -442,10 +459,9 @@ export function FilterPanel({
             );
           })}
         </div>
-        {/* 상시 마이크로카피 — '날짜는 필터인가요?' 오해 선제 답변 + 칩 하이라이트/완전 랜덤 시각 모순 해소 */}
-        <p className="text-[11px] leading-[1.6] text-g-text-2">
-          날짜는 조건을 판정할 <b className="font-bold">기준일</b>이에요 — 날짜만으론
-          후보가 줄지 않아요.
+        {/* 상시 마이크로카피 — '날짜는 필터인가요?' 오해 선제 답변(한 구절로 축약) */}
+        <p className="text-[11px] leading-[1.6] text-g-text-3">
+          조건을 판정할 <b className="font-bold">기준일</b>이에요
         </p>
       </section>
 
@@ -457,17 +473,13 @@ export function FilterPanel({
             onToggle={onToggleSeaside}
             icon="wave"
             label="바다"
-            desc="해수욕장·섬·항구·해안"
             locked={homeOn || (!seaside && targetOn)}
           />
           <ExtraToggle
             on={pet}
             onToggle={onTogglePet}
             icon="paw"
-            label="반려동물과 함께"
-            // 풀에 매장·카페·숙소가 섞여 있다(관광지성 우선이지만 하드 제외는 아님, §6.11) —
-            // '여행지'라고 하면 과장이라 '갈 수 있는 곳'으로 정직하게 적는다(§7.9 카피 원칙).
-            desc="함께 갈 수 있는 명소·카페·숙소·매장 (전국)"
+            label="반려동물 동반"
             locked={homeOn || (!pet && targetOn)}
           />
           <ExtraToggle
@@ -475,7 +487,6 @@ export function FilterPanel({
             onToggle={onToggleBarrierFree}
             icon="accessible"
             label="무장애 여행"
-            desc="휠체어·보조견 등 무장애 정보가 있는 곳"
             locked={homeOn || (!barrierFree && targetOn)}
           />
           <ExtraToggle
@@ -483,7 +494,6 @@ export function FilterPanel({
             onToggle={onToggleSeasonal}
             icon="pot"
             label="제철 산지"
-            desc="이번 달 제철 재료 산지"
             locked={homeOn}
           />
           <ExtraToggle
@@ -491,7 +501,6 @@ export function FilterPanel({
             onToggle={onToggleFestival}
             icon="tent"
             label="축제 중"
-            desc="오늘 진행 중인 축제"
             locked={homeOn}
           />
           <ExtraToggle
@@ -499,15 +508,14 @@ export function FilterPanel({
             onToggle={onToggleNoRain}
             icon="umbrella"
             label="비 안 오는 곳"
-            desc="지금 비 안 오는 지역"
             locked={rainLocked}
           />
+          {/* 🍃 '(예측)'은 지우면 안 된다(§6.7) — 라벨만 남기는 축약에서도 이 괄호가 유일한 고지다. */}
           <ExtraToggle
             on={quiet}
             onToggle={onToggleQuiet}
             icon="leaf"
-            label="한적한 곳"
-            desc="관광지 집중률 예측 기반, 안 붐빌 곳"
+            label="한적한 곳 (예측)"
           />
         </div>
       </section>
@@ -520,12 +528,6 @@ export function FilterPanel({
           onToggle={onToggleScatter}
           icon="scales"
           label="분산 모드"
-          // 대상 축(🌊·🐕·♿)으로 잠겼으면 켜져 있어도 꺼진 것으로 취급(☔ 관례) → 설명도 OFF 쪽으로.
-          desc={
-            scatter && !targetOn
-              ? "방문자 적은 시·도가 더 자주 나와요 (약 1~2개월 전 공공 방문자 집계 기준)"
-              : "끄면 17개 시·도 같은 확률"
-          }
           locked={targetOn || homeOn}
         />
       </section>
@@ -567,7 +569,7 @@ export function FilterPanel({
         </LockNote>
       )}
 
-      <div className="text-[12px] leading-none text-g-text-2">
+      <div className="text-[12px] leading-none text-g-text-3">
         {/* 날짜만 골라도(hasAny=false) 초기화 대상은 있으므로 버튼 노출 — dateYmd 도 게이트(§6.8) */}
         {hasAny || dateYmd != null ? (
           <button

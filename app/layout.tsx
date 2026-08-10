@@ -57,12 +57,10 @@ export const metadata: Metadata = {
   // metadata.icons 를 명시하면 그 자동 감지가 무시되므로 여기서 지정하지 않는다.
 };
 
-// themeColor 는 Next 15+ 에서 viewport 로 분리됨(상태바 틴트). 다크/라이트 각각 지정.
+// themeColor 는 Next 15+ 에서 viewport 로 분리됨(상태바 틴트).
+// 라이트 전용 팔레트라 단일값 — --g-primary(틸)와 같은 값.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0e" },
-  ],
+  themeColor: "#0e7c86",
 };
 
 export default function RootLayout({
@@ -82,7 +80,7 @@ export default function RootLayout({
         {/* 데이터 출처 표시 — 운영계정 전환 조건(공사 요청 2026-07-28). 모든 페이지 공통.
             표기 문안은 공사 회신 2026-07-29 지침을 따른다: "ⓒ한국관광공사"(또는 "ⓒ한국관광콘텐츠랩")로 적고
             "TourAPI"로는 출처를 표기하지 않는다. */}
-        <footer className="border-t border-g-border px-4 py-5 text-center text-[11px] leading-[1.7] text-g-text-2">
+        <footer className="border-t border-g-border bg-g-surface-2 px-4 py-[18px] text-center text-[11px] leading-[1.7] text-g-text-3">
           <p>
             관광 정보{" "}
             <a
