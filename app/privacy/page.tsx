@@ -13,13 +13,14 @@ export const metadata: Metadata = {
   description: "어디든이 모으는 익명 사용 기록이 무엇이고 왜 모으는지 안내합니다.",
 };
 
-const CARD = "rounded-xl border border-g-border bg-g-surface p-5";
+// 문서형 페이지라 장식을 더하지 않는다 — 카드 규격(16px)만 designGuide 에 맞춘다.
+const CARD = "rounded-2xl border border-g-border bg-g-surface p-5";
 const H2 = "font-display text-[16px] font-bold leading-[1.35] tracking-[-0.02em]";
 const P = "mt-2 text-[14px] leading-[1.7] text-g-text-2";
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-3 px-4 py-7 sm:px-5">
+    <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-3.5 px-4 py-7 sm:px-5">
       <header className="flex flex-col gap-2">
         <Link
           href="/"
