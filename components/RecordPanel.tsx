@@ -27,21 +27,21 @@ const TABS: {
     label: "찜",
     icon: "heart",
     emptyIcon: "heart",
-    empty: "마음에 든 곳의 하트를 누르면 여기 모여요.",
+    empty: "하트를 누르면 여기 모여요",
   },
   {
     key: "recent",
     label: "최근",
     icon: "clock",
     emptyIcon: "dice",
-    empty: "위에서 한 곳 뽑으면 최근 본 곳이 쌓여요.",
+    empty: "한 곳 뽑으면 여기 쌓여요",
   },
   {
     key: "visited",
     label: "다녀옴",
     icon: "check",
     emptyIcon: "grid",
-    empty: "다녀온 곳을 체크하면 위 정복 지도가 채워져요.",
+    empty: "체크하면 지도에 도장이 찍혀요",
   },
 ];
 
@@ -87,13 +87,14 @@ export function RecordPanel({
   }
 
   return (
-    <section className="w-full overflow-hidden rounded-xl border border-g-border bg-g-surface">
+    <section className="w-full overflow-hidden rounded-[14px] border border-g-border bg-g-surface">
       <h2 className="sr-only">내 기록</h2>
+      {/* 📑 파일 탭 — 선택 탭만 흰 종이로 앞에 나오고 나머지는 한 단 눌린 면으로 뒤에 있다. */}
       <div
         role="tablist"
         aria-label="내 기록"
         onKeyDown={onKeyDown}
-        className="flex border-b border-g-border"
+        className="flex gap-1.5 px-3.5 pt-3"
       >
         {TABS.map((t) => {
           const count = lists[t.key].length;
@@ -108,24 +109,32 @@ export function RecordPanel({
               aria-controls={`rt-panel-${t.key}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setTab(t.key)}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-[13px] text-[14px] font-medium ${
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-t-[10px] border border-b-0 px-3 py-[11px] text-[13px] font-bold leading-[1.2] ${
                 selected
-                  ? "border-g-primary text-g-primary-text"
-                  : "border-transparent text-g-text-2 hover:text-g-text"
+                  ? "border-g-border bg-g-surface text-g-text"
+                  : "border-transparent bg-g-surface-2 text-g-text-2 hover:text-g-text"
               }`}
             >
               <Icon name={t.icon} size={14} />
               {t.label}
-              {count > 0 && <span className="font-normal text-g-neutral">{count}</span>}
+              {count > 0 && <span className="font-medium text-g-num">{count}</span>}
             </button>
           );
         })}
       </div>
 
-      <div role="tabpanel" id={panelId} aria-labelledby={tabId} tabIndex={0}>
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={tabId}
+        tabIndex={0}
+        className="border-t border-g-border"
+      >
         {active.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-9 text-center text-g-neutral">
-            <Icon name={activeMeta.emptyIcon} size={34} className="mb-2.5" />
+          <div className="flex flex-col items-center px-6 py-[34px] text-center">
+            <span className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-g-map-empty text-g-num">
+              <Icon name={activeMeta.emptyIcon} size={26} />
+            </span>
             <p className="text-[13px] leading-[1.6] text-g-text-2">{activeMeta.empty}</p>
           </div>
         ) : (
@@ -151,7 +160,7 @@ export function RecordPanel({
 /** 기록 행 공통 썸네일(46px · radius 8) — /map 다녀온 곳 리스트와 같은 규격. */
 export function RowThumb({ image }: { image?: string | null }) {
   return (
-    <div className="flex h-[46px] w-[46px] flex-none items-center justify-center overflow-hidden rounded-lg bg-g-surface-2 text-g-neutral">
+    <div className="flex h-[46px] w-[46px] flex-none items-center justify-center overflow-hidden rounded-lg bg-g-surface-2 text-g-num">
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image} alt="" className="h-full w-full object-cover" />
@@ -212,7 +221,7 @@ function PlaceRow({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onNavigate}
-            className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-g-neutral hover:bg-g-surface-2 hover:text-g-primary"
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-g-text-3 hover:bg-g-surface-2 hover:text-g-primary"
             aria-label={`${place.title} 지도에서 보기`}
           >
             <Icon name="map" size={14} />
@@ -221,7 +230,7 @@ function PlaceRow({
         <button
           type="button"
           onClick={onRemove}
-          className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-g-neutral hover:bg-g-surface-2 hover:text-g-text-2"
+          className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-g-text-3 hover:bg-g-surface-2 hover:text-g-text-2"
           aria-label={`${place.title} 목록에서 제거`}
         >
           <Icon name="close" size={13} />

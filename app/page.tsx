@@ -16,7 +16,6 @@ import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
 import { RecordPanel } from "@/components/RecordPanel";
-import { StoryBanner } from "@/components/StoryBanner";
 import { QuietTopStrip } from "@/components/QuietTopStrip";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
@@ -417,19 +416,23 @@ export default function Home() {
   const mapPhase = loading ? "loading" : status.kind === "ok" ? "result" : "idle";
 
   return (
-    <main className="mx-auto w-full max-w-[720px] flex-1 px-5 pb-14 pt-6">
-      <div className="mb-5 flex items-center gap-2.5">
-        <h1 className="flex-1 font-display text-[24px] font-bold leading-[1.2] tracking-[-0.03em]">
-          어디든
-        </h1>
+    <main className="mx-auto w-full max-w-[720px] flex-1 px-5 pb-12 pt-6">
+      <div className="mb-4 flex items-center gap-2.5">
+        <div className="flex flex-1 items-center gap-2.5">
+          <span className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-g-primary text-g-on-primary">
+            <Icon name="map" size={19} />
+          </span>
+          <h1 className="font-display text-[24px] font-bold leading-[1.15] tracking-[-0.03em]">
+            어디든
+          </h1>
+        </div>
         <InstallButton />
         <AuthButtons />
       </div>
 
-      <StoryBanner />
-
-      {/* ■ 통합 카드 — 지도(룰렛 본체)와 뽑기가 한 카드 안에. 위→아래 한 흐름으로 읽힌다. */}
-      <section className="relative overflow-hidden rounded-xl border border-g-border bg-g-surface">
+      {/* 🎫 티켓 카드 — 스텁(정복 현황) · 지도면(룰렛) · 절취선 · 탑승 조건과 CTA.
+          overflow-hidden 이 절취선 양끝 원을 반달로 잘라 노치를 만든다. */}
+      <section className="relative overflow-hidden rounded-2xl border border-g-border bg-g-surface">
         {/* 🎰 스탯 행 + 정복 지도 룰렛(§7.12) — 좌표만 넘기고 시·군·구 판정은 지도 청크 안에서(번들 보호) */}
         <HomeConquerMap
           visited={store.visited}
@@ -441,7 +444,14 @@ export default function Home() {
 
         {loading && <SlotMachine />}
 
-        <div className="flex flex-col gap-3.5 border-t border-g-border px-5 pb-5 pt-4">
+        {/* 절취선 — 좌우 끝의 22px 원을 카드 밖으로 반쯤 밀어내면 overflow-hidden 이 잘라 노치가 된다. */}
+        <div className="relative flex h-[22px] items-center px-4" aria-hidden>
+          <span className="absolute -left-[11px] top-0 h-[22px] w-[22px] rounded-full border border-g-border bg-g-bg" />
+          <span className="flex-1 border-t-2 border-dashed border-g-border" />
+          <span className="absolute -right-[11px] top-0 h-[22px] w-[22px] rounded-full border border-g-border bg-g-bg" />
+        </div>
+
+        <div className="flex flex-col gap-3.5 px-5 pb-5 pt-[18px]">
           <ModeToggle mode={mode} onChange={setMode} />
 
           {mode === "filtered" && (
@@ -477,31 +487,24 @@ export default function Home() {
             />
           )}
 
-          {/* 유일한 전국 랜덤 뽑기 버튼 — 지도가 룰렛이 됐으므로 카피도 '굴리기'로.
-              결과가 뜬 뒤엔 "다시 굴리기"로 라벨만 바뀐다(결과 카드에 뽑기 버튼 중복 없음). */}
+          {/* 유일한 전국 랜덤 뽑기 버튼 — 화면에서 유일하게 채워진 주홍 면(= 행동).
+              결과가 뜬 뒤엔 "다시 굴리기"로 라벨·아이콘만 바뀐다(결과 카드에 뽑기 버튼 중복 없음).
+              그림자는 이 버튼만 예외로 허용된 틴티드 섀도(designGuide 모양표). */}
           <button
             type="button"
             onClick={() => draw(status.kind === "ok")}
             disabled={loading}
-            className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-g-primary text-[16px] font-medium text-g-on-primary hover:bg-g-primary-hover disabled:cursor-default disabled:opacity-60"
+            className="inline-flex h-[60px] w-full items-center justify-center gap-2.5 rounded-[20px] bg-g-accent text-[17px] font-bold tracking-[-0.01em] text-g-on-accent shadow-[0_10px_22px_-12px_rgba(154,56,24,.85),0_1px_2px_rgba(22,50,58,.08)] [corner-shape:squircle] hover:bg-g-accent-hover disabled:cursor-default disabled:opacity-60"
           >
             {loading ? (
               "지도를 굴리는 중…"
             ) : (
               <>
-                <Icon name="dice" size={18} />
+                <Icon name={status.kind === "ok" ? "refresh" : "dice"} size={20} />
                 {status.kind === "ok" ? "다시 굴리기" : "지도 굴리기"}
               </>
             )}
           </button>
-
-          {status.kind === "idle" && (
-            <p className="text-center text-[13px] leading-[1.6] text-g-text-2">
-              {mode === "pure"
-                ? "버튼을 누르면 전국 250개 시·군·구 위에서 주사위가 굴러가요."
-                : "조건을 고르고 굴리거나, 아무것도 안 고르면 완전 랜덤이에요."}
-            </p>
-          )}
         </div>
 
         {/* 🎉 방금 정복한 시·도 토스트(§7.8) — 통합 카드 우상단 */}
@@ -516,7 +519,7 @@ export default function Home() {
           결과·에러 카드는 통합 카드 **밖** 아래로(카드는 지도+뽑기 전용). */}
       <div ref={resultRef} aria-live="polite">
         {status.kind === "ok" && (
-          <div className="mt-3">
+          <div className="mt-3.5">
             <ResultCard
               key={seq}
               data={status.data}
@@ -537,7 +540,7 @@ export default function Home() {
           </div>
         )}
         {status.kind === "error" && (
-          <div className="mt-3">
+          <div className="mt-3.5">
             <ErrorPanel
               error={status.error}
               onClearConditions={
@@ -550,7 +553,7 @@ export default function Home() {
 
       {/* 🧭 반나절 코스(M20) — 결과 aria-live 컨테이너 밖(중첩·통째 낭독 방지), 결과 있을 때만 */}
       {status.kind === "ok" && course.kind !== "idle" && (
-        <div className="mt-3">
+        <div className="mt-3.5">
           <CoursePanel
             state={course}
             onRedrawStep={redrawCourseStep}
@@ -561,25 +564,33 @@ export default function Home() {
 
       {/* 🍃 오늘 한적 TOP5(§7.16A) — 통합 카드 **밖** 아래, 결과 카드 아래·기록 서랍 위.
           데이터 없음·stale 이면 스트립은 자기 자신을 렌더하지 않는다(빈 자리). */}
-      <div className="mt-3">
+      <div className="mt-3.5">
         <QuietTopStrip onPick={drawQuietTop} disabled={loading} />
       </div>
 
       {/* 📈 홈→/impact 서사 연결(§7.16B) — 문제 정의 화면은 M26 산출물 재사용.
           스트립 안이 아니라 밖에 둔다 — 혼잡도 데이터가 stale 이면 스트립이 통째로 사라지는데,
-          이 링크는 그와 무관하게 항상 있어야 한다(서사 진입점이 데이터 신선도에 인질 잡히지 않게). */}
-      <p className="mt-3 text-center text-[13px] leading-[1.6] text-g-text-2">
-        <Link
-          href="/impact"
-          className="inline-flex items-center gap-1.5 underline underline-offset-2 hover:text-g-primary"
-        >
-          <Icon name="scales" size={14} />
-          왜 아무 데나 뽑는 게 분산이 되는지 — 숫자로 보기
-        </Link>
-      </p>
+          이 링크는 그와 무관하게 항상 있어야 한다(서사 진입점이 데이터 신선도에 인질 잡히지 않게).
+          ⚠️ 배수(핸드오프 시안의 "서울은 세종보다 71배")를 여기 박지 않는다 — 그 값은 /impact ①이
+             공공 데이터에서 매번 계산하는 값이라 정적 문구로 두면 곧 어긋난다(구현 시점 실측 68.4배로
+             이미 시안과 불일치). 홈은 배수를 말하지 않고, 실값은 언제나 /impact ① 캡션이 낸다. */}
+      <div className="mt-3.5 flex items-center gap-3 rounded-[14px] border border-dashed border-g-border-strong bg-[#fffdf7] px-4 py-3.5">
+        <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-g-warning-soft text-g-warning-text">
+          <Icon name="scales" size={16} />
+        </span>
+        <p className="flex-1 text-[13px] leading-[1.55] text-g-text-2">
+          <b className="font-bold text-g-text">전국 방문</b>이 얼마나 쏠렸는지 —{" "}
+          <Link
+            href="/impact"
+            className="font-bold underline underline-offset-2 hover:text-g-primary"
+          >
+            숫자로 보기
+          </Link>
+        </p>
+      </div>
 
       {/* 기록(찜·최근·다녀옴) */}
-      <div className="mt-3">
+      <div className="mt-3.5">
         <RecordPanel
           saved={store.saved}
           recent={store.recent}
@@ -605,7 +616,7 @@ function ErrorPanel({
   // '설정 고장'처럼 보여 사용자를 엉뚱한 곳으로 보낸다(§6.5).
   const isKeyIssue = error.error.includes("TOUR_API_KEY");
   return (
-    <div className="w-full rounded-xl bg-g-warning-soft p-4 text-center text-[13px] leading-[1.6] text-g-warning-text">
+    <div className="w-full rounded-2xl bg-g-warning-soft p-4 text-center text-[13px] leading-[1.6] text-g-warning-text">
       <p className="inline-flex items-center gap-1.5 font-medium">
         <Icon name="warning" size={14} />
         {error.error}
@@ -620,7 +631,7 @@ function ErrorPanel({
         <button
           type="button"
           onClick={onClearConditions}
-          className="mt-2.5 rounded-md border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium hover:bg-g-surface"
+          className="mt-2.5 rounded-[14px] border border-g-warning-text/40 px-3.5 py-2 text-[12px] font-medium [corner-shape:squircle] hover:bg-g-surface"
         >
           조건 초기화
         </button>

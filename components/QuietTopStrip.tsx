@@ -44,29 +44,37 @@ export function QuietTopStrip({
   if (!data || data.items.length === 0 || !data.baseYmd) return null;
 
   return (
-    <section className="rounded-xl border border-g-border bg-g-surface px-5 py-4">
-      <h2 className="flex items-center gap-1.5 font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
-        <Icon name="leaf" size={15} />
-        오늘 덜 붐빌 것으로 예측되는 동네
-      </h2>
-      <p className="mt-1 text-[12px] leading-[1.5] text-g-text-2">
-        공공 관광 데이터의 집중률 예측 기준 ({fmtYmd(data.baseYmd)} 기준) · 탭하면 그 동네에서
-        뽑아요
-      </p>
+    <section className="rounded-[14px] border border-g-border bg-g-surface px-[18px] py-4">
+      <div className="flex items-center justify-between gap-2.5">
+        <h2 className="flex items-center gap-[7px] font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
+          <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[7px] bg-g-success-soft text-g-success-text">
+            <Icon name="leaf" size={13} />
+          </span>
+          오늘 한산할 동네
+        </h2>
+        {/* 🍃 정직성(§6.7) — 제목에서 설명문을 걷어내는 대신 '예측 + 데이터 기준일'을 여기가 진다.
+            이 메타를 지우면 예측이 실시간 관측처럼 읽힌다. */}
+        <span className="flex-none text-[11px] font-medium text-g-text-3">
+          {fmtYmd(data.baseYmd)} 예측
+        </span>
+      </div>
 
       {/* 가로 스크롤 칩 — 좁은 화면에서도 5개가 줄바꿈 없이 한 줄로 흐른다. */}
-      <ul className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
+      <ul className="-mx-[18px] mt-3 flex gap-2 overflow-x-auto px-[18px] pb-1">
         {data.items.map((item) => (
           <li key={item.code} className="flex-none">
             <button
               type="button"
               onClick={() => onPick(item.code)}
               disabled={disabled}
-              className="whitespace-nowrap rounded-full border border-g-border bg-g-surface px-3 py-1.5 text-[12px] font-medium leading-[1.2] text-g-text-2 hover:border-g-primary hover:text-g-primary disabled:cursor-default disabled:opacity-60"
+              className="flex flex-col items-start gap-[3px] whitespace-nowrap rounded-[14px] border border-dashed border-g-primary-soft-border bg-[#f2faf9] px-3 py-2 text-left [corner-shape:squircle] hover:border-g-primary disabled:cursor-default disabled:opacity-60"
             >
-              {item.areaName} {item.name}
-              <span className="text-g-neutral"> · </span>
-              집중률 하위 {item.pctBelow}%
+              <span className="text-[13px] font-bold leading-[1.2] text-g-text">
+                {item.areaName} {item.name}
+              </span>
+              <span className="text-[11px] font-medium leading-none text-g-primary">
+                집중률 하위 {item.pctBelow}%
+              </span>
             </button>
           </li>
         ))}
