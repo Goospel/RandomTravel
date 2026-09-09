@@ -84,11 +84,6 @@ export function toggleSaved(
   return [item, ...list];
 }
 
-/** SavedPlace[] → 저장 문자열 */
-export function serialize(list: SavedPlace[]): string {
-  return JSON.stringify(list);
-}
-
 /**
  * 저장 문자열 → SavedPlace[]. 손상(널·깨진 JSON·비배열·contentId 없음)에
  * 절대 throw 하지 않고 안전하게 걸러낸다.

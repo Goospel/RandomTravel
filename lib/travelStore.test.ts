@@ -4,7 +4,6 @@ import {
   toggleSaved,
   has,
   parseStored,
-  serialize,
   toSavedPlace,
   setRatingInList,
   type SavedPlace,
@@ -89,7 +88,7 @@ describe("has", () => {
 describe("parseStored / serialize — 저장 직렬화·손상 방어", () => {
   it("정상 배열은 왕복", () => {
     const list = [sp("a"), sp("b")];
-    expect(parseStored(serialize(list))).toEqual(list);
+    expect(parseStored(JSON.stringify(list))).toEqual(list);
   });
 
   it("null 이면 빈 배열", () => {
@@ -177,7 +176,7 @@ describe("setRatingInList — 방문 항목에 재방문 의향 평가 설정(M1
 describe("parseStored — rating 필드 보존(M15)", () => {
   it("저장·복원 왕복에서 rating 이 유지된다", () => {
     const list = [sp("a", { rating: 3 }), sp("b", { rating: null }), sp("c")];
-    const round = parseStored(serialize(list));
+    const round = parseStored(JSON.stringify(list));
     expect(round.map((x) => x.rating)).toEqual([3, null, undefined]);
   });
 });

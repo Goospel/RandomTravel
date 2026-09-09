@@ -51,12 +51,18 @@ export function CoursePanel({
   state,
   onRedrawStep,
   onRetry,
+  saved,
+  onToggleSave,
 }: {
   state: CourseState;
   /** 스텝 i 재뽑기 — 성공 시 page 가 그 스텝 교체, 실패는 throw(패널이 그 행 에러 표시). */
   onRedrawStep: (index: number) => Promise<void>;
   /** 에러 상태 "다시 시도" — 전체 코스 재생성. */
   onRetry: () => void;
+  /** 🧭 지금 이 조합이 저장돼 있나(§7.10 백로그 ①). 스텝을 재뽑으면 다른 코스라 false 로 돌아간다. */
+  saved: boolean;
+  /** 🧭 저장 토글 — 다시 누르면 해제. */
+  onToggleSave: () => void;
 }) {
   const [busy, setBusy] = useState<number | null>(null); // 재뽑기 중인 행
   // 재뽑기 실패한 행 + 서버 확정 문구(§7.10). 행 안내·live 통지 공용(하드코딩 대신 서버 메시지).
@@ -126,6 +132,8 @@ export function CoursePanel({
           busy={busy}
           rowErr={rowErr}
           onRedraw={handleRedraw}
+          saved={saved}
+          onToggleSave={onToggleSave}
         />
       )}
     </section>
@@ -160,6 +168,8 @@ function Timeline({
   busy,
   rowErr,
   onRedraw,
+  saved,
+  onToggleSave,
 }: {
   data: CourseResponse;
   anchorTitle: string;
@@ -168,6 +178,8 @@ function Timeline({
   busy: number | null;
   rowErr: { idx: number; msg: string } | null;
   onRedraw: (i: number) => void;
+  saved: boolean;
+  onToggleSave: () => void;
 }) {
   // 다리 = 앵커→스텝1→스텝2→… 인접 직선거리(legs[i] = 스텝 i 앞의 다리).
   const points = [
@@ -186,9 +198,26 @@ function Timeline({
   return (
     <div>
       {/* 헤더 — 시점 표현 금지(§7.9 원칙 5). 🍃 배지 + 총 이동거리(+🚗 힌트) */}
-      <h3 className="font-display text-[16px] font-bold leading-[1.4] tracking-[-0.03em]">
-        {anchorTitle}에서의 반나절 코스
-      </h3>
+      <div className="flex items-start gap-2">
+        <h3 className="min-w-0 flex-1 font-display text-[16px] font-bold leading-[1.4] tracking-[-0.03em]">
+          {anchorTitle}에서의 반나절 코스
+        </h3>
+        {/* 🧭 코스 저장(§7.10 백로그 ①) — 새로고침·다시 뽑기로 사라지던 코스를 기기에 남긴다.
+            찜(ResultCard)과 같은 하트·aria-pressed 규격: 같은 '저장' 행동이라 모양도 같아야 한다. */}
+        <button
+          type="button"
+          onClick={onToggleSave}
+          aria-pressed={saved}
+          className={`inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[12px] font-bold ${
+            saved
+              ? "border-g-accent-soft bg-g-accent-soft text-g-accent-text"
+              : "border-g-border text-g-text-2 hover:border-g-accent hover:text-g-accent-text"
+          }`}
+        >
+          <Icon name="heart" size={13} className={saved ? "fill-current" : ""} />
+          {saved ? "저장됨" : "저장"}
+        </button>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c && (
           <span className={`${badge} bg-g-success-soft text-g-success-text`}>
