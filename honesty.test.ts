@@ -53,6 +53,11 @@ const LOCKED: { file: string; must: string; why: string }[] = [
     why: "③ 퍼널을 인과로 읽는 오해를 막는 유일한 문장 (§7.15)",
   },
   {
+    file: "app/privacy/page.tsx",
+    must: "서버에 저장하지 않아요",
+    why: "📍 내 주변에서 뽑기(§7.19)가 보내는 기기 좌표를 저장하지 않는다는 유일한 고지 — 기능이 남은 채 이 문장만 지우면 화면이 거짓말한다. (문구의 존재만 본다 — 뭉개기·미저장 자체는 lib/geolocate.test.ts 와 서버 코드가 담당)",
+  },
+  {
     file: "app/layout.tsx",
     must: "ⓒ한국관광공사",
     why: "공사 회신 2026-07-29 지침의 출처 표기 의무 (§14.2)",
