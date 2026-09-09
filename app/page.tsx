@@ -10,12 +10,11 @@ import type {
   CourseResponse,
   CourseStepResponse,
 } from "@/types/tour";
-import type { SavedPlace } from "@/lib/travelStore";
-import { ModeToggle, type Mode } from "@/components/ModeToggle";
 import { FilterPanel } from "@/components/FilterPanel";
+import { FilterSheet } from "@/components/FilterSheet";
+import { ConditionBar } from "@/components/ConditionBar";
 import { ResultCard } from "@/components/ResultCard";
 import { SlotMachine } from "@/components/SlotMachine";
-import { RecordPanel } from "@/components/RecordPanel";
 import { QuietTopStrip } from "@/components/QuietTopStrip";
 import { AuthButtons } from "@/components/AuthButtons";
 import { InstallButton } from "@/components/InstallButton";
@@ -31,7 +30,11 @@ import {
   buildCourseQuery,
   buildEmptySpotQuery,
   initialTogglesFromUrl,
+  parseNearFrom,
 } from "@/lib/query";
+import { conditionSummary } from "@/lib/conditionSummary";
+import { activeDateYmd, dateChips } from "@/lib/tripDate";
+import { useCandidateCount } from "@/hooks/useCandidateCount";
 // 🔭 visitedAreaCodes 는 koreaMap 비의존 경량 모듈에서(§7.11). conqueredSigunguCodes 는 홈에
 //    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
 import { visitedAreaCodes } from "@/lib/visitedAreas";
@@ -71,7 +74,9 @@ const MIN_SPIN_MS = 1200;
 const delay = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("pure");
+  // 🎫 조건 시트 열림(§7.21) — 옛 mode("pure"|"filtered") 상태를 대신한다. 모드는 이제
+  //   상태가 아니라 **파생**이다: 켜진 조건이 없으면 그게 곧 '아무 데나'(§2 불변식).
+  const [condOpen, setCondOpen] = useState(false);
   const [areas, setAreas] = useState<Set<number>>(new Set());
   const [types, setTypes] = useState<Set<number>>(new Set());
   const [seaside, setSeaside] = useState(false); // 🌊 바다 (§6.3)
@@ -110,6 +115,58 @@ export default function Home() {
   const store = useTravelStore();
   const homeSigungu = useHomeSigungu();
   const resultRef = useRef<HTMLDivElement>(null);
+
+  // ─── 🎫 조건 파생(§7.21) — 요약 줄·조건 시트·후보 수·뽑기 쿼리가 **같은 값**을 쓴다 ───
+  // 예전엔 이 파생이 FilterPanel 안에 있어서, 패널이 안 떠 있는 동안 홈은 조건 상태를 몰랐다.
+  // 소유자(이 페이지)가 한 번만 파생해 내려주면 표시·전송이 갈릴 자리가 없다.
+
+  // 📅 자정을 넘겨 stale 이 된 선택은 여기서 걸러진다(§6.8). dateYmd 가 null 이면 dateChips 를
+  //    아예 부르지 않으므로 첫 렌더는 서버·클라가 항상 같다(하이드레이션 안전).
+  const activeYmd = activeDateYmd(dateYmd);
+  const dateLabel =
+    activeYmd != null
+      ? (dateChips().find((c) => c.ymd === activeYmd)?.label ?? null)
+      : null;
+
+  const homeOn = homeSigungu.home?.code != null && homeKm != null;
+
+  // 켜진 조건 라벨들 — 빈 배열이면 '아무 데나'(= 완전 랜덤, §2). 옛 mode 상태를 대신한다.
+  const summary = conditionSummary({
+    areas,
+    types,
+    seaside,
+    pet,
+    barrierFree,
+    seasonal,
+    festival,
+    noRain,
+    quiet,
+    scatter,
+    dateLabel,
+    homeKm: homeOn ? homeKm : null,
+  });
+  const hasCondition = summary.length > 0;
+
+  // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
+  //   activeYmd(stale 정리분)를 넘겨 count 경로도 date 방출/noRain 미방출을 뽑기와 일치시킨다.
+  // ⚠️ scatter 는 **일부러 안 넘긴다**(§6.9B) — ⚖️ 는 풀이 아니라 분포만 바꾸므로 후보 수가
+  //   같아야 하고(불변식), 넣으면 같은 풀의 count URL 이 갈라져 캐시만 쪼개진다.
+  //   "뽑기·count 쿼리 일치" 관례의 유일한 의도적 예외. 여기에 scatter 를 추가하지 말 것.
+  //   🏠 는 풀을 실제로 좁히므로(분포 축인 ⚖️ 와 다르다) count 에도 그대로 넘긴다 —
+  //   안 넘기면 배지가 전국 후보 수를 띄워 거짓말이 된다(§7.17E).
+  const countQuery = buildRandomQuery("filtered", areas, types, {
+    seaside,
+    pet,
+    barrierFree,
+    seasonal,
+    festival,
+    noRain,
+    quiet,
+    home: homeOn ? { code: homeSigungu.home!.code!, km: homeKm! } : null,
+    dateYmd: activeYmd,
+  });
+  // M32 부터 조건 패널이 닫혀 있어도 배지가 요약 줄에 뜬다 → 홈에서 상시 1회 조회(디바운스 400ms).
+  const count = useCandidateCount(countQuery);
 
   useEffect(() => {
     if (filledArea == null) return;
@@ -178,7 +235,12 @@ export default function Home() {
         const data = (await res.json()) as RandomResponse;
         return () => {
           setStatus({ kind: "ok", data });
-          store.recordDraw(data.place, { mode, isRedraw });
+          // 📊 이벤트의 mode 는 이제 파생값(§12.6) — 옛 세그먼트에선 '조건 걸고인데 조건 0개'도
+          //    filtered 로 기록됐는데, 그건 실제로는 완전 랜덤 뽑기였다.
+          store.recordDraw(data.place, {
+            mode: hasCondition ? "filtered" : "pure",
+            isRedraw,
+          });
           if (updateAnchor) {
             const p = data.place;
             setAnchor(
@@ -207,7 +269,7 @@ export default function Home() {
 
   function draw(isRedraw: boolean) {
     // 조건 0개면 빈 문자열 → 파라미터 없이 = 완전 랜덤(§2 불변식).
-    const qs = buildRandomQuery(mode, areas, types, {
+    const qs = buildRandomQuery("filtered", areas, types, {
       seaside,
       pet, // 🐕 켜지면 지역·테마 미방출(§6.11)
       barrierFree, // ♿ 지역·테마·조건과 AND(§6.11)
@@ -221,7 +283,7 @@ export default function Home() {
         homeSigungu.home?.code && homeKm != null
           ? { code: homeSigungu.home.code, km: homeKm }
           : null,
-      dateYmd, // 📅 미래 기준일이면 date 방출 + ☔ 미방출(§6.8)
+      dateYmd: activeYmd, // 📅 미래 기준일이면 date 방출 + ☔ 미방출(§6.8)
     });
     const url = qs ? `/api/random?${qs}` : "/api/random";
     void runDraw(url, isRedraw, true); // 전국 랜덤 → 앵커 갱신
@@ -269,8 +331,7 @@ export default function Home() {
   // 🍃⚖️ 시연 딥링크(§7.16C) — 홈 도착 URL `?quiet=1&scatter=1` → 토글 초기 ON + URL 스트립.
   //   심사 시연·기능설명서에서 "조건을 켠 상태" URL 한 줄로 들어오기 위한 것(토글 켜는 걸 잊는
   //   실수 제거). 서버 동작은 무변 — 클라 토글 상태만 바꾼다.
-  //   ⚠️ 조건 모드로도 함께 전환한다 — 순수 모드에선 buildRandomQuery 가 빈 쿼리를 내므로
-  //     토글만 켜면 아무 효과가 없고 패널도 안 보인다(표시·전송 일치).
+  //   M32(§7.21): 모드 전환 줄이 사라졌다 — 모드가 파생이라 토글만 켜면 그대로 조건이 걸린다.
   //   ref 가드 + replaceState 는 🔭 신호(위)와 같은 M21 패턴. 토글 신호가 없으면 URL 을 건드리지
   //     않아 `?emptySpot=1` 같은 다른 신호를 삼키지 않는다.
   const deeplinkSignalRef = useRef(false);
@@ -283,10 +344,27 @@ export default function Home() {
     // URL(외부 상태)을 읽어 초기 토글을 세우는 자리라 effect 안 setState 가 의도된 동작이다.
     // ref 가드로 1회만 실행되므로 연쇄 렌더도 없다.
     /* eslint-disable react-hooks/set-state-in-effect */
-    setMode("filtered");
     if (on.has("quiet")) setQuiet(true);
     if (on.has("scatter")) setScatter(true);
     /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  // 📍 /map 기록 행 → `?nearFrom=위도,경도&nearName=…` 신호 1회 소비(§7.21).
+  //   기록 서랍이 스탬프북으로 이사하면서 그 안의 '주변 뽑기'가 홈으로 건너오는 길이다.
+  //   🔭 emptySpot 과 같은 패턴 — ref 가드로 StrictMode 이중 실행·새로고침 재발화를 막고
+  //   URL 을 즉시 지운다. 좌표 검증은 parseNearFrom(= lib/geo 한국 경계)이 끝내고 온다.
+  const nearFromSignalRef = useRef(false);
+  useEffect(() => {
+    if (nearFromSignalRef.current) return;
+    const at = parseNearFrom(window.location.search);
+    if (!at) return;
+    nearFromSignalRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    // URL 신호(외부 상태)를 받아 거점을 세우고 뽑기를 시작하는 자리 — 🔭 와 같은 의도된 setState.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnchor({ title: at.title, lat: at.lat, lng: at.lng });
+    void runDraw(`/api/random?${buildNearbyQuery(at.lat, at.lng)}`, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 🍃 TOP5 칩 탭(§7.16A) — 그 시·군·구에서 원샷 뽑기. 조건 패널 상태와 무관한 별도 진입점이라
@@ -302,15 +380,6 @@ export default function Home() {
     if (!anchor) return;
     const url = `/api/random?${buildNearbyQuery(anchor.lat, anchor.lng)}`;
     void runDraw(url, true, false);
-  }
-
-  // 📍 기록(찜·최근·다녀옴)에서 그 장소를 거점으로 삼아 주변 뽑기 — 앵커를 그 장소로 바꾼다.
-  function drawNearbyFrom(place: SavedPlace) {
-    if (!hasKoreaCoord(place)) return;
-    setAnchor({ title: place.title, lat: place.lat, lng: place.lng });
-    const url = `/api/random?${buildNearbyQuery(place.lat, place.lng)}`;
-    void runDraw(url, true, false);
-    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   // 📍 내 위치에서 뽑기(§7.19) — 기기 좌표를 앵커로 삼아 그 주변에서 뽑는다. 좌표는 100m 로
@@ -438,19 +507,9 @@ export default function Home() {
   const loading = status.kind === "loading";
   const currentIsNearby =
     status.kind === "ok" && status.data.picked.distanceM != null;
-  const canDrawNearby = !!anchor && (mode === "pure" || currentIsNearby);
-
-  const hasCondition =
-    areas.size > 0 ||
-    types.size > 0 ||
-    seaside ||
-    pet ||
-    barrierFree ||
-    seasonal ||
-    festival ||
-    noRain ||
-    quiet ||
-    scatter;
+  // 📍 near= 경로는 서버가 지역·테마·조건을 무시한다(§7.6) — 조건이 걸린 채로 이 버튼을 내주면
+  //    조건이 조용히 무시된다. 이미 주변 결과인 경우만 예외(옛 mode === "pure" 판정과 동치).
+  const canDrawNearby = !!anchor && (!hasCondition || currentIsNearby);
 
   // 🎰 지도에 넘길 phase — 기존 draw lifecycle 에서 파생(새 상태 아님).
   const mapPhase = loading ? "loading" : status.kind === "ok" ? "result" : "idle";
@@ -492,40 +551,15 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col gap-3.5 px-5 pb-5 pt-[18px]">
-          <ModeToggle mode={mode} onChange={setMode} />
-
-          {mode === "filtered" && (
-            <FilterPanel
-              selectedAreas={areas}
-              selectedTypes={types}
-              seaside={seaside}
-              pet={pet}
-              barrierFree={barrierFree}
-              seasonal={seasonal}
-              festival={festival}
-              noRain={noRain}
-              quiet={quiet}
-              scatter={scatter}
-              dateYmd={dateYmd}
-              home={homeSigungu.home}
-              homeKm={homeKm}
-              homeSaving={homeSigungu.saving}
-              onSelectHomeKm={setHomeKm}
-              onSaveHome={(code) => void homeSigungu.save(code)}
-              onToggleArea={toggleArea}
-              onToggleType={toggleType}
-              onToggleSeaside={() => toggleTarget("seaside")}
-              onTogglePet={() => toggleTarget("pet")}
-              onToggleBarrierFree={() => toggleTarget("barrierFree")}
-              onToggleSeasonal={() => setSeasonal((v) => !v)}
-              onToggleFestival={() => setFestival((v) => !v)}
-              onToggleNoRain={() => setNoRain((v) => !v)}
-              onToggleQuiet={() => setQuiet((v) => !v)}
-              onToggleScatter={() => setScatter((v) => !v)}
-              onSelectDate={setDateYmd}
-              onClear={clearFilters}
-            />
-          )}
+          {/* 🎫 조건 요약 한 줄(§7.21) — 옛 [아무 데나 | 조건 걸고] 세그먼트 + 959px 인라인
+              패널의 자리. 상태를 말하고 시트를 여는 일만 한다(조건 자체는 시트 안에). */}
+          <ConditionBar
+            summary={summary}
+            count={count}
+            unit={homeOn ? "개 동네" : "곳"}
+            onOpen={() => setCondOpen(true)}
+            disabled={loading}
+          />
 
           {/* 유일한 전국 랜덤 뽑기 버튼 — 화면에서 유일하게 채워진 주홍 면(= 행동).
               결과가 뜬 뒤엔 "다시 굴리기"로 라벨·아이콘만 바뀐다(결과 카드에 뽑기 버튼 중복 없음).
@@ -597,9 +631,7 @@ export default function Home() {
           <div className="mt-3.5">
             <ErrorPanel
               error={status.error}
-              onClearConditions={
-                mode === "filtered" && hasCondition ? clearFilters : null
-              }
+              onClearConditions={hasCondition ? clearFilters : null}
             />
           </div>
         )}
@@ -618,47 +650,80 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🍃 오늘 한적 TOP5(§7.16A) — 통합 카드 **밖** 아래, 결과 카드 아래·기록 서랍 위.
-          데이터 없음·stale 이면 스트립은 자기 자신을 렌더하지 않는다(빈 자리). */}
-      <div className="mt-3.5">
-        <QuietTopStrip onPick={drawQuietTop} disabled={loading} />
-      </div>
-
-      {/* 📈 홈→/impact 서사 연결(§7.16B) — 문제 정의 화면은 M26 산출물 재사용.
-          스트립 안이 아니라 밖에 둔다 — 혼잡도 데이터가 stale 이면 스트립이 통째로 사라지는데,
-          이 링크는 그와 무관하게 항상 있어야 한다(서사 진입점이 데이터 신선도에 인질 잡히지 않게).
+      {/* 🍃📈 둘러보기(§7.16A·B) — 한적 TOP5 스트립 + 쏠림 진입점을 **한 카드**로 묶고,
+          결과 엽서가 뜨면 접는다(§7.21). 오버투어리즘 정면 노출은 유지하되, 뽑고 난 뒤의 화면은
+          결과·코스가 주인공이라 상시 점유를 풀었다.
+          ⚠️ 임팩트 링크는 스트립 **밖**이다 — 혼잡도 데이터가 stale 이면 스트립이 통째로 사라지는데,
+             이 링크는 그와 무관하게 있어야 한다(서사 진입점이 데이터 신선도에 인질 잡히지 않게).
+             스트립이 없을 때 윗선만 뜨는 걸 막는 건 first:border-t-0 가 한다(JS 조건 불필요).
           ⚠️ 배수(핸드오프 시안의 "서울은 세종보다 71배")를 여기 박지 않는다 — 그 값은 /impact ①이
              공공 데이터에서 매번 계산하는 값이라 정적 문구로 두면 곧 어긋난다(구현 시점 실측 68.4배로
              이미 시안과 불일치). 홈은 배수를 말하지 않고, 실값은 언제나 /impact ① 캡션이 낸다. */}
-      <div className="mt-3.5 flex items-center gap-3 rounded-[14px] border border-dashed border-g-border-strong bg-[#fffdf7] px-4 py-3.5">
-        <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-g-warning-soft text-g-warning-text">
-          <Icon name="scales" size={16} />
-        </span>
-        <p className="flex-1 text-[13px] leading-[1.55] text-g-text-2">
-          <b className="font-bold text-g-text">전국 방문</b>이 얼마나 쏠렸는지 —{" "}
-          <Link
-            href="/impact"
-            className="font-bold underline underline-offset-2 hover:text-g-primary"
-          >
-            숫자로 보기
-          </Link>
-        </p>
-      </div>
+      {status.kind !== "ok" && (
+        <section className="mt-3.5 overflow-hidden rounded-[14px] border border-g-border bg-g-surface">
+          <QuietTopStrip onPick={drawQuietTop} disabled={loading} />
+          <div className="flex items-center gap-3 border-t border-g-border bg-[#fffdf7] px-4 py-3.5 first:border-t-0">
+            <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-g-warning-soft text-g-warning-text">
+              <Icon name="scales" size={16} />
+            </span>
+            <p className="flex-1 text-[13px] leading-[1.55] text-g-text-2">
+              <b className="font-bold text-g-text">전국 방문</b>이 얼마나 쏠렸는지 —{" "}
+              <Link
+                href="/impact"
+                className="font-bold underline underline-offset-2 hover:text-g-primary"
+              >
+                숫자로 보기
+              </Link>
+            </p>
+          </div>
+        </section>
+      )}
 
-      {/* 기록(찜·최근·다녀옴) */}
-      <div className="mt-3.5">
-        <RecordPanel
-          saved={store.saved}
-          recent={store.recent}
-          visited={store.visited}
-          courses={store.courses}
-          onRemove={store.remove}
-          onRemoveCourse={store.removeCourse}
-          onNavigate={store.logNavigate}
-          onDrawNearby={drawNearbyFrom}
-          onRate={store.setRating}
+      {/* 🎫 조건 시트(§7.21) — fixed 오버레이라 티켓 카드의 overflow-hidden 밖(main 끝)에 둔다.
+          닫힌 동안은 아무것도 렌더하지 않으므로 🏠 거주지 목록(~20KB) 청크도 열 때 받는다(§7.17E). */}
+      <FilterSheet
+        open={condOpen}
+        count={count}
+        unit={homeOn ? "개 동네" : "곳"}
+        canClear={hasCondition}
+        onClear={clearFilters}
+        onClose={() => setCondOpen(false)}
+        onDraw={() => {
+          setCondOpen(false);
+          draw(status.kind === "ok");
+        }}
+        drawing={loading}
+      >
+        <FilterPanel
+          selectedAreas={areas}
+          selectedTypes={types}
+          seaside={seaside}
+          pet={pet}
+          barrierFree={barrierFree}
+          seasonal={seasonal}
+          festival={festival}
+          noRain={noRain}
+          quiet={quiet}
+          scatter={scatter}
+          activeYmd={activeYmd}
+          home={homeSigungu.home}
+          homeKm={homeKm}
+          homeSaving={homeSigungu.saving}
+          onSelectHomeKm={setHomeKm}
+          onSaveHome={(code) => void homeSigungu.save(code)}
+          onToggleArea={toggleArea}
+          onToggleType={toggleType}
+          onToggleSeaside={() => toggleTarget("seaside")}
+          onTogglePet={() => toggleTarget("pet")}
+          onToggleBarrierFree={() => toggleTarget("barrierFree")}
+          onToggleSeasonal={() => setSeasonal((v) => !v)}
+          onToggleFestival={() => setFestival((v) => !v)}
+          onToggleNoRain={() => setNoRain((v) => !v)}
+          onToggleQuiet={() => setQuiet((v) => !v)}
+          onToggleScatter={() => setScatter((v) => !v)}
+          onSelectDate={setDateYmd}
         />
-      </div>
+      </FilterSheet>
     </main>
   );
 }

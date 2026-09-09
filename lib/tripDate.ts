@@ -38,3 +38,20 @@ export function dateChips(now: Date = new Date()): DateChip[] {
     return true;
   });
 }
+
+/**
+ * 선택 ymd → '조건으로 인정되는 미래 기준일' 또는 null(M32).
+ * 오늘·과거·현재 칩에 없는 값은 전부 null — 자정을 넘겨 stale 이 된 선택이 소리 없이
+ * 다른 날짜로 살아남지 않게 한다(§6.8).
+ *
+ * FilterPanel 안에 있던 파생을 끌어냈다: 조건 요약 줄과 조건 시트가 **같은 판정**을 써야
+ * 한다(두 곳이 각자 파생하면 자정 통과 때 표시와 전송이 어긋난다).
+ */
+export function activeDateYmd(
+  dateYmd: string | null,
+  now: Date = new Date(),
+): string | null {
+  if (!dateYmd) return null;
+  if (dateYmd === ymdOffset(now, 0)) return null; // 오늘 = 기본
+  return dateChips(now).some((c) => c.ymd === dateYmd) ? dateYmd : null;
+}

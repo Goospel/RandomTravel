@@ -3,10 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { AREA_CODES, CONTENT_TYPES, HOME_RANGE_KM } from "@/lib/constants";
-import { buildRandomQuery } from "@/lib/query";
 import { dateChips } from "@/lib/tripDate";
-import { kstYmd } from "@/lib/kst";
-import { useCandidateCount } from "@/hooks/useCandidateCount";
 import type { HomeSigungu } from "@/hooks/useHomeSigungu";
 import { Icon, type IconName } from "@/components/icons";
 
@@ -16,9 +13,14 @@ const HomePicker = dynamic(() => import("@/components/HomePicker"), {
   loading: () => <span className="text-[12px] text-g-text-2">불러오는 중…</span>,
 });
 
-// 🎫 탑승 조건 패널 — 티켓 카드 안에 한 단 밝게 얹힌 인셋. 캡슐 칩 + 실시간 후보 수 배지 +
-//   1줄 추가 조건 토글. 후보 수는 조건이 바뀔 때마다 /api/random/count 로 근사 집계.
+// 🎫 탑승 조건 — 캡슐 칩 + 1줄 추가 조건 토글.
 //   설명문은 전부 걷어냈다 — 화면이 이미 보여주는 걸 문장으로 반복하지 않는다(designGuide 문구 톤).
+//
+//   M32(§7.21)부터 이건 **조건 시트(FilterSheet)의 내용물**이다: 티켓 카드 안 인셋이던 시절엔
+//   이 패널 하나가 959px 을 먹어 주 CTA 를 첫 화면 밖으로 밀어냈다(실측 613 → 1,572px).
+//   그래서 카드 껍데기·제목 줄·후보 배지·초기화 줄은 전부 시트로 올라갔고 조건 자체만 남는다.
+//   기준일 파생(activeYmd)도 소유자(app/page.tsx)가 lib/tripDate.activeDateYmd 로 한 번만 하고
+//   내려준다 — 요약 줄과 시트가 서로 다른 날짜를 말하면 표시·전송이 갈린다.
 
 const CHIP_BASE =
   "whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12px] leading-[1.2]";
@@ -36,51 +38,6 @@ const CHIP_LOCKED = `${CHIP_BASE} inline-flex cursor-not-allowed items-center ga
 
 const GROUP_LABEL =
   "text-[11px] font-bold uppercase leading-none tracking-[0.1em] text-g-text-3";
-
-/**
- * 실시간 후보 수 배지 — 조건이 얼마나 넓은지 투명하게 보여준다.
- * unit: 🏠 거주지 반경은 서버가 **동네 수**를 센다(🔭 와 같은 단위) — "곳"이라고 쓰면
- *   관광지 수로 읽혀 거짓말이 된다(§7.17E).
- */
-function CandidateBadge({ query, unit = "곳" }: { query: string; unit?: string }) {
-  const count = useCandidateCount(query);
-  const pill =
-    "whitespace-nowrap rounded-full px-2.5 py-[5px] text-[12px] font-bold leading-[1.3]";
-  const neutral = `${pill} border border-g-primary-soft-border bg-[#f2faf9] text-g-primary`;
-
-  if (count.status === "loading") {
-    return (
-      <span aria-live="polite" className={neutral}>
-        후보 세는 중…
-      </span>
-    );
-  }
-  if (count.status === "dynamic") {
-    return (
-      <span aria-live="polite" className={neutral}>
-        조건에 맞는 곳에서
-      </span>
-    );
-  }
-  // count
-  if (count.totalCount === 0) {
-    return (
-      <span
-        aria-live="polite"
-        className={`${pill} bg-g-warning-soft text-g-warning-text`}
-      >
-        조건이 좁아요 · 0{unit}
-      </span>
-    );
-  }
-  return (
-    <span aria-live="polite" className={neutral}>
-      ≈ {count.totalCount.toLocaleString("ko-KR")}
-      {unit}
-      {count.approx ? "+" : ""} 후보
-    </span>
-  );
-}
 
 /**
  * 추가 조건 토글 1개 (🌊·🐕·♿·🦀·🎪·☔·🍃·⚖️) — 아이콘 칩 + 라벨 **한 줄**.
@@ -167,7 +124,7 @@ export function FilterPanel({
   noRain,
   quiet,
   scatter,
-  dateYmd,
+  activeYmd,
   home,
   homeKm,
   homeSaving,
@@ -184,7 +141,6 @@ export function FilterPanel({
   onToggleQuiet,
   onToggleScatter,
   onSelectDate,
-  onClear,
 }: {
   selectedAreas: Set<number>;
   selectedTypes: Set<number>;
@@ -199,8 +155,8 @@ export function FilterPanel({
   quiet: boolean;
   /** ⚖️ 분산 모드(§6.9B). 필터가 아니라 분포 축 — 후보 수에 영향 없음 */
   scatter: boolean;
-  /** 📅 선택 기준일 YYYYMMDD(§6.8). null = 오늘(기본) */
-  dateYmd: string | null;
+  /** 📅 조건으로 인정된 미래 기준일 YYYYMMDD(§6.8, activeDateYmd 통과분). null = 오늘(기본) */
+  activeYmd: string | null;
   /** 🏠 거주지(§7.17). null = 비로그인 → 섹션 자체를 감춘다(회원 전용) */
   home: HomeSigungu | null;
   /** 🏠 선택한 거리 밴드 km. null = 제한 없음(기본) */
@@ -219,7 +175,6 @@ export function FilterPanel({
   onToggleQuiet: () => void;
   onToggleScatter: () => void;
   onSelectDate: (ymd: string | null) => void;
-  onClear: () => void;
 }) {
   // 🏠 거주지 변경 UI 노출(로컬 UI 상태 — 저장값은 서버가 단일 출처).
   const [editingHome, setEditingHome] = useState(false);
@@ -228,68 +183,19 @@ export function FilterPanel({
   //   시·군·구 셀로 갈라져 지역·테마·나머지 조건이 서버에서 무시된다 → UI 도 잠근다.
   const homeOn = !!home?.code && homeKm != null;
 
-  // ⚖️ 는 후보를 안 줄이지만 '기본과 다른 상태'라 초기화 대상 — 📅 날짜 칩과 같은 취급.
-  const hasAny =
-    homeOn ||
-    selectedAreas.size > 0 ||
-    selectedTypes.size > 0 ||
-    seaside ||
-    pet ||
-    barrierFree ||
-    seasonal ||
-    festival ||
-    noRain ||
-    quiet ||
-    scatter;
-
   // 대상 축(🌊·🐕·♿)은 동시 1개(§6.11) — 하나 켜지면 나머지 둘은 잠긴다(잠긴 토글은
   //   눌리지 않은 것으로 취급 = ☔ 관례). 🐕 는 상류가 지역·타입을 안 받아 지역·테마까지 잠근다.
   const targetOn = seaside || pet || barrierFree;
   const areaLocked = pet || homeOn; // 🐕 = 전국 전용 · 🏠 = 거주지 반경이 지역을 정한다
   const typeLocked = seaside || pet || homeOn; // 🌊 = 관광지 고정 · 🐕·🏠 = 전 타입
 
-  // 📅 방문 시점 칩(§6.8) — 조건 모드 진입은 마운트 후(pure 기본)라 렌더 시 new Date() 안전(SSR 아님).
-  //    선택 ymd 가 현재 칩에 없으면(자정 통과·과거화) '오늘'로 간주 — 소리 없는 날짜 변경 방지.
-  const now = new Date();
-  const chips = dateChips(now);
-  const todayYmd = kstYmd(now);
-  const activeYmd =
-    dateYmd && dateYmd !== todayYmd && chips.some((c) => c.ymd === dateYmd)
-      ? dateYmd
-      : null;
+  // 📅 방문 시점 칩(§6.8) — 시트는 사용자가 열 때만 마운트되므로 렌더 시 new Date() 안전(SSR 아님).
+  //    activeYmd(자정 통과 stale 을 걸러낸 값)는 소유자가 내려준다 — 요약 줄과 같은 판정을 써야 한다.
+  const chips = dateChips();
   const rainLocked = activeYmd != null || homeOn; // 미래 기준일 → ☔ 오늘 전용 잠금(🏠 도 잠금)
 
-  // 후보 수 조회용 쿼리 — 뽑기와 같은 파라미터(buildRandomQuery)를 재사용해 서버와 일치.
-  //   activeYmd(stale 정리분)를 넘겨 count 경로도 date 방출/noRain 미방출을 뽑기와 일치시킨다.
-  // ⚠️ scatter 는 **일부러 안 넘긴다**(§6.9B) — ⚖️ 는 풀이 아니라 분포만 바꾸므로 후보 수가
-  //   같아야 하고(불변식), 넣으면 같은 풀의 count URL 이 갈라져 캐시만 쪼개진다.
-  //   "뽑기·count 쿼리 일치" 관례의 유일한 의도적 예외. 여기에 scatter 를 추가하지 말 것.
-  //   🏠 는 풀을 실제로 좁히므로(분포 축인 ⚖️ 와 다르다) count 에도 그대로 넘긴다 —
-  //   안 넘기면 배지가 전국 후보 수를 띄워 거짓말이 된다(§7.17E).
-  const countQuery = buildRandomQuery("filtered", selectedAreas, selectedTypes, {
-    seaside,
-    pet,
-    barrierFree,
-    seasonal,
-    festival,
-    noRain,
-    quiet,
-    home: homeOn ? { code: home!.code!, km: homeKm! } : null,
-    dateYmd: activeYmd,
-    todayYmd,
-  });
-
   return (
-    <div className="flex w-full flex-col gap-4 rounded-[14px] border border-g-border bg-g-surface-3 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-[7px] font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
-          <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[7px] bg-g-primary-soft text-g-primary">
-            <Icon name="start" size={13} />
-          </span>
-          탑승 조건
-        </span>
-        <CandidateBadge query={countQuery} unit={homeOn ? "개 동네" : "곳"} />
-      </div>
+    <div className="flex w-full flex-col gap-4">
 
       {/* 🏠 집에서 갈 만한 곳(§7.17E) — 회원 전용이라 home=null(비로그인)이면 섹션이 없다. */}
       {home && (
@@ -569,20 +475,6 @@ export function FilterPanel({
         </LockNote>
       )}
 
-      <div className="text-[12px] leading-none text-g-text-3">
-        {/* 날짜만 골라도(hasAny=false) 초기화 대상은 있으므로 버튼 노출 — dateYmd 도 게이트(§6.8) */}
-        {hasAny || dateYmd != null ? (
-          <button
-            type="button"
-            onClick={onClear}
-            className="underline underline-offset-2 hover:text-g-primary"
-          >
-            선택 초기화
-          </button>
-        ) : (
-          "아무것도 안 고르면 전국·모든 테마에서 완전 랜덤"
-        )}
-      </div>
     </div>
   );
 }

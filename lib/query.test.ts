@@ -14,6 +14,8 @@ import {
   parseOnlySigungu,
   initialTogglesFromUrl,
   parseHomeRange,
+  buildNearFromQuery,
+  parseNearFrom,
 } from "@/lib/query";
 
 describe("parseAreaCodes — 화이트리스트·정수·양수·중복제거", () => {
@@ -748,5 +750,57 @@ describe("buildRandomQuery — 🏠 home 옵션(§7.17D·E)", () => {
     });
     expect(after).toBe(before);
     expect(new URLSearchParams(before).has("fromHome")).toBe(false);
+  });
+});
+
+// 📍 /map 기록 행 → 홈 주변 뽑기 신호(M32) — 🔭 `?emptySpot=1`(§7.11)과 같은 1회 소비 패턴.
+//   기록 서랍이 홈에서 스탬프북으로 이사하면서, 그 안의 '주변 뽑기'는 홈으로 건너와야 한다.
+//   좌표 검증은 parseLatLng(= lib/geo 한국 경계) 재사용 — 경계 판정을 두 벌 두지 않는다.
+describe("buildNearFromQuery / parseNearFrom — 주변 뽑기 거점 신호", () => {
+  it("왕복 — 만든 쿼리를 그대로 되읽는다", () => {
+    const qs = buildNearFromQuery(35.243, 129.226, "죽성성당");
+    expect(parseNearFrom(`?${qs}`)).toEqual({
+      lat: 35.243,
+      lng: 129.226,
+      title: "죽성성당",
+    });
+  });
+
+  it("`?` 가 없어도 읽는다", () => {
+    const qs = buildNearFromQuery(37.5665, 126.978, "서울시청");
+    expect(parseNearFrom(qs)?.title).toBe("서울시청");
+  });
+
+  it("한글·특수문자 이름도 인코딩을 타고 살아 돌아온다", () => {
+    const qs = buildNearFromQuery(33.45, 126.57, "카페 & 쉼터 #1");
+    expect(parseNearFrom(qs)?.title).toBe("카페 & 쉼터 #1");
+  });
+
+  it("신호가 없으면 null (다른 신호를 삼키지 않는다)", () => {
+    expect(parseNearFrom("?emptySpot=1")).toBe(null);
+    expect(parseNearFrom("")).toBe(null);
+  });
+
+  it("한국 밖 좌표는 null — parseLatLng 경계 재사용", () => {
+    expect(parseNearFrom("?nearFrom=35.68,139.69&nearName=도쿄")).toBe(null);
+  });
+
+  it("형식이 깨진 좌표는 null", () => {
+    expect(parseNearFrom("?nearFrom=abc&nearName=x")).toBe(null);
+    expect(parseNearFrom("?nearFrom=37.5&nearName=x")).toBe(null);
+  });
+
+  it("이름이 없으면 기본 이름으로 — 좌표만으로도 뽑기는 된다", () => {
+    expect(parseNearFrom("?nearFrom=37.5665,126.978")?.title).toBe("고른 곳");
+    expect(parseNearFrom("?nearFrom=37.5665,126.978&nearName=%20%20")?.title).toBe(
+      "고른 곳",
+    );
+  });
+
+  it("긴 이름은 잘라 담는다(UI 가 감당 못 할 길이를 URL 로 못 밀어넣게)", () => {
+    const long = "가".repeat(200);
+    expect(parseNearFrom(buildNearFromQuery(37.5, 127, long))?.title).toHaveLength(
+      60,
+    );
   });
 });

@@ -70,6 +70,42 @@ export function buildNearbyQuery(lat: number, lng: number): string {
   return p.toString();
 }
 
+// ─── 📍 /map 기록 행 → 홈 주변 뽑기 신호 (M32, §7.21) ────────────────
+// 기록 서랍이 홈에서 스탬프북(/map)으로 이사하면서, 그 안의 '주변 뽑기'는 뽑기 화면인 홈으로
+// 건너와야 한다. 🔭 `?emptySpot=1`(§7.11)과 같은 **1회 소비 URL 신호** 패턴.
+// ⚠️ 이건 화면 간 신호이지 API 파라미터가 아니다(API 쪽은 위 near= 그대로).
+
+/** 거점 이름이 없을 때의 기본 — 결과 카드가 "○○ 주변"으로 쓴다. */
+const NEAR_TITLE_FALLBACK = "고른 곳";
+/** 이름 상한 — URL 로 UI 가 감당 못 할 길이를 밀어넣지 못하게 경계에서 자른다. */
+const NEAR_TITLE_MAX = 60;
+
+/** 장소 → `nearFrom=위도,경도&nearName=이름` 홈 이동 쿼리. */
+export function buildNearFromQuery(
+  lat: number,
+  lng: number,
+  title: string,
+): string {
+  const p = new URLSearchParams();
+  p.set("nearFrom", `${lat},${lng}`);
+  p.set("nearName", title);
+  return p.toString();
+}
+
+/**
+ * `?nearFrom=위도,경도&nearName=…` → 거점. 좌표 검증은 parseLatLng(= lib/geo 한국 경계)
+ * 재사용 — 경계 판정을 두 벌 두지 않는다. 신호가 없거나 좌표가 깨졌으면 null.
+ */
+export function parseNearFrom(
+  search: string,
+): { lat: number; lng: number; title: string } | null {
+  const p = new URLSearchParams(search);
+  const at = parseLatLng(p.get("nearFrom"));
+  if (!at) return null;
+  const raw = (p.get("nearName") ?? "").trim();
+  return { ...at, title: raw ? raw.slice(0, NEAR_TITLE_MAX) : NEAR_TITLE_FALLBACK };
+}
+
 // ─── 🧭 반나절 코스 (M20, §7.10) ────────────────────────────────────
 
 /**

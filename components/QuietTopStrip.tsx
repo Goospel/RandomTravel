@@ -44,7 +44,9 @@ export function QuietTopStrip({
   if (!data || data.items.length === 0 || !data.baseYmd) return null;
 
   return (
-    <section className="rounded-[14px] border border-g-border bg-g-surface px-[18px] py-4">
+    // 카드 껍데기는 홈의 '둘러보기' 섹션이 쓴다(M32 §7.21) — 임팩트 링크와 한 카드에 묶이면서
+    // 여기서 테두리를 걷었다. 이 스트립이 null 이어도 그 카드는 링크만 안고 남는다.
+    <section className="px-[18px] py-4">
       <div className="flex items-center justify-between gap-2.5">
         <h2 className="flex items-center gap-[7px] font-display text-[15px] font-bold leading-[1.3] tracking-[-0.02em]">
           <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[7px] bg-g-success-soft text-g-success-text">
