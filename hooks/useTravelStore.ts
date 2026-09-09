@@ -10,7 +10,6 @@ import type { Place } from "@/types/tour";
 import {
   addToRecent,
   parseStored,
-  serialize,
   toSavedPlace,
   toggleSaved,
   setRatingInList,
@@ -18,7 +17,17 @@ import {
   type SavedPlace,
   type RevisitRating,
 } from "@/lib/travelStore";
+import {
+  hasCourse,
+  parseStoredCourses,
+  removeCourse as removeCourseFrom,
+  toSavedCourse,
+  toggleCourse,
+  type SavedCourse,
+  type SavedCourseAnchor,
+} from "@/lib/courseStore";
 import { mergePlaces, localOnly } from "@/lib/syncMerge";
+import type { CourseStep } from "@/types/tour";
 import {
   appendEvent,
   makeEvent,
@@ -30,12 +39,16 @@ import {
 const K_SAVED = "rt.saved.v1";
 const K_VISITED = "rt.visited.v1";
 const K_RECENT = "rt.recent.v1";
+// 🧭 저장한 반나절 코스(§7.10 백로그 ①) — **기기 안에만** 둔다(서버 동기화 없음).
+//   찜·방문과 달리 계정에 안 붙으므로 로그아웃 정리 대상도 아니다(rt.recent.v1 과 같은 성격).
+const K_COURSES = "rt.courses.v1";
 const K_EVENTS = "rt.events.v1";
 const K_SESSION = "rt.session.v1";
 const K_OWNER = "rt.owner.v1"; // 현재 로컬 찜/방문의 소유자 userId(익명이면 없음)
 // 🧹 고아 키 — M29 에서 StoryBanner 를 없애며 읽는 코드가 0건이 됐다. 쓰지 않고 지우기만 한다.
 const K_STORY_SEEN_ORPHAN = "rt.storySeen.v1";
 const RECENT_CAP = 20;
+const COURSES_CAP = 20;
 
 // 로그인 세션당 1회만 서버 병합 — 여러 페이지의 store 인스턴스 중복 병합 방지.
 let mergedForUser: string | null = null;
@@ -115,10 +128,10 @@ function load(key: string): SavedPlace[] {
   return parseStored(window.localStorage.getItem(key));
 }
 
-function persist(key: string, list: SavedPlace[]) {
+function persist(key: string, value: unknown) {
   if (typeof window === "undefined") return; // SSR 가드(load/loadEvents 와 대칭)
   try {
-    window.localStorage.setItem(key, serialize(list));
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // 용량 초과·프라이빗 모드 등 — 조용히 무시(기능은 계속 동작).
     // ⚠️ 알려진 한계: 저장 실패 시 화면(state)과 localStorage 가 desync 될 수 있다
@@ -174,6 +187,8 @@ export interface UseTravelStore {
   saved: SavedPlace[];
   visited: SavedPlace[];
   recent: SavedPlace[];
+  /** 🧭 저장한 반나절 코스(최신 우선). 기기 안에만 남는다 — 로그인해도 동기화되지 않는다. */
+  courses: SavedCourse[];
   isSaved: (contentId: string) => boolean;
   isVisited: (contentId: string) => boolean;
   toggleSave: (place: Place) => void;
@@ -189,6 +204,12 @@ export interface UseTravelStore {
     contentTypeId: number;
   }) => void;
   remove: (list: "saved" | "visited" | "recent", contentId: string) => void;
+  /** 🧭 지금 화면의 코스가 저장돼 있나 — 키는 앵커+스텝 조합(courseKey). */
+  isCourseSaved: (key: string) => boolean;
+  /** 🧭 코스 저장 토글 — 같은 조합을 다시 누르면 해제. */
+  toggleCourseSave: (anchor: SavedCourseAnchor, steps: CourseStep[]) => void;
+  /** 🧭 저장 목록에서 코스 제거(키). */
+  removeCourse: (key: string) => void;
 }
 
 export function useTravelStore(): UseTravelStore {
@@ -198,6 +219,7 @@ export function useTravelStore(): UseTravelStore {
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [visited, setVisited] = useState<SavedPlace[]>([]);
   const [recent, setRecent] = useState<SavedPlace[]>([]);
+  const [courses, setCourses] = useState<SavedCourse[]>([]);
   const eventsRef = useRef<TravelEvent[]>([]);
   const sessionIdRef = useRef<string>("");
 
@@ -233,6 +255,7 @@ export function useTravelStore(): UseTravelStore {
     setSaved(load(K_SAVED));
     setVisited(load(K_VISITED));
     setRecent(load(K_RECENT));
+    setCourses(parseStoredCourses(window.localStorage.getItem(K_COURSES)));
     eventsRef.current = loadEvents();
     setReady(true);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -436,6 +459,24 @@ export function useTravelStore(): UseTravelStore {
     });
   }
 
+  // 🧭 코스 저장 토글(§7.10 백로그 ①) — 로컬 전용이라 서버 write-through·이벤트가 없다.
+  //   같은 앵커+스텝 조합을 다시 누르면 해제(찜과 같은 감각), 상한을 넘으면 오래된 것부터 밀린다.
+  function toggleCourseSave(anchor: SavedCourseAnchor, steps: CourseStep[]) {
+    const next = toggleCourse(
+      courses,
+      toSavedCourse(anchor, steps, Date.now()),
+      COURSES_CAP,
+    );
+    setCourses(next);
+    persist(K_COURSES, next);
+  }
+
+  function removeCourse(key: string) {
+    const next = removeCourseFrom(courses, key);
+    setCourses(next);
+    persist(K_COURSES, next);
+  }
+
   function remove(list: "saved" | "visited" | "recent", contentId: string) {
     const map = {
       saved: [saved, setSaved, K_SAVED] as const,
@@ -457,6 +498,7 @@ export function useTravelStore(): UseTravelStore {
     saved,
     visited,
     recent,
+    courses,
     isSaved: (id) => has(saved, id),
     isVisited: (id) => has(visited, id),
     toggleSave,
@@ -465,5 +507,8 @@ export function useTravelStore(): UseTravelStore {
     recordDraw,
     logNavigate,
     remove,
+    isCourseSaved: (key) => hasCourse(courses, key),
+    toggleCourseSave,
+    removeCourse,
   };
 }

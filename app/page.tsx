@@ -35,6 +35,7 @@ import {
 // 🔭 visitedAreaCodes 는 koreaMap 비의존 경량 모듈에서(§7.11). conqueredSigunguCodes 는 홈에
 //    정적 import 하지 않는다(koreaMap 유입) — 🔭 클릭 시 동적 import 로만 로드.
 import { visitedAreaCodes } from "@/lib/visitedAreas";
+import { courseKey } from "@/lib/courseStore";
 import { AREA_NAME } from "@/lib/constants";
 import { hasKoreaCoord } from "@/lib/geo";
 import { locate } from "@/lib/geolocate";
@@ -408,6 +409,12 @@ export default function Home() {
     );
   }
 
+  // 🧭 코스 저장 토글(§7.10 백로그 ①) — 지금 화면의 앵커+스텝 조합을 기기에 남긴다.
+  function toggleSaveCourse() {
+    if (course.kind !== "ok") return;
+    store.toggleCourseSave(course.anchor, course.data.steps);
+  }
+
   // ✔ 다녀왔어요 — 새 시·도를 처음 채우면 🎉 토스트를 띄운다(정복 지도 즉시 반영 연출).
   function handleToggleVisit(place: Place) {
     const wasVisited = store.isVisited(place.contentId);
@@ -417,6 +424,16 @@ export default function Home() {
       setFilledArea(place.areaCode);
     }
   }
+
+  // 🧭 지금 코스의 조합 키 — 스텝을 하나라도 재뽑으면 키가 바뀌어 저장 표시가 저절로 풀린다
+  //   (저장된 것은 그때 본 그 조합이지, 이후 바뀐 코스가 아니다).
+  const currentCourseKey =
+    course.kind === "ok"
+      ? courseKey(
+          course.anchor.contentId,
+          course.data.steps.map((s) => s.place.contentId),
+        )
+      : null;
 
   const loading = status.kind === "loading";
   const currentIsNearby =
@@ -595,6 +612,8 @@ export default function Home() {
             state={course}
             onRedrawStep={redrawCourseStep}
             onRetry={openCourse}
+            saved={currentCourseKey != null && store.isCourseSaved(currentCourseKey)}
+            onToggleSave={toggleSaveCourse}
           />
         </div>
       )}
@@ -632,7 +651,9 @@ export default function Home() {
           saved={store.saved}
           recent={store.recent}
           visited={store.visited}
+          courses={store.courses}
           onRemove={store.remove}
+          onRemoveCourse={store.removeCourse}
           onNavigate={store.logNavigate}
           onDrawNearby={drawNearbyFrom}
           onRate={store.setRating}
