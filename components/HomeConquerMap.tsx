@@ -31,9 +31,6 @@ export function HomeConquerMap({
 }) {
   const conquered = useMemo(() => conqueredSigunguCodes(visited), [visited]);
   const n = conquered.size;
-  const percent = Math.round((n / TOTAL_SIGUNGU) * 100);
-  // 1곳이라도 정복했으면 0% 로 안 보이게(ConquerMap 히어로와 같은 규칙).
-  const percentLabel = n > 0 && percent < 1 ? 1 : percent;
   const level = explorerLevel(n);
 
   // 🎯 착지 조각 — 좌표 없음·판정 실패(먼바다 등)면 null(강조·칩 미렌더).
@@ -48,39 +45,23 @@ export function HomeConquerMap({
   return (
     <>
       {/* 🎫 티켓 스텁 — 카드에서 유일하게 색이 찬 면. 밝은 잉크를 얹으므로 --g-primary 가 아니라
-          한 단 어두운 --g-primary-deep 을 쓴다(대비 7.2:1 — designGuide 함정 1). */}
-      <div className="flex items-center gap-[14px] bg-g-primary-deep px-5 pb-3.5 pt-4 text-g-on-primary">
-        <div
-          className="flex h-[54px] w-[54px] flex-none items-center justify-center rounded-full"
-          style={{
-            background: `conic-gradient(var(--g-sun) ${Math.max(percent, n > 0 ? 3 : 0)}%, rgba(251,246,236,.22) 0)`,
-          }}
-          aria-hidden
-        >
-          <div className="flex h-[42px] w-[42px] items-center justify-center whitespace-nowrap rounded-full bg-g-primary-deep font-display text-[13px] font-bold tracking-[-0.02em]">
-            {storeReady ? `${percentLabel}%` : "–"}
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-[18px] font-bold leading-[1.25] tracking-[-0.03em]">
-            {n}
-            <span className="font-body text-[13px] font-medium tracking-normal opacity-[.78]">
-              {" "}
-              / {TOTAL_SIGUNGU} 시·군·구에 도장
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-none flex-col items-end gap-[5px]">
-          <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-[rgba(251,246,236,.16)] px-2.5 text-[12px] font-bold">
-            <Icon name={level.icon} size={13} />
-            {level.name}
-          </span>
-          <span className="text-[11px] leading-none opacity-[.78]">
-            {level.next == null ? "최고 레벨" : `다음까지 ${level.remaining}곳`}
+          한 단 어두운 --g-primary-deep 을 쓴다(대비 7.2:1 — designGuide 함정 1).
+          M32(§7.21): 정복률 링(54px)·"다음까지 N곳"·레벨 진행바를 걷고 **한 줄**로 눌렀다 —
+          같은 정보를 /map 히어로가 34px 숫자 + 링 + 진행바로 크게 보여주고 있어 중복이었다.
+          여기 남긴 건 "지금 몇 칸 찍었나"와 레벨 이름 둘뿐이고, 나머지는 '내 지도·기록'이 받는다. */}
+      <div className="flex items-center gap-2.5 bg-g-primary-deep px-5 py-2.5 text-g-on-primary">
+        <div className="min-w-0 flex-1 truncate font-display text-[14px] font-bold leading-[1.2] tracking-[-0.02em]">
+          {storeReady ? n : "–"}
+          <span className="font-body text-[12px] font-medium tracking-normal opacity-[.78]">
+            {" "}
+            / {TOTAL_SIGUNGU} 시·군·구에 도장
           </span>
         </div>
+
+        <span className="inline-flex h-[22px] flex-none items-center gap-1.5 rounded-full bg-[rgba(251,246,236,.16)] px-2.5 text-[11px] font-bold">
+          <Icon name={level.icon} size={12} />
+          {level.name}
+        </span>
       </div>
 
       {/* 지도면 — 흰 종이 위 모눈. 지도가 룰렛 본체다. */}
@@ -104,9 +85,10 @@ export function HomeConquerMap({
           )}
         </div>
 
-        {/* 범례 + /map 진입. 옛 '지도 크게 보기' 버튼 자리를 여기로 옮겼다 —
-            스텁은 스펙이 링·도장 수·레벨 3칸으로 고정돼 있고, 홈에서 /map 으로 가는 길은
-            여기 말고 없다(결과 카드의 '내 지도에서 확인'은 🔭 뽑기에서만 뜬다). */}
+        {/* 범례 + /map 진입. 홈에서 /map 으로 가는 길은 여기 말고 없다(결과 카드의
+            '내 지도에서 확인'은 🔭 뽑기에서만 뜬다). M32(§7.21)에서 기록 서랍이 /map 으로
+            이사하면서 라벨을 '크게 보기' → '내 지도·기록'으로 바꿨다 — 링크 너머에 지도만
+            있는 게 아니라 찜·최근·다녀옴·코스가 함께 있다. */}
         <div className="flex items-center gap-3.5 pb-0.5 pt-1 text-[11px] font-medium leading-none text-g-text-3">
           <div className="flex flex-1 justify-center gap-3.5">
             <span className="inline-flex items-center gap-1.5">
@@ -121,7 +103,7 @@ export function HomeConquerMap({
             href="/map"
             className="inline-flex flex-none items-center gap-1 hover:text-g-primary"
           >
-            크게 보기
+            내 지도·기록
             <Icon name="arrowRight" size={12} />
           </Link>
         </div>

@@ -7,9 +7,12 @@ import { useRouter } from "next/navigation";
 import { useTravelStore } from "@/hooks/useTravelStore";
 import { useEmptySpotCount } from "@/hooks/useEmptySpotCount";
 import { VisitedMap } from "@/components/VisitedMap";
+import { RecordPanel } from "@/components/RecordPanel";
 import { visitedWithCoords } from "@/lib/mapView";
-import { buildEmptySpotQuery } from "@/lib/query";
-import { segment, segmentGroup } from "@/components/ModeToggle";
+import { buildEmptySpotQuery, buildNearFromQuery } from "@/lib/query";
+import { hasKoreaCoord } from "@/lib/geo";
+import type { SavedPlace } from "@/lib/travelStore";
+import { segment, segmentGroup } from "@/components/segment";
 import { Icon } from "@/components/icons";
 
 // 정복 지도는 시·군·구 경계 데이터(약 200KB)를 싣는다 → 별도 청크로 코드 분할해 초기 페인트를
@@ -59,6 +62,13 @@ export default function MapPage() {
     };
   }, [store.ready, store.synced, store.visited]);
   const emptyCount = useEmptySpotCount(excludeQuery);
+
+  // 📍 기록 행의 '주변 뽑기'(§7.21) — 뽑기는 홈의 일이라 여기선 **거점만 실어 보낸다**.
+  //   🔭 "빈 칸에서 뽑기"가 `/?emptySpot=1` 로 넘기는 것과 같은 1회 소비 신호 패턴.
+  function drawNearbyFrom(place: SavedPlace) {
+    if (!hasKoreaCoord(place)) return; // 버튼 자체가 좌표 있는 행에만 뜨지만 이중 가드
+    router.push(`/?${buildNearFromQuery(place.lat, place.lng, place.title)}`);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col gap-5 px-4 py-7 sm:px-5">
@@ -140,6 +150,21 @@ export default function MapPage() {
           핀을 누르면 장소 이름이 보여요 · 카카오/네이버로 다시 열 수 있어요.
         </p>
       )}
+
+      {/* 📑 내 기록(찜·최근·다녀옴·코스) — M32(§7.21)에 홈에서 이사 왔다.
+          지도와 기록은 같은 '내 여행'이라 한 화면에 두고, 홈은 뽑기만 남긴다.
+          기록이 늘어나도 뽑기 흐름을 밀어내지 않는 게 이 이사의 요점이다. */}
+      <RecordPanel
+        saved={store.saved}
+        recent={store.recent}
+        visited={store.visited}
+        courses={store.courses}
+        onRemove={store.remove}
+        onRemoveCourse={store.removeCourse}
+        onNavigate={store.logNavigate}
+        onDrawNearby={drawNearbyFrom}
+        onRate={store.setRating}
+      />
     </main>
   );
 }
