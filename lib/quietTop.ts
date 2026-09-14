@@ -8,7 +8,7 @@
 //     ranks 키 = 법정동 signguCd / 셀 = TourAPI sigunguCode. 섞지 않는다(코드 직결 금지).
 
 import { KOREA_SIGUNGU, type Sigungu } from "@/lib/koreaMap";
-import { sigunguPctRank } from "@/lib/congestion";
+import { pctBelow, sigunguPctRank } from "@/lib/congestion";
 import { TOUR_SIGUNGU_CELLS } from "@/lib/tourSigungu";
 import { AREA_NAME } from "@/lib/constants";
 import type { QuietTopItem } from "@/types/tour";
@@ -52,7 +52,7 @@ export function topQuietSigungu(
         code: sg.code,
         name: sg.name,
         areaName: AREA_NAME[sg.area] ?? "",
-        pctBelow: Math.round(pct * 100),
+        pctBelow: pctBelow(pct),
       },
     });
   }

@@ -219,6 +219,13 @@ describe("congestionBadge — 뽑힌 시군구 배지(pctRank ≤ 0.5일 때만)
     });
   });
 
+  // 전국에서 가장 한적한 곳은 pctRank 0 — 그대로 반올림하면 "집중률 하위 0%"가 돼 "0%에 속한다"는
+  //   말이 안 되는 문장이 된다. 250곳 중 1등은 실제로 하위 1% 안이므로 최소 1로 올린다.
+  it("pctRank 0·0.4% 미만도 '하위 0%'가 아니라 '하위 1%'", () => {
+    expect(congestionBadge(1, "종로구", new Map([["11110", 0]]), "20260710")?.pctBelow).toBe(1);
+    expect(congestionBadge(1, "종로구", new Map([["11110", 0.004]]), "20260710")?.pctBelow).toBe(1);
+  });
+
   it("pctRank > 0.5 면 배지 없음(자기모순 방지)", () => {
     const busy = new Map<string, number>([["11110", 0.68]]);
     expect(congestionBadge(1, "종로구", busy, "20260710")).toBeNull();
