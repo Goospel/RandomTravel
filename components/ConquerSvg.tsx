@@ -88,7 +88,9 @@ export function ConquerSvg({
               vectorEffect="non-scaling-stroke"
               strokeWidth={0.5}
               // 결과일 때 뽑힌 조각만 온전히, 나머지는 0.4 로 눌러 시선을 하나로 모은다.
-              fillOpacity={isResult && !isHit ? 0.4 : 1}
+              // 착지할 조각이 없으면(좌표 0 인 여행코스 등 — sigunguAt 실패) 누르지 않는다:
+              //   강조 없이 전국만 흐려지면 지도가 고장 난 것처럼 보였다(2026-09-14 실측).
+              fillOpacity={hit && !isHit ? 0.4 : 1}
               className={`stroke-g-map-stroke ${
                 on || isHit ? "fill-g-primary" : "fill-g-map-empty"
               }`}

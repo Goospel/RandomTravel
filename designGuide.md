@@ -109,6 +109,8 @@ Tailwind로는 `font-display` / `font-body`. 배선은 [layout.tsx](app/layout.t
 
 한 화면에 **폰트 두께는 2종까지**(500·700).
 
+**한글 줄바꿈은 낱말 단위** — `body` 에 `word-break: keep-all` + `overflow-wrap: break-word`(globals.css). 기본값은 음절마다 끊어 "무관합/니다"가 된다. 칸보다 긴 한 낱말만 넘칠 때 끊긴다. 좁은 flex 칸에 긴 낱말을 넣을 땐 `min-w-0` + `truncate` 로 따로 막는다.
+
 ## 모양·간격
 
 | 요소 | 규칙 |
