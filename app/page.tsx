@@ -43,6 +43,7 @@ import { AREA_NAME } from "@/lib/constants";
 import { hasKoreaCoord } from "@/lib/geo";
 import { useTravelStore } from "@/hooks/useTravelStore";
 import { useHomeSigungu } from "@/hooks/useHomeSigungu";
+import { useRevealScroll } from "@/hooks/useRevealScroll";
 
 // 정복 지도는 시·군·구 경계(~207KB)와 lib/conquer 를 싣는다 → 별도 청크로 분리해 홈 초기
 // 페인트를 막지 않는다(§7.11 번들 보호 — /map 의 ConquerMap 과 같은 처리).
@@ -112,6 +113,10 @@ export default function Home() {
   const store = useTravelStore();
   const homeSigungu = useHomeSigungu();
   const resultRef = useRef<HTMLDivElement>(null);
+  const courseRef = useRef<HTMLDivElement>(null);
+  // 🎯 결과 드러내기 — 뽑기 커밋(ok/error)과 코스 커밋(ok/error)에서 한 번씩. 뽑기 성공만 hold.
+  useRevealScroll(resultRef, status.kind === "ok" || status.kind === "error", status.kind === "ok");
+  useRevealScroll(courseRef, course.kind === "ok" || course.kind === "error", false);
 
   // ─── 🎫 조건 파생(§7.21) — 요약 줄·조건 시트·후보 수·뽑기 쿼리가 **같은 값**을 쓴다 ───
   // 예전엔 이 파생이 FilterPanel 안에 있어서, 패널이 안 떠 있는 동안 홈은 조건 상태를 몰랐다.
@@ -367,9 +372,9 @@ export default function Home() {
   // 🍃 TOP5 칩 탭(§7.16A) — 그 시·군·구에서 원샷 뽑기. 조건 패널 상태와 무관한 별도 진입점이라
   //   buildRandomQuery 를 거치지 않는다(📍 주변 뽑기 동형 — "조건 0개 = 완전 랜덤" 무침범).
   //   빌더 없이 한 조각(`only=<code>`)만 붙인다 — code 는 서버 화이트리스트 통과 값이라 인코딩 불필요.
+  //   결과로의 스크롤은 useRevealScroll 이 담당한다.
   function drawQuietTop(code: string) {
     void runDraw(`/api/random?only=${code}`, false, true);
-    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   // 📍 결과 카드의 "주변에서 뽑기" — 현재 앵커 좌표 반경 내 랜덤. 앵커는 그대로 유지.
@@ -572,7 +577,7 @@ export default function Home() {
 
       {/* aria-live: 로딩→결과 전환을 같은 컨테이너에서 교체해 스크린리더가 새 결과를 안내.
           결과·에러 카드는 통합 카드 **밖** 아래로(카드는 지도+뽑기 전용). */}
-      <div ref={resultRef} aria-live="polite">
+      <div ref={resultRef} aria-live="polite" className="scroll-mt-3.5 scroll-mb-24">
         {status.kind === "ok" && (
           <div className="mt-3.5">
             <ResultCard
@@ -604,7 +609,7 @@ export default function Home() {
 
       {/* 🧭 반나절 코스(M20) — 결과 aria-live 컨테이너 밖(중첩·통째 낭독 방지), 결과 있을 때만 */}
       {status.kind === "ok" && course.kind !== "idle" && (
-        <div className="mt-3.5">
+        <div ref={courseRef} className="mt-3.5 scroll-my-3.5">
           <CoursePanel
             state={course}
             onRedrawStep={redrawCourseStep}
