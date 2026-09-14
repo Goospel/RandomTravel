@@ -50,6 +50,11 @@ describe("topQuietSigungu — 🍃 오늘 한적 TOP5 선정(§7.16A)", () => {
     ]);
   });
 
+  it("가장 한적한 곳(pctRank 0)도 칩에 '하위 0%'가 아니라 '하위 1%' — 배지와 같은 규칙", () => {
+    const top = topQuietSigungu(ranksFor([[38, "신안군", 0]]), 5);
+    expect(top[0].pctBelow).toBe(1);
+  });
+
   it("동률은 통계청 code 오름차순 타이브레이크 — 입력 순서와 무관(결정적)", () => {
     // 같은 pctRank 세 곳 — 통계청 code 는 노원구 11110 < 옹진군 23320 < 신안군 36480.
     // ⚠️ KOREA_SIGUNGU 는 code 순이라 기본 인자로는 정렬 안정성만으로도 통과한다(공허).
