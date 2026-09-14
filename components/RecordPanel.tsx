@@ -320,14 +320,16 @@ function PlaceRow({
         </div>
 
         {canDrawNearby && (
+          // 폰 폭에선 라벨을 빼고 핀 아이콘만 남긴다 — 라벨 pill(90px)이 제목 칸을 390px 에서 76px,
+          // 360px 에서 46px 까지 눌러 "성산일출…"처럼 이름이 네 글자만 보였다. 이름은 aria-label 이 진다.
           <button
             type="button"
             onClick={onDrawNearby}
-            className="inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border border-g-primary-soft-border bg-g-primary-soft px-2.5 text-[12px] font-medium text-g-primary-text hover:border-g-primary"
+            className="inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border border-g-primary-soft-border bg-g-primary-soft px-2.5 text-[12px] font-medium text-g-primary-text hover:border-g-primary max-sm:w-8 max-sm:justify-center max-sm:px-0"
             aria-label={`${place.title} 주변에서 뽑기`}
           >
             <Icon name="pin" size={12} />
-            주변 뽑기
+            <span className="max-sm:hidden">주변 뽑기</span>
           </button>
         )}
         {mapHref && (

@@ -117,6 +117,10 @@ body {
   color: var(--g-text);
   font-family: var(--g-body);
   text-wrap: pretty;
+  /* 한글은 낱말(띄어쓰기) 단위로 줄을 바꾼다 — 기본값은 음절마다 끊어 "무관합/니다"·"달/라져요"가 됐다.
+     칸보다 긴 한 낱말만 넘칠 때 끊는다(break-word). designGuide 「타이포」 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 모눈 — 지도를 얹는 면(홈 티켓 지도면·/map 스탬프 지도). 24px 격자. */
