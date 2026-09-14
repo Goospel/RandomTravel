@@ -359,8 +359,10 @@ export function ResultCard({
                   <Icon name="pin" size={16} />
                   {/* 장소명만 줄이고 라벨은 항상 보이게 — 버튼 전체에 truncate 를 걸면 여행코스형
                       긴 제목에서 "근처에서 한 번 더"가 통째로 잘려 버튼이 무슨 버튼인지 사라진다. */}
+                  {/* 폰 폭(<640)에선 장소명을 뺀다 — 버튼 145px 에 라벨이 108px 라 장소명은 3px
+                      말줄임표 한 점만 남았다. 바로 위 카드 제목이 같은 이름이다. */}
                   {anchorTitle && (
-                    <span className="min-w-0 truncate">{anchorTitle}</span>
+                    <span className="min-w-0 truncate max-sm:hidden">{anchorTitle}</span>
                   )}
                   <span className="flex-none">근처에서 한 번 더</span>
                 </button>
