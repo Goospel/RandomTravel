@@ -33,7 +33,7 @@
 
 ## 검증 (매번 이 세트)
 
-`npx tsc --noEmit` · `npx eslint` · `npx vitest run`(현재 ~196개, 마일스톤마다 증가) · `npx next build`.
+`npx tsc --noEmit` · `npx eslint` · `npx vitest run`(현재 ~690개, 마일스톤마다 증가) · `npx next build`.
 dev 서버 = `.claude/launch.json`의 **"dev" 포트 3456**(`preview_start` 사용).
 
 ## 배포 = 외부 노출 (머지 전 확인)
@@ -53,3 +53,5 @@ main 머지 시 **Vercel 자동 재배포** → https://travelanywhere-kr.vercel
 - `preview_screenshot`이 이 환경에서 자주 멈춤 → `preview_eval`/DOM·계산 스타일로 검증(결정적).
 - `.claude/worktrees`(에이전트 격리 워크트리)는 vitest `exclude`·eslint `globalIgnores`에서 **제외 설정됨** — 되돌리지 말 것(안 그러면 유령 테스트/린트 실패).
 - **Tailwind v4 dev**는 런타임에 처음 등장한 클래스를 풀 리로드 전까지 미적용할 수 있음 → 색 안 뜨면 버그 오판 말고 **프로덕션 빌드/하드 리로드로 확인**.
+- **워크트리 수정본은 `preview_start` 로 못 띄운다** — 메인 체크아웃 코드를 서빙한다(2026-09-14 실측). 재기 전에 화면에 **이번 변경에서 새로 넣은 클래스·문자열**이 있는지 먼저 본다. 우회: 메인 체크아웃을 PR 커밋으로 잠시 `git checkout --detach` → 측정 → `main` 복귀. 브랜치 Preview 배포는 Vercel 로그인 보호(302).
+- **브라우저로 뽑기를 누르는 검증은 `travel_event`(공용 Neon)를 오염시킨다** → `navigate_page` `initScript` 로 `/api/events` 행 `sendBeacon`·`fetch` 만 삼키고 잰다(plan §14.1).
