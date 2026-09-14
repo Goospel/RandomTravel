@@ -27,16 +27,26 @@ describe("revealTiming — 언제·어떻게 움직이나", () => {
   });
 });
 
-describe("revealBlock — 어디에 맞추나", () => {
-  it("위로 벗어났으면 머리부터(start)", () => {
-    expect(revealBlock(-1)).toBe("start");
+describe("revealBlock — 어디에 맞추나 (top·bottom = 뷰포트 기준, vh = 뷰포트 높이)", () => {
+  const VH = 844;
+
+  it("위로 벗어났으면 머리부터(start) — 아래가 보이든 말든", () => {
+    expect(revealBlock(-1, 500, VH)).toBe("start");
+    expect(revealBlock(-1, 1200, VH)).toBe("start");
   });
 
-  it("경계 0 은 벗어난 게 아니다(nearest)", () => {
-    expect(revealBlock(0)).toBe("nearest");
+  it("아래로 삐져나갔으면 nearest", () => {
+    expect(revealBlock(683, 1223, VH)).toBe("nearest"); // 폰 뽑기 직후 실측 카드
+    expect(revealBlock(0, VH + 1, VH)).toBe("nearest");
   });
 
-  it("아래쪽이면 nearest(이미 보이면 no-op)", () => {
-    expect(revealBlock(500)).toBe("nearest");
+  // 이미 전부 보이는 카드에 nearest 를 걸면 scroll-mb(개요 지연 로드 슬랙 96px) 때문에
+  //   데스크톱 '다시 굴리기'에서 98px 튀었다(2026-09-14 실측) — 다 보이면 아예 안 움직인다.
+  it("이미 전부 보이면 null(스크롤 안 함)", () => {
+    expect(revealBlock(181, 780, VH)).toBeNull();
+  });
+
+  it("경계 — top 0·bottom === vh 는 전부 보이는 것", () => {
+    expect(revealBlock(0, VH, VH)).toBeNull();
   });
 });

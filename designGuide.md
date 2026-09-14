@@ -164,7 +164,7 @@ UI에 이모지를 넣지 않는다. [components/icons.tsx](components/icons.tsx
 - SVG 안에서 `transform` 애니메이션을 쓰면 **`transform-box: fill-box; transform-origin: center` 필수**(안 주면 뷰박스 원점 기준으로 튄다).
 - 지속시간 0.3~0.4s, `ease-out` 기준. 0.5s 넘는 장식 모션은 무한 반복 연출(flick·pulse)만.
 - **`prefers-reduced-motion: reduce`에서 전부 꺼진다** — globals.css의 `* { animation: none !important }`가 담당한다.
-- **결과 드러내기 스크롤**(`hooks/useRevealScroll`): 뽑기 커밋 0.8s 뒤 `scrollIntoView` smooth·nearest(위로 벗어나면 start), 코스·에러는 지연 0. hold 중 사용자 입력이면 취소. reduced-motion은 지연 0·`auto` — JS 스크롤은 CSS가 못 끄므로 훅이 직접 본다.
+- **결과 드러내기 스크롤**(`hooks/useRevealScroll`): 뽑기 커밋 0.8s 뒤 `scrollIntoView` smooth·nearest(위로 벗어나면 start, **이미 전부 보이면 안 움직임**), 코스·에러는 지연 0. hold 중 사용자 입력이면 취소. reduced-motion은 지연 0·`auto` — JS 스크롤은 CSS가 못 끄므로 훅이 직접 본다.
 - hover: 아웃라인 버튼만 `hover:-translate-y-px` 200ms. 채워진 주 CTA는 **배경색만** 바뀐다(그림자 변화 없음).
 
 ## 접근성 (타협 불가)

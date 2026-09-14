@@ -856,12 +856,12 @@ TourAPI 풀을 정제 없이 쓰면 "청소년교육센터"·"○○시립도서
 > 문제(실측, 프로덕션): 뽑아도 화면이 안 움직였다. 폰 390×844 에서 결과 제목이 **929px**(화면 밖), 데스크톱 1600×1000 에서 **1,211px**, 반나절 코스 패널은 **1,519px** 에서 조용히 생겼다.
 > 지도 착지 연출(§7.12)과 결과를 한 화면에 다 못 넣으니 **공간이 아니라 시간으로** 푼다.
 
-- **결정**: 뽑기 결과 커밋 **0.8초 뒤**(`LAND_HOLD_MS` — 핀 칩 등장 0.4s + 읽기) 결과 컨테이너를 `scrollIntoView` smooth. 카드가 뷰포트 위로 벗어났으면 `start`, 아니면 `nearest`(이미 보이면 no-op). 뽑기 에러·코스 ok/error 는 기다리지 않는다. 코스 로딩·스텝 재뽑기는 스크롤하지 않는다.
+- **결정**: 뽑기 결과 커밋 **0.8초 뒤**(`LAND_HOLD_MS` — 핀 칩 등장 0.4s + 읽기) 결과 컨테이너를 `scrollIntoView` smooth. 카드가 뷰포트 위로 벗어났으면 `start`, **이미 전부 보이면 스크롤 안 함**, 아래로 삐져나갔으면 `nearest`. ("전부 보이면 안 함"은 리뷰 때 추가 — `nearest` 만으로는 `scroll-mb-24` 슬랙 때문에 데스크톱 '다시 굴리기'마다 98px 튀었다. 슬랙은 개요 지연 로드용이라 줄이지 않고 판단부에서 막았다.) 뽑기 에러·코스 ok/error 는 기다리지 않는다. 코스 로딩·스텝 재뽑기는 스크롤하지 않는다.
 - **가로채지 않기**: hold 중 wheel·touchmove·keydown·pointerdown 이 오면 취소. scrollY 비교를 안 쓰는 이유는 슬롯 언마운트의 scroll anchoring 이 사용자 입력 없이 scrollY 를 85px 바꾸기 때문(실측).
 - **reduced-motion**: 지연 0 + `behavior: "auto"` — 애니메이션이 꺼진 화면에서 0.8초 뒤 순간이동은 예고 없는 두 번째 변화다.
 - **여백**: 결과 `scroll-mt-3.5 scroll-mb-24`(하단 96px = 개요 지연 로드 최대 3줄 슬랙) · 코스 `scroll-my-3.5`.
 - **기각**: 커밋 즉시 start(착지 보상 0) · 착지 칩 유지형 위치 계산(데스크톱 한정 이득·분기 필요) · 레이아웃 변경(§7.21 확정 구조) · 뽑기 시작 때 지도로 올라가기(매번 900px 왕복).
-- **구현**: 순수부 `lib/revealScroll`(`revealTiming`·`revealBlock`, TDD 8건) · 훅 `hooks/useRevealScroll` · `app/page` 배선 2줄 + `drawQuietTop` 의 no-op 스크롤 삭제.
+- **구현**: 순수부 `lib/revealScroll`(`revealTiming`·`revealBlock`, TDD 9건) · 훅 `hooks/useRevealScroll` · `app/page` 배선 2줄 + `drawQuietTop` 의 no-op 스크롤 삭제.
 - **백로그**: CTA 가 뽑는 동안 `disabled` 가 되며 키보드 포커스가 body 로 유실되는 기존 결함(포커스 관리는 별 설계).
 
 ## 8. 기술 스택 & 결정 근거

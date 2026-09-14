@@ -30,7 +30,9 @@ export function useRevealScroll(
     for (const ev of USER_INPUT) window.addEventListener(ev, cancel, { passive: true });
     const t = window.setTimeout(() => {
       if (cancelled) return;
-      el.scrollIntoView({ behavior, block: revealBlock(el.getBoundingClientRect().top) });
+      const { top, bottom } = el.getBoundingClientRect();
+      const block = revealBlock(top, bottom, window.innerHeight);
+      if (block) el.scrollIntoView({ behavior, block });
     }, delayMs);
     return () => {
       window.clearTimeout(t);
