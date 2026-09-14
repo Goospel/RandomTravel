@@ -41,7 +41,6 @@ import { visitedAreaCodes } from "@/lib/visitedAreas";
 import { courseKey } from "@/lib/courseStore";
 import { AREA_NAME } from "@/lib/constants";
 import { hasKoreaCoord } from "@/lib/geo";
-import { locate } from "@/lib/geolocate";
 import { useTravelStore } from "@/hooks/useTravelStore";
 import { useHomeSigungu } from "@/hooks/useHomeSigungu";
 
@@ -110,8 +109,6 @@ export default function Home() {
   const [emptySpotPending, setEmptySpotPending] = useState(false);
   // 🔭 /map → ?emptySpot=1 신호 1회 소비 가드(StrictMode 이중 실행·새로고침 재발화 차단).
   const emptySpotSignalRef = useRef(false);
-  // 📍 내 위치에서 뽑기(§7.19) — 권한 팝업~좌표 수신 사이. runDraw 진입 전이라 loading 이 못 덮는 창.
-  const [geoPending, setGeoPending] = useState(false);
   const store = useTravelStore();
   const homeSigungu = useHomeSigungu();
   const resultRef = useRef<HTMLDivElement>(null);
@@ -382,25 +379,6 @@ export default function Home() {
     void runDraw(url, true, false);
   }
 
-  // 📍 내 위치에서 뽑기(§7.19) — 기기 좌표를 앵커로 삼아 그 주변에서 뽑는다. 좌표는 100m 로
-  //   뭉개져 조회에만 쓰이고 저장되지 않는다(lib/geolocate · /privacy 고지). 실패는 reject 가
-  //   아니라 한국어 문구로 돌아오므로 그대로 에러 카드에 얹는다(뽑기 실패 경로와 같은 자리).
-  async function drawFromMyLocation() {
-    if (loading || geoPending) return;
-    setGeoPending(true);
-    const found = await locate();
-    setGeoPending(false);
-    if (!found.ok) {
-      setStatus({ kind: "error", error: { error: found.message } });
-      return;
-    }
-    // 앵커를 직접 세우고 updateAnchor=false — 거점은 결과(주변 장소)가 아니라 내 위치다(drawNearbyFrom 동형).
-    setAnchor({ title: "내 위치", lat: found.lat, lng: found.lng });
-    const url = `/api/random?${buildNearbyQuery(found.lat, found.lng)}`;
-    void runDraw(url, false, false);
-    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
   // 🧭 반나절 코스 만들기(M20) — 현재 결과 place 를 앵커로 전체 코스 생성. 재클릭 = 전체 재생성.
   function openCourse() {
     if (status.kind !== "ok") return;
@@ -579,20 +557,6 @@ export default function Home() {
                 {status.kind === "ok" ? "다시 굴리기" : "지도 굴리기"}
               </>
             )}
-          </button>
-
-          {/* 📍 내 위치에서 뽑기(§7.19) — 권한 팝업은 이 클릭에서만 뜬다(방문 즉시 묻지 않는다:
-              이유 없이 뜬 권한창은 거절률이 높고, 한 번 거절되면 되돌리기가 번거롭다).
-              🍃 TOP5 칩과 같은 별도 진입점이라 조건 패널 상태를 보지 않는다 — near 경로는 서버가
-              지역·테마·조건을 무시하므로(§7.6) 조건 모드에서도 동작이 같다. */}
-          <button
-            type="button"
-            onClick={() => void drawFromMyLocation()}
-            disabled={loading || geoPending}
-            className="inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-g-primary bg-g-surface text-[14px] font-bold text-g-primary transition-transform duration-200 [corner-shape:squircle] hover:-translate-y-px hover:bg-g-primary-soft disabled:cursor-default disabled:opacity-60"
-          >
-            <Icon name="pin" size={16} />
-            {geoPending ? "내 위치를 찾는 중…" : "내 주변에서 뽑기"}
           </button>
         </div>
 

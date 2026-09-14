@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 // 🔒 정직성·출처 문구 잠금 — 화면이 거짓말을 시작하는 지점을 막는 계측기.
@@ -53,11 +53,6 @@ const LOCKED: { file: string; must: string; why: string }[] = [
     why: "③ 퍼널을 인과로 읽는 오해를 막는 유일한 문장 (§7.15)",
   },
   {
-    file: "app/privacy/page.tsx",
-    must: "서버에 저장하지 않아요",
-    why: "📍 내 주변에서 뽑기(§7.19)가 보내는 기기 좌표를 저장하지 않는다는 유일한 고지 — 기능이 남은 채 이 문장만 지우면 화면이 거짓말한다. (문구의 존재만 본다 — 뭉개기·미저장 자체는 lib/geolocate.test.ts 와 서버 코드가 담당)",
-  },
-  {
     file: "app/layout.tsx",
     must: "ⓒ한국관광공사",
     why: "공사 회신 2026-07-29 지침의 출처 표기 의무 (§14.2)",
@@ -72,4 +67,26 @@ describe("정직성·출처 문구 잠금 (지우면 화면이 거짓말한다)"
       expect(read(file).includes(must), why).toBe(true);
     });
   }
+});
+
+// 📍 기기 위치 조회 금지 잠금(2026-09-14) — 브라우저 좌표를 서버로 보내는 순간 저장 여부와 무관하게
+//   위치정보법 제9조 위치기반서비스사업 **신고 대상**이다(공모전 사무국 FAQ 원문: "서버 DB 저장 여부와
+//   무관하게, 전송하는 자체만으로도 대상"). M30 📍 내 위치에서 뽑기를 그 이유로 걷어냈다(plan.md §14.2).
+//   되살리려면 신고를 먼저 하거나, 좌표가 단말기 밖으로 나가지 않는 구조로 다시 설계한 뒤 이 잠금을 푼다.
+//   사정거리: 소스에 위치 API 호출 **문자열**이 있는지만 본다(외부 라이브러리 경유 호출은 못 잡는다).
+const SRC_DIRS = ["app", "components", "lib", "hooks"];
+const listSources = (dir: string): string[] =>
+  readdirSync(join(__dirname, dir), { withFileTypes: true }).flatMap((e) => {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) return listSources(rel);
+    return /\.(ts|tsx)$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [rel] : [];
+  });
+
+describe("기기 위치 조회 금지 (위치정보법 신고 대상 회피)", () => {
+  it("app·components·lib·hooks 어디에도 Geolocation API 호출이 없다", () => {
+    const hits = SRC_DIRS.flatMap(listSources).filter((f) =>
+      /navigator\.geolocation|getCurrentPosition|watchPosition/.test(read(f)),
+    );
+    expect(hits, "기기 좌표를 받는 코드가 생겼다 — 위치기반서비스사업 신고 여부부터 확인").toEqual([]);
+  });
 });

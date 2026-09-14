@@ -64,12 +64,6 @@ export default function PrivacyPage() {
           로그인을 하더라도 이 기록은 계정과 연결되지 않아요 — 계정과 이어 붙일 수 있는 항목
           자체를 저장 구조에서 뺐어요.
         </p>
-        <p className={P}>
-          <b className="font-bold text-g-text">내 주변에서 뽑기</b>를 누른 순간에만 브라우저가 위치를
-          물어봐요. 알려주신 좌표는 <b className="font-bold text-g-text">약 100m 단위로 뭉갠 뒤</b> 그
-          주변 여행지를 찾는 데만 쓰고, 서버에 저장하지 않아요. 버튼을 누르지 않으면 위치를 아예
-          요청하지 않아요.
-        </p>
       </section>
 
       <section className={CARD}>
