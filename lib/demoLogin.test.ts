@@ -79,6 +79,41 @@ describe("checkDemoCredentials — 자격 비교", () => {
     );
   });
 
+  // 심사위원은 접수 화면의 "ID: openapi / PW: …" 를 복사해 붙인다 — 윈도우 더블클릭은 단어 뒤 공백까지
+  //   잡고, 드래그 복사는 줄바꿈이 딸려 온다. 그 공백 하나로 "아이디나 비밀번호가 맞지 않아요"가 뜨면
+  //   심사 제외 사유("로그인 불가")가 된다(§14.1). 앞뒤 공백만 무시하고 가운데는 그대로 비교한다.
+  it("앞뒤 공백·탭·줄바꿈은 무시한다 (복사해 붙인 값)", () => {
+    expect(
+      checkDemoCredentials({ id: "reviewer ", password: "s3cret-password" }, ENV),
+    ).toBe(true);
+    expect(
+      checkDemoCredentials({ id: "\treviewer", password: " s3cret-password\n" }, ENV),
+    ).toBe(true);
+  });
+
+  it("가운데 공백은 무시하지 않는다", () => {
+    expect(checkDemoCredentials({ id: "revi ewer", password: "s3cret-password" }, ENV)).toBe(
+      false,
+    );
+    expect(checkDemoCredentials({ id: "reviewer", password: "s3cret -password" }, ENV)).toBe(
+      false,
+    );
+  });
+
+  it("공백뿐인 입력은 빈 입력과 같다 — env 가 공백뿐이어도 통과 못 한다", () => {
+    expect(checkDemoCredentials({ id: "  ", password: "  " }, ENV)).toBe(false);
+    expect(
+      checkDemoCredentials({ id: "", password: "" }, { DEMO_LOGIN_ID: " ", DEMO_LOGIN_PASSWORD: " " }),
+    ).toBe(false);
+  });
+
+  it("env 값 쪽 앞뒤 공백도 같은 규칙 — 대시보드에 붙여 넣다 딸려 온 공백으로 잠기지 않는다", () => {
+    const padded = { DEMO_LOGIN_ID: "reviewer ", DEMO_LOGIN_PASSWORD: "s3cret-password\n" };
+    expect(checkDemoCredentials({ id: "reviewer", password: "s3cret-password" }, padded)).toBe(
+      true,
+    );
+  });
+
   it("유니코드 비밀번호도 정확히 비교한다 — 바이트 길이가 아니라 값이 기준", () => {
     const uni = { DEMO_LOGIN_ID: "심사원", DEMO_LOGIN_PASSWORD: "비밀번호🔑" };
     expect(checkDemoCredentials({ id: "심사원", password: "비밀번호🔑" }, uni)).toBe(true);

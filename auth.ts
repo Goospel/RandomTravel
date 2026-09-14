@@ -25,7 +25,12 @@ if (demoLoginEnabled(process.env)) {
   providers.push(
     Credentials({
       name: "심사용 계정",
-      credentials: { id: {}, password: {} },
+      // 홈 '로그인' 버튼(signIn())이 여는 Auth.js 기본 화면에도 이 폼이 그려진다 — 타입을 안 주면
+      //   비밀번호가 **평문 text 칸**으로 보이고 라벨이 'id'·'password' 영어 키 그대로 나온다.
+      credentials: {
+        id: { label: "아이디", type: "text" },
+        password: { label: "비밀번호", type: "password" },
+      },
       async authorize(credentials) {
         if (!checkDemoCredentials(credentials ?? {}, process.env)) return null;
         // Credentials 는 어댑터의 createUser 를 타지 않는다 — 그런데 /api/places·/api/home 이

@@ -53,6 +53,10 @@ export function DemoLoginForm() {
           name="id"
           type="text"
           autoComplete="username"
+          // 폰 키보드가 첫 글자를 대문자로 바꾸면('Openapi') 로그인이 안 된다 — 아이디는 소문자 그대로.
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={id}
           onChange={(e) => setId(e.target.value)}
           className={FIELD}

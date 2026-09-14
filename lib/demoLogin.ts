@@ -40,6 +40,8 @@ function safeEqual(a: string, b: string): boolean {
 /**
  * 입력 자격이 env 값과 일치하는지. env 가 꺼져 있으면 입력과 무관하게 false —
  * "빈 env + 빈 입력"이 우연히 통과하는 구멍을 막는다.
+ * 앞뒤 공백은 양쪽 다 무시한다 — 접수 화면에서 복사해 붙인 값에 딸려 오는 공백 하나가
+ * "로그인 불가 → 심사 제외"로 이어지면 안 된다(§14.1).
  */
 export function checkDemoCredentials(
   input: { id?: unknown; password?: unknown },
@@ -48,6 +50,10 @@ export function checkDemoCredentials(
   if (!demoLoginEnabled(env)) return false;
   const { id, password } = input;
   if (typeof id !== "string" || typeof password !== "string") return false;
+  const wantId = env.DEMO_LOGIN_ID!.trim();
+  const wantPw = env.DEMO_LOGIN_PASSWORD!.trim();
+  // 공백뿐인 env 가 trim 뒤 빈 입력과 맞아떨어지는 구멍을 다시 막는다.
+  if (!wantId || !wantPw) return false;
   // id 는 비밀이 아니라 평범한 비교, 비밀번호만 타이밍세이프.
-  return id === env.DEMO_LOGIN_ID && safeEqual(password, env.DEMO_LOGIN_PASSWORD!);
+  return id.trim() === wantId && safeEqual(password.trim(), wantPw);
 }
