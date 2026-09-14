@@ -127,13 +127,15 @@ export function RecordPanel({
               aria-controls={`rt-panel-${t.key}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setTab(t.key)}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-t-[10px] border border-b-0 px-3 py-[11px] text-[13px] font-bold leading-[1.2] ${
+              // 폰 폭(<640)에선 아이콘을 빼고 여백을 줄인다 — 탭이 4개(M31 코스)가 되며 376px 에서
+              // 탭당 74px 뿐이라 '최/근'·'다/녀/옴'이 세로로 꺾였다(탭 높이 38 → 69px).
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-t-[10px] border border-b-0 px-3 py-[11px] text-[13px] font-bold leading-[1.2] max-sm:gap-1 max-sm:px-1 ${
                 selected
                   ? "border-g-border bg-g-surface text-g-text"
                   : "border-transparent bg-g-surface-2 text-g-text-2 hover:text-g-text"
               }`}
             >
-              <Icon name={t.icon} size={14} />
+              <Icon name={t.icon} size={14} className="max-sm:hidden" />
               {t.label}
               {count > 0 && <span className="font-medium text-g-num">{count}</span>}
             </button>

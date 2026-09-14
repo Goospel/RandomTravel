@@ -64,7 +64,9 @@ export function FilterSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="filter-sheet-title"
-        className="animate-fade-up relative flex max-h-[88vh] flex-col rounded-t-[20px] border-t border-g-border bg-g-surface shadow-lg"
+        // 데스크톱에선 홈 열(max-w 720)과 같은 폭으로 — 안 묶으면 1440px 화면 전체로 퍼져
+        // 조건 버튼 하나가 1000px 가까이 늘어났다.
+        className="animate-fade-up relative mx-auto flex max-h-[88vh] w-full max-w-[720px] flex-col rounded-t-[20px] border-t border-g-border bg-g-surface shadow-lg sm:border-x"
       >
         <div className="flex justify-center pb-1 pt-2.5" aria-hidden>
           <span className="h-1 w-[38px] rounded-full bg-g-border-strong" />
