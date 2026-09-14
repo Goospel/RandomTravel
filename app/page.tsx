@@ -521,7 +521,8 @@ export default function Home() {
           <span className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-g-primary text-g-on-primary">
             <Icon name="map" size={19} />
           </span>
-          <h1 className="font-display text-[24px] font-bold leading-[1.15] tracking-[-0.03em]">
+          {/* 로고는 꺾이지 않는다 — 로그인+앱 설치 pill 이 붙으면 폭 376 에서 34px 만 남아 '어/디/든' 세로로 꺾였다. */}
+          <h1 className="shrink-0 whitespace-nowrap font-display text-[24px] font-bold leading-[1.15] tracking-[-0.03em]">
             어디든
           </h1>
         </div>

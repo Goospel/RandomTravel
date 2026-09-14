@@ -30,7 +30,8 @@ export function AuthButtons() {
             referrerPolicy="no-referrer"
           />
         ) : null}
-        <span className="max-w-[8rem] truncate text-[13px] text-g-text-2">{label}</span>
+        {/* 폰 폭에선 이름을 뺀다 — 로그아웃 pill 이 로그인 상태를 이미 말하고, 이름까지 두면 로고 자리가 모자란다. */}
+        <span className="hidden max-w-[8rem] truncate text-[13px] text-g-text-2 sm:inline">{label}</span>
         <button type="button" onClick={() => signOut()} className={pillButton}>
           로그아웃
         </button>
